@@ -3,6 +3,6 @@
       "target": {
         "namespace": "android_app",
         "package_name": "io.github.festar4o_jpg.twa",
-        "sha256_cert_fingerprints": ["60:B7:E6:C5:57:6A:10:C6:E8:A3:05:30:28:FE:6F:B4:07:39:B7:FD:68:A3:09:72:7C:14:6E:C2:91:85:86:E9"]
+        "sha256_cert_fingerprints": ["2E:D4:90:48:51:AA:52:EF:AD:2D:D0:6E:EC:07:8A:63:9A:0A:B0:E3:C1:31:40:D5:58:BC:56:86:D0:3A:B7:49"]
       }
     }]
