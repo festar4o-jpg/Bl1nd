@@ -490,9 +490,14 @@
 
   // ---------- Enemy Scaling & Spawning ----------
   function spawnEnemyBatch(){
+    // Cap how many enemies can be alive on screen at once, so a slow kill
+    // rate doesn't let spawns snowball into an overwhelming pile-up.
+    const maxOnScreen = 6 + Math.floor(wave / 2);
+    if(enemies.length >= maxOnScreen) return;
+
     // Scaling spawn count every 10 levels
     const tier = Math.floor((wave - 1) / 10);
-    const countToSpawn = 1 + tier;
+    const countToSpawn = Math.min(1 + tier, maxOnScreen - enemies.length);
 
     for(let i = 0; i < countToSpawn; i++){
       spawnEnemy();
@@ -1059,7 +1064,7 @@
       spawnTimer -= dt;
       // Exponentially speed up spawn frequency every 10 levels
       const tier = Math.floor((wave - 1) / 10);
-      const baseInterval = Math.max(1200 - wave * 75, 250);
+      const baseInterval = Math.max(1300 - wave * 55, 300);
       const spawnInterval = Math.max(150, baseInterval / (1 + tier * 0.4));
 
       if(spawnTimer <= 0){
