@@ -313,8 +313,8 @@
   initStars();
   window.addEventListener('resize', initStars);
 
-  const TOP_MARGIN = 56;
-  function bottomLimit(){ return H - (H*0.34 + 44); }
+  const TOP_MARGIN = 46;
+  function bottomLimit(){ return H - (H*0.24 + 40); }
 
   // ---------- Game State ----------
   const UPGRADE_TYPES = ['weapon','damage','rapid','speed','pierce','magnet','shield','life','explosive','homing'];
@@ -336,7 +336,7 @@
   const UPGRADE_MAX = { weapon:7, damage:10, rapid:10, speed:10, pierce:5, magnet:6, explosive:5, homing:5 };
 
   const BASE_FIRE_RATE = 260;
-  const BASE_SPEED = 380;
+  const BASE_SPEED = 430;
   const BOSS_EVERY = 5;
   const BOSS_KINDS = [
     { key:'warbringer', name:'WARBRINGER', color:'#ff3d6e', enrageColor:'#ffcf4a' },
@@ -367,6 +367,7 @@
 
   let boss = null;
   let bossActive = false;
+  let firstBossDefeated = false;
 
   const player = {
     x: 0, y: 0, r: 16,
@@ -411,7 +412,7 @@
   function resetGame(){
     score = 0; wave = 1; waveTimer = 0; spawnTimer = 0;
     enemies = []; bullets = []; enemyBullets = []; upgrades = []; classCores = []; novaPulses = []; particles = []; popups = [];
-    boss = null; bossActive = false;
+    boss = null; bossActive = false; firstBossDefeated = false;
     document.getElementById('wrap').classList.remove('boss-alert');
     player.levels = { weapon:0, damage:0, rapid:0, speed:0, pierce:0, magnet:0, explosive:0, homing:0 };
     player.classes = { drone:false, nova:false, regen:false };
@@ -451,7 +452,7 @@
     let nx = dx / JOY_RADIUS, ny = dy / JOY_RADIUS;
     const mag = Math.hypot(nx,ny);
     if(mag > 0.001){
-      const curved = Math.pow(mag, 0.6);
+      const curved = Math.pow(mag, 0.85);
       nx = nx/mag*curved; ny = ny/mag*curved;
     }
     joy.dx = nx; joy.dy = ny;
@@ -506,14 +507,17 @@
 
   function spawnEnemy(){
     let availableTypes = ['drone'];
-    if (wave >= 2) availableTypes.push('zigzag');
-    if (wave >= 3) availableTypes.push('swarm', 'sniper');
-    if (wave >= 4) availableTypes.push('splitter');
-    // Tougher "tank" enemies wait until after the first boss (wave 5),
-    // once the player has had a real chance to pick up damage upgrades.
-    if (wave >= 6) availableTypes.push('tank', 'bomber');
-    if (wave >= 7) availableTypes.push('turret');
-    if (wave >= 8) availableTypes.push('dasher');
+    // Every special enemy type is held back until the player clears the
+    // first boss (wave 5) — before that it's just the simple drone type,
+    // so waves 1-4 stay readable while learning the game. After the boss,
+    // types are still introduced gradually rather than all at once.
+    if (firstBossDefeated){
+      availableTypes.push('zigzag', 'swarm', 'sniper');
+      if (wave >= 7) availableTypes.push('splitter');
+      if (wave >= 8) availableTypes.push('tank', 'bomber');
+      if (wave >= 9) availableTypes.push('turret');
+      if (wave >= 10) availableTypes.push('dasher');
+    }
 
     let type = availableTypes[Math.floor(Math.random() * availableTypes.length)];
     const x = 40 + Math.random() * (W - 80);
@@ -814,8 +818,8 @@
     if(boss.attackTimer <= 0 && !boss.telegraph){
       fireBossPattern();
       boss.pattern = (boss.pattern + 1) % 3;
-      const base = boss.enraged ? 700 : 1300;
-      boss.attackTimer = Math.max(boss.enraged ? 350 : 500, base - wave * 22);
+      const base = boss.enraged ? 950 : 1650;
+      boss.attackTimer = Math.max(boss.enraged ? 600 : 850, base - wave * 14);
     }
   }
 
@@ -823,45 +827,45 @@
     const cx = boss.x, cy = boss.y + boss.r*0.3;
     if(boss.kind === 'warbringer'){
       if(boss.pattern === 0){
-        const n = 16 + Math.min(12, Math.floor(wave / 2));
+        const n = 10 + Math.min(6, Math.floor(wave / 3));
         for(let i=0;i<n;i++){
           const a = (i/n)*Math.PI*2;
-          enemyBullets.push({ x:cx, y:cy, vx:Math.cos(a)*190, vy:Math.sin(a)*190, r:5 });
+          enemyBullets.push({ x:cx, y:cy, vx:Math.cos(a)*150, vy:Math.sin(a)*150, r:5 });
         }
       } else if(boss.pattern === 1){
         const baseAng = Math.atan2(player.y-cy, player.x-cx);
-        const count = 5;
+        const count = 3;
         for(let i = -Math.floor(count/2); i <= Math.floor(count/2); i++){
-          const a = baseAng + i * 0.18;
-          enemyBullets.push({ x:cx, y:cy, vx:Math.cos(a)*270, vy:Math.sin(a)*270, r:5 });
+          const a = baseAng + i * 0.22;
+          enemyBullets.push({ x:cx, y:cy, vx:Math.cos(a)*210, vy:Math.sin(a)*210, r:5 });
         }
       } else {
-        for(let i=0; i<6; i++){
+        for(let i=0; i<4; i++){
           setTimeout(() => {
             if (!boss || !bossActive) return;
             const targetAng = Math.atan2(player.y - boss.y, player.x - boss.x);
             enemyBullets.push({
               x: boss.x, y: boss.y + boss.r * 0.3,
-              vx: Math.cos(targetAng) * 340, vy: Math.sin(targetAng) * 340, r: 6
+              vx: Math.cos(targetAng) * 260, vy: Math.sin(targetAng) * 260, r: 6
             });
-          }, i * 90);
+          }, i * 160);
         }
       }
     } else if(boss.kind === 'hivemother'){
       if(boss.pattern === 0){
-        const n = 12;
+        const n = 8;
         for(let i=0;i<n;i++){
           const a = (i/n)*Math.PI*2;
-          enemyBullets.push({ x:cx, y:cy, vx:Math.cos(a)*140, vy:Math.sin(a)*140, r:6 });
+          enemyBullets.push({ x:cx, y:cy, vx:Math.cos(a)*115, vy:Math.sin(a)*115, r:6 });
         }
       } else if(boss.pattern === 1){
         const gapX = 60 + Math.random()*(W-120);
-        boss.telegraph = { y: Math.min(H*0.62, Math.max(H*0.3, player.y+10)), duration: 650, t: 0, gapX };
+        boss.telegraph = { y: Math.min(H*0.62, Math.max(H*0.3, player.y+10)), duration: 850, t: 0, gapX };
       } else {
         const baseAng = Math.atan2(player.y-cy, player.x-cx);
         for(let i=-1;i<=1;i++){
-          const a = baseAng + i*0.22;
-          enemyBullets.push({ x:cx, y:cy, vx:Math.cos(a)*220, vy:Math.sin(a)*220, r:5 });
+          const a = baseAng + i*0.26;
+          enemyBullets.push({ x:cx, y:cy, vx:Math.cos(a)*175, vy:Math.sin(a)*175, r:5 });
         }
       }
     } else if(boss.kind === 'twinreaper'){
@@ -869,30 +873,30 @@
       const leftX = boss.x - armX, rightX = boss.x + armX, armY = boss.y;
       if(boss.pattern === 0){
         const angL = Math.atan2(player.y-armY, player.x-leftX);
-        enemyBullets.push({ x:leftX, y:armY, vx:Math.cos(angL)*260, vy:Math.sin(angL)*260, r:5 });
+        enemyBullets.push({ x:leftX, y:armY, vx:Math.cos(angL)*210, vy:Math.sin(angL)*210, r:5 });
         setTimeout(()=>{
           if(!boss || !bossActive) return;
           const rx = boss.x+armX;
           const aR = Math.atan2(player.y-boss.y, player.x-rx);
-          enemyBullets.push({ x:rx, y:boss.y, vx:Math.cos(aR)*260, vy:Math.sin(aR)*260, r:5 });
-        }, 180);
+          enemyBullets.push({ x:rx, y:boss.y, vx:Math.cos(aR)*210, vy:Math.sin(aR)*210, r:5 });
+        }, 260);
       } else if(boss.pattern === 1){
-        const n = 8;
+        const n = 6;
         for(let i=0;i<n;i++){
           const a = (i/n)*Math.PI*2 + boss.t*1.4;
-          enemyBullets.push({ x:leftX, y:armY, vx:Math.cos(a)*170, vy:Math.sin(a)*170, r:4 });
-          enemyBullets.push({ x:rightX, y:armY, vx:Math.cos(-a)*170, vy:Math.sin(-a)*170, r:4 });
+          enemyBullets.push({ x:leftX, y:armY, vx:Math.cos(a)*135, vy:Math.sin(a)*135, r:4 });
+          enemyBullets.push({ x:rightX, y:armY, vx:Math.cos(-a)*135, vy:Math.sin(-a)*135, r:4 });
         }
       } else {
         for(let i=0;i<4;i++){
           const a = Math.PI/2 + i*(Math.PI/2);
-          enemyBullets.push({ x:boss.x, y:boss.y, vx:Math.cos(a)*230, vy:Math.sin(a)*230, r:5 });
+          enemyBullets.push({ x:boss.x, y:boss.y, vx:Math.cos(a)*180, vy:Math.sin(a)*180, r:5 });
         }
         if(boss.enraged){
           const baseAng = Math.atan2(player.y-boss.y, player.x-boss.x);
           for(let i=-1;i<=1;i++){
-            const a = baseAng + i*0.2;
-            enemyBullets.push({ x:boss.x, y:boss.y, vx:Math.cos(a)*260, vy:Math.sin(a)*260, r:5 });
+            const a = baseAng + i*0.24;
+            enemyBullets.push({ x:boss.x, y:boss.y, vx:Math.cos(a)*210, vy:Math.sin(a)*210, r:5 });
           }
         }
       }
@@ -926,6 +930,7 @@
     score += 400 + wave*60;
     spawnPopup(boss.x, boss.y-20, boss.name+' DEFEATED!', '#ffcf4a');
     spawnClassCore(boss.x, boss.y);
+    firstBossDefeated = true;
     boss = null;
     bossActive = false;
     document.getElementById('wrap').classList.remove('boss-alert');
