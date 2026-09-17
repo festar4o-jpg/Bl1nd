@@ -388,8 +388,13 @@
     droneAngle: 0,
     droneTimer: 0,
     novaTimer: 0,
-    regenTimer: 0
+    regenTimer: 0,
+    upgradeCount: 0,
+    shipTier: 0
   };
+
+  const SHIP_TIER_UPGRADES = 3; // how many upgrades picked up per visual tier
+  const SHIP_TIER_MAX = 5;      // tiers 0..5
 
   function recomputeStats(){
     const L = player.levels;
@@ -410,6 +415,8 @@
     document.getElementById('wrap').classList.remove('boss-alert');
     player.levels = { weapon:0, damage:0, rapid:0, speed:0, pierce:0, magnet:0, explosive:0, homing:0 };
     player.classes = { drone:false, nova:false, regen:false };
+    player.upgradeCount = 0;
+    player.shipTier = 0;
     player.droneAngle = 0; player.droneTimer = 0; player.novaTimer = 0; player.regenTimer = 0;
     player.shieldCharges = 0;
     player.hp = 3; player.maxHp = 3;
@@ -623,6 +630,17 @@
     updateHUD();
     sfx.upgrade();
     spawnPopup(player.x, player.y-30, maxed ? 'MAXED!' : UPGRADE_LABELS[type], UPGRADE_COLORS[type]);
+
+    if(!maxed){
+      player.upgradeCount++;
+      const newTier = Math.min(SHIP_TIER_MAX, Math.floor(player.upgradeCount / SHIP_TIER_UPGRADES));
+      if(newTier > player.shipTier){
+        player.shipTier = newTier;
+        sfx.classReward();
+        spawnPopup(player.x, player.y-50, 'SHIP UPGRADED!', '#7df3ff');
+        explode(player.x, player.y, '#7df3ff', 26);
+      }
+    }
   }
 
   function spawnClassCore(x,y){
@@ -1561,19 +1579,90 @@
         ctx.shadowColor='#35e3ff'; ctx.shadowBlur=16;
         ctx.beginPath(); ctx.arc(0,0,player.r+8,0,7); ctx.stroke();
       }
+      const tier = player.shipTier;
+      const r = player.r;
+
+      // Tier 1+: swept side wings behind the main hull
+      if(tier>=1){
+        ctx.fillStyle = '#8fa8ff';
+        ctx.shadowColor = '#8fa8ff'; ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.moveTo(-r*0.7, r*0.2);
+        ctx.lineTo(-r*1.5, r*1.1);
+        ctx.lineTo(-r*0.5, r*0.9);
+        ctx.closePath(); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(r*0.7, r*0.2);
+        ctx.lineTo(r*1.5, r*1.1);
+        ctx.lineTo(r*0.5, r*0.9);
+        ctx.closePath(); ctx.fill();
+      }
+
+      // Tier 2+: forward canards / nose fins
+      if(tier>=2){
+        ctx.fillStyle = '#c9d4ff';
+        ctx.shadowColor = '#c9d4ff'; ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.moveTo(-r*0.35, -r*0.5);
+        ctx.lineTo(-r*0.9, -r*0.1);
+        ctx.lineTo(-r*0.25, r*0.05);
+        ctx.closePath(); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(r*0.35, -r*0.5);
+        ctx.lineTo(r*0.9, -r*0.1);
+        ctx.lineTo(r*0.25, r*0.05);
+        ctx.closePath(); ctx.fill();
+      }
+
+      // Main hull (grows slightly with tier)
+      const hullScale = 1 + tier*0.06;
       ctx.fillStyle = '#eef2ff';
-      ctx.shadowColor = '#7df3ff'; ctx.shadowBlur = 14;
+      ctx.shadowColor = '#7df3ff'; ctx.shadowBlur = 14 + tier*2;
       ctx.beginPath();
-      ctx.moveTo(0,-player.r);
-      ctx.lineTo(player.r*0.8, player.r*0.8);
-      ctx.lineTo(0, player.r*0.4);
-      ctx.lineTo(-player.r*0.8, player.r*0.8);
+      ctx.moveTo(0,-r*hullScale);
+      ctx.lineTo(r*0.8*hullScale, r*0.8*hullScale);
+      ctx.lineTo(0, r*0.4*hullScale);
+      ctx.lineTo(-r*0.8*hullScale, r*0.8*hullScale);
       ctx.closePath();
       ctx.fill();
+
+      // Tier 3+: hull racing stripe / plating accent
+      if(tier>=3){
+        ctx.strokeStyle = '#35e3ff';
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.moveTo(0, -r*0.7*hullScale);
+        ctx.lineTo(0, r*0.5*hullScale);
+        ctx.stroke();
+      }
+
+      // Tier 4+: outer armor ring
+      if(tier>=4){
+        ctx.strokeStyle = '#c9d4ff';
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#c9d4ff'; ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(0, r*0.1, r*1.15, 0, 7);
+        ctx.stroke();
+      }
+
+      // Engine glow(s): more/bigger engines at higher tiers
+      ctx.shadowBlur = 0;
       ctx.fillStyle = '#ff8fa8';
+      const engineY = r*0.9*hullScale;
       ctx.beginPath();
-      ctx.arc(0, player.r*0.9, 5+Math.random()*3, 0, 7);
+      ctx.arc(0, engineY, 5+Math.random()*3, 0, 7);
       ctx.fill();
+      if(tier>=1){
+        ctx.beginPath(); ctx.arc(-r*0.75, engineY-2, 3.5+Math.random()*2, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(r*0.75, engineY-2, 3.5+Math.random()*2, 0, 7); ctx.fill();
+      }
+      if(tier>=5){
+        ctx.fillStyle = '#ffd66a';
+        ctx.beginPath(); ctx.arc(0, engineY+4, 3+Math.random()*2, 0, 7); ctx.fill();
+      }
+
       ctx.restore();
       ctx.globalAlpha = 1;
 
