@@ -190,7 +190,7 @@
     <h1>GALACTIC DEFENDER</h1>
     <p id="highScoreLine"></p>
     <p>Bottom-right joystick moves your ship — it's kept clear of your thumb so you can always see it. Your ship fires automatically.</p>
-    <p>Collect upgrades to permanently stack power. Every 5th wave, a BOSS locks down the field. After the first boss, enemy upgrade drops are reduced by half — but bosses now drop unique relics that physically change your fighter.</p>
+    <p>Collect upgrades to permanently stack power. Every 5th wave, a BOSS locks down the field. Before the first boss, enemy fire rate ramps from 55% on wave 1 to 128% on wave 4. After the first boss, enemy upgrade drops are reduced by half — but bosses now drop unique relics that physically change your fighter.</p>
     <div id="legend">
       <div class="legend-item"><div class="swatch" style="background:#ffcf4a"></div>WEAPON</div>
       <div class="legend-item"><div class="swatch" style="background:#ff3d6e"></div>DAMAGE</div>
@@ -629,6 +629,13 @@
     const speedMult = Math.min(1.6, 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.14);
     const aggroMult = Math.min(2.0, 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.26);
 
+    // Before the first boss, enemy fire rate ramps up by wave instead of
+    // using the generic aggro scaling. This keeps wave 1 calm and makes
+    // waves 2-4 progressively more dangerous without spiking too hard.
+    const preBossFireMult = wave <= 4
+      ? [0.55, 0.78, 1.02, 1.28][Math.max(0, wave - 1)]
+      : 1;
+
     let baseHp = 1, r = 14, speed = 60, color = '#ff5d8f', shootChance = 0.004;
 
     if (type === 'zigzag') {
@@ -651,7 +658,7 @@
 
     const hp = Math.max(1, Math.round(baseHp * hpMult));
     speed *= speedMult;
-    shootChance *= aggroMult;
+    shootChance *= aggroMult * preBossFireMult;
 
     enemies.push({
       x, y: -30, r, hp, maxHp: hp, type, speed, color, shootChance,
