@@ -129,6 +129,27 @@
     animation: bosspulse 1.6s ease-in-out infinite;
   }
   @keyframes bosspulse{ 0%,100%{ opacity:.45 } 50%{ opacity:1 } }
+
+  #buildPanel{
+    position:fixed; left:12px; bottom:12px; z-index:7; pointer-events:none;
+    max-width:min(52vw,260px); display:flex; flex-wrap:wrap; gap:4px;
+    justify-content:flex-start; align-items:flex-end;
+  }
+  .module-chip{
+    font-size:8px; line-height:1; padding:4px 5px; border-radius:5px;
+    border:1px solid rgba(255,255,255,.16); background:rgba(5,6,15,.72);
+    color:var(--hull-dim); text-shadow:0 0 7px currentColor;
+  }
+  #toast{
+    position:fixed; left:50%; top:18%; transform:translateX(-50%);
+    z-index:18; pointer-events:none; text-align:center; opacity:0;
+    padding:8px 12px; border:1px solid rgba(255,255,255,.16);
+    border-radius:8px; background:rgba(5,6,15,.82); min-width:180px;
+    transition:opacity .12s ease;
+  }
+  #toast b{display:block;font-size:15px;letter-spacing:1px}
+  #toast span{display:block;font-size:9px;color:var(--hull-dim);margin-top:3px}
+
 </style>
 </head>
 <body>
@@ -151,6 +172,9 @@
     <div id="joyBase"><div id="joyStick"></div></div>
   </div>
 
+  <div id="buildPanel"></div>
+  <div id="toast"><b id="toastTitle"></b><span id="toastDesc"></span></div>
+
   <div id="topBtns">
     <button class="iconBtn" id="muteBtn">🔊</button>
     <button class="iconBtn" id="pauseBtn">⏸</button>
@@ -166,7 +190,7 @@
     <h1>GALACTIC DEFENDER</h1>
     <p id="highScoreLine"></p>
     <p>Bottom-right joystick moves your ship — it's kept clear of your thumb so you can always see it. Your ship fires automatically.</p>
-    <p>Collect upgrades to permanently stack power. Every 5th wave, one of three BOSS types locks down the field — defeat it for a special class core granting a unique combat skill.</p>
+    <p>Collect upgrades to permanently stack power. Every 5th wave, a BOSS locks down the field. After the first boss, enemy upgrade drops are reduced by half — but bosses now drop unique relics that physically change your fighter.</p>
     <div id="legend">
       <div class="legend-item"><div class="swatch" style="background:#ffcf4a"></div>WEAPON</div>
       <div class="legend-item"><div class="swatch" style="background:#ff3d6e"></div>DAMAGE</div>
@@ -317,23 +341,99 @@
   function bottomLimit(){ return H - (H*0.24 + 40); }
 
   // ---------- Game State ----------
-  const UPGRADE_TYPES = ['weapon','damage','rapid','speed','pierce','magnet','shield','life','explosive','homing'];
+  // ---------- Upgrade system ----------
+  // Common upgrades remain readable; after Boss 1, normal enemy drops are halved.
+  const UPGRADE_TYPES = [
+    'weapon','damage','rapid','speed','pierce','magnet','shield','life','explosive','homing',
+    'sideguns','orbitals','missiles','critical','chain','burn','ricochet','bossbane',
+    'armor','repair','barrier','dash','phase','overdrive','prism','gravity','execution','pulse',
+    'mirror','capacitor','reactor','salvage'
+  ];
+
   const UPGRADE_COLORS = {
     weapon:'#ffcf4a', damage:'#ff3d6e', rapid:'#c17dff', speed:'#7dff8f',
     pierce:'#ffa64a', magnet:'#4affd0', shield:'#35e3ff', life:'#ff6b6b',
-    explosive:'#ff6a2b', homing:'#c9ff4a'
+    explosive:'#ff6a2b', homing:'#c9ff4a',
+    sideguns:'#ffd36e', orbitals:'#72b7ff', missiles:'#ff8b4a', critical:'#ff4ad8',
+    chain:'#55f2ff', burn:'#ff7043', ricochet:'#d7ff4a', bossbane:'#ff3b3b',
+    armor:'#b8c6ff', repair:'#69ff9d', barrier:'#42d9ff', dash:'#7dffb5',
+    phase:'#a78bff', overdrive:'#fff06a', prism:'#f0a0ff', gravity:'#55e0b0',
+    execution:'#ff5577', pulse:'#ff9f43', mirror:'#9ee7ff', capacitor:'#ffe06a',
+    reactor:'#63faff', salvage:'#b5ff6a'
   };
+
   const UPGRADE_LABELS = {
     weapon:'WEAPON+', damage:'DAMAGE+', rapid:'RAPID+', speed:'SPEED+',
     pierce:'PIERCE+', magnet:'MAGNET+', shield:'SHIELD+1', life:'+1 LIFE',
-    explosive:'BLAST+', homing:'HOMING+'
+    explosive:'BLAST+', homing:'HOMING+',
+    sideguns:'SIDE GUNS', orbitals:'ORBITAL CANNON', missiles:'MISSILE RACK',
+    critical:'CRIT CORE', chain:'CHAIN ARC', burn:'INCENDIARY', ricochet:'RICOCHET',
+    bossbane:'BOSS HUNTER', armor:'ARMOR PLATING', repair:'AUTO REPAIR',
+    barrier:'BARRIER MATRIX', dash:'AFTERBURN DASH', phase:'PHASE DRIVE',
+    overdrive:'OVERDRIVE', prism:'PRISM CORE', gravity:'GRAVITY WELL',
+    execution:'EXECUTIONER', pulse:'PULSE ENGINE', mirror:'MIRROR SHOT',
+    capacitor:'CAPACITOR', reactor:'REACTOR', salvage:'SALVAGE MATRIX'
   };
+
   const UPGRADE_ICONS = {
     weapon:'W', damage:'D', rapid:'R', speed:'S', pierce:'P', magnet:'M',
-    shield:'B', life:'+', explosive:'X', homing:'H'
+    shield:'B', life:'+', explosive:'X', homing:'H',
+    sideguns:'G', orbitals:'O', missiles:'V', critical:'C', chain:'A',
+    burn:'F', ricochet:'Q', bossbane:'K', armor:'A', repair:'R', barrier:'B',
+    dash:'>', phase:'Φ', overdrive:'!', prism:'Y', gravity:'G', execution:'E',
+    pulse:'U', mirror:'2', capacitor:'C', reactor:'N', salvage:'$'
   };
-  const UPGRADE_WEIGHTS = { weapon:16, damage:14, rapid:13, speed:13, pierce:11, magnet:9, shield:8, life:6, explosive:9, homing:9 };
-  const UPGRADE_MAX = { weapon:7, damage:10, rapid:10, speed:10, pierce:5, magnet:6, explosive:5, homing:5 };
+
+  const UPGRADE_WEIGHTS = {
+    weapon:12, damage:12, rapid:11, speed:10, pierce:8, magnet:7, shield:7, life:4,
+    explosive:7, homing:7, sideguns:7, orbitals:5, missiles:6, critical:6, chain:5,
+    burn:6, ricochet:5, bossbane:4, armor:5, repair:4, barrier:4, dash:4, phase:3,
+    overdrive:4, prism:4, gravity:4, execution:4, pulse:4, mirror:3, capacitor:4,
+    reactor:4, salvage:2
+  };
+
+  const UPGRADE_MAX = {
+    weapon:7, damage:10, rapid:10, speed:10, pierce:5, magnet:6, explosive:5, homing:5,
+    sideguns:3, orbitals:3, missiles:4, critical:5, chain:5, burn:5, ricochet:4, bossbane:5,
+    armor:5, repair:4, barrier:3, dash:4, phase:3, overdrive:5, prism:4, gravity:4,
+    execution:4, pulse:4, mirror:4, capacitor:5, reactor:5, salvage:3
+  };
+
+  const UPGRADE_DESC = {
+    weapon:'Adds another forward firing lane.',
+    damage:'Increases base shot damage.',
+    rapid:'Reduces the time between shots.',
+    speed:'Increases fighter movement speed.',
+    pierce:'Shots pass through more enemies.',
+    magnet:'Pulls pickups from farther away.',
+    shield:'Adds one shield charge.',
+    life:'Repairs +1 hull and increases max hull.',
+    explosive:'Shots detonate around their impact.',
+    homing:'Shots curve toward nearby targets.',
+    sideguns:'Adds physical side cannons that fire with you.',
+    orbitals:'Deploys orbiting cannons that fire automatically.',
+    missiles:'Adds a persistent homing missile rack.',
+    critical:'Chance for shots to deal 2.5x damage.',
+    chain:'Kills can arc damage to nearby enemies.',
+    burn:'Shots ignite enemies for damage over time.',
+    ricochet:'Shots bounce off the screen edges.',
+    bossbane:'Your weapons deal extra damage to bosses.',
+    armor:'Reduces hull damage taken.',
+    repair:'Periodic repairs restore hull.',
+    barrier:'Raises the maximum number of shields.',
+    dash:'Movement periodically surges into an afterburn dash.',
+    phase:'Periodic phase windows make you untouchable.',
+    overdrive:'Kill streaks temporarily increase fire rate.',
+    prism:'Adds a spectral prism and bonus shot damage.',
+    gravity:'Creates a gravity well that slows nearby enemies.',
+    execution:'Damages weakened enemies more heavily.',
+    pulse:'Releases periodic damaging pulses around the fighter.',
+    mirror:'Chance to duplicate a shot.',
+    capacitor:'Every few shots becomes a charged heavy shot.',
+    reactor:'Boosts several core systems and changes the reactor glow.',
+    salvage:'Elites and bosses pay out more score.'
+  };
+
 
   const BASE_FIRE_RATE = 260;
   const BASE_SPEED = 430;
@@ -371,42 +471,38 @@
 
   const player = {
     x: 0, y: 0, r: 16,
-    baseSpeed: BASE_SPEED,
-    hp: 3, maxHp: 3,
-    weaponLevel: 1,
-    fireRate: BASE_FIRE_RATE,
-    bulletDmg: 1,
-    pierce: 0,
-    magnetR: 40,
-    explosiveRadius: 0,
-    homingRate: 0,
-    lastShot: 0,
-    shieldCharges: 0,
-    invuln: 0,
-    alive: true,
-    levels: { weapon:0, damage:0, rapid:0, speed:0, pierce:0, magnet:0, explosive:0, homing:0 },
+    baseSpeed: BASE_SPEED, hp: 3, maxHp: 3,
+    weaponLevel: 1, fireRate: BASE_FIRE_RATE, bulletDmg: 1,
+    pierce: 0, magnetR: 40, explosiveRadius: 0, homingRate: 0,
+    lastShot: 0, shotsFired: 0, kills: 0, killStreak: 0,
+    shieldCharges: 0, shieldMax: 3, invuln: 0, alive: true,
+    levels: {
+      weapon:0, damage:0, rapid:0, speed:0, pierce:0, magnet:0, explosive:0, homing:0,
+      sideguns:0, orbitals:0, missiles:0, critical:0, chain:0, burn:0, ricochet:0,
+      bossbane:0, armor:0, repair:0, barrier:0, dash:0, phase:0, overdrive:0, prism:0,
+      gravity:0, execution:0, pulse:0, mirror:0, capacitor:0, reactor:0, salvage:0
+    },
     classes: { drone:false, nova:false, regen:false },
-    droneAngle: 0,
-    droneTimer: 0,
-    novaTimer: 0,
-    regenTimer: 0,
-    upgradeCount: 0,
-    shipTier: 0
+    droneAngle:0, droneTimer:0, novaTimer:0, regenTimer:0,
+    repairTimer:0, pulseTimer:0, dashTimer:0, phaseTimer:0, overdriveTimer:0,
+    capacitorShots:0, upgradeCount:0, shipTier:0, relics:{}
   };
 
-  const SHIP_TIER_UPGRADES = 3; // how many upgrades picked up per visual tier
-  const SHIP_TIER_MAX = 5;      // tiers 0..5
+  const SHIP_TIER_UPGRADES = 2;
+  const SHIP_TIER_MAX = 8;      // tiers 0..5
 
   function recomputeStats(){
     const L = player.levels;
     player.weaponLevel = 1 + L.weapon;
-    player.bulletDmg = 1 + L.damage*0.4;
-    player.fireRate = Math.max(90, BASE_FIRE_RATE * Math.pow(0.92, L.rapid));
-    player.baseSpeed = BASE_SPEED * Math.pow(1.06, L.speed);
+    player.bulletDmg = 1 + L.damage*0.4 + L.prism*0.18 + L.reactor*0.12;
+    player.fireRate = Math.max(70, BASE_FIRE_RATE * Math.pow(0.92, L.rapid) * (1 - Math.min(0.28,L.reactor*0.04)));
+    player.baseSpeed = BASE_SPEED * Math.pow(1.06, L.speed) * (1 + L.reactor*0.025);
     player.pierce = L.pierce;
-    player.magnetR = 40 + L.magnet*22;
+    player.magnetR = 40 + L.magnet*22 + L.gravity*18;
     player.explosiveRadius = L.explosive>0 ? 26 + L.explosive*9 : 0;
     player.homingRate = L.homing>0 ? 2.0 + L.homing*0.55 : 0;
+    player.shieldMax = 3 + L.barrier*2;
+    player.shieldCharges = Math.min(player.shieldCharges, player.shieldMax);
   }
 
   function resetGame(){
@@ -414,12 +510,19 @@
     enemies = []; bullets = []; enemyBullets = []; upgrades = []; classCores = []; novaPulses = []; particles = []; popups = [];
     boss = null; bossActive = false; firstBossDefeated = false;
     document.getElementById('wrap').classList.remove('boss-alert');
-    player.levels = { weapon:0, damage:0, rapid:0, speed:0, pierce:0, magnet:0, explosive:0, homing:0 };
-    player.classes = { drone:false, nova:false, regen:false };
+    player.levels = {
+      weapon:0, damage:0, rapid:0, speed:0, pierce:0, magnet:0, explosive:0, homing:0,
+      sideguns:0, orbitals:0, missiles:0, critical:0, chain:0, burn:0, ricochet:0,
+      bossbane:0, armor:0, repair:0, barrier:0, dash:0, phase:0, overdrive:0, prism:0,
+      gravity:0, execution:0, pulse:0, mirror:0, capacitor:0, reactor:0, salvage:0
+    };
+    player.classes = { drone:false, nova:false, regen:false }; player.relics = {};
     player.upgradeCount = 0;
     player.shipTier = 0;
     player.droneAngle = 0; player.droneTimer = 0; player.novaTimer = 0; player.regenTimer = 0;
-    player.shieldCharges = 0;
+    player.repairTimer = 0; player.pulseTimer = 0; player.dashTimer = 0; player.phaseTimer = 0;
+    player.overdriveTimer = 0; player.capacitorShots = 0; player.missileTimer = 0; player.shotsFired = 0; player.kills = 0; player.killStreak = 0;
+    player.shieldCharges = 0; player.shieldMax = 3;
     player.hp = 3; player.maxHp = 3;
     player.invuln = 0; player.alive = true;
     recomputeStats();
@@ -580,10 +683,25 @@
     }
   }
 
+  function makePlayerBullet(x,y,a,dmgScale=1){
+    let dmg = player.bulletDmg*dmgScale;
+    if(player.levels.critical && Math.random() < 0.08*player.levels.critical) dmg *= 2.5;
+    if(player.levels.bossbane && boss) dmg *= 1 + player.levels.bossbane*0.08;
+    const charged = player.levels.capacitor && (++player.capacitorShots % Math.max(3,9-player.levels.capacitor))===0;
+    if(charged) dmg *= 2.3;
+    bullets.push({
+      x,y,vx:Math.cos(a)*(charged?650:560),vy:Math.sin(a)*(charged?650:560),
+      r:charged?6:4,dmg,pierce:player.pierce,dead:false,
+      ricochet:player.levels.ricochet, charged, burn:player.levels.burn
+    });
+  }
+
   function playerShoot(now){
     if(now - player.lastShot < player.fireRate) return;
     player.lastShot = now;
+    player.shotsFired++;
     sfx.shoot();
+
     const lvl = player.weaponLevel;
     const spread = Math.min(lvl-1, 6);
     const angleStep = 0.14;
@@ -591,11 +709,23 @@
     const startAngle = -((count-1)/2)*angleStep;
     for(let i=0;i<count;i++){
       const a = -Math.PI/2 + startAngle + i*angleStep;
-      bullets.push({
-        x: player.x, y: player.y - player.r,
-        vx: Math.cos(a)*560, vy: Math.sin(a)*560,
-        r:4, dmg: player.bulletDmg, pierce: player.pierce, dead:false
-      });
+      makePlayerBullet(player.x, player.y-player.r, a);
+    }
+
+    // Side cannons: visible modules and real bullets.
+    if(player.levels.sideguns){
+      const g = player.levels.sideguns;
+      makePlayerBullet(player.x-player.r*(1.0+g*0.08), player.y+2, -Math.PI/2-0.08, 0.82);
+      makePlayerBullet(player.x+player.r*(1.0+g*0.08), player.y+2, -Math.PI/2+0.08, 0.82);
+      if(g>=3){
+        makePlayerBullet(player.x-22, player.y+7, -Math.PI/2-0.2, 0.68);
+        makePlayerBullet(player.x+22, player.y+7, -Math.PI/2+0.2, 0.68);
+      }
+    }
+
+    // Mirror: occasional duplicate shot with a slight spectral offset.
+    if(player.levels.mirror && Math.random() < 0.07*player.levels.mirror){
+      makePlayerBullet(player.x, player.y-player.r-3, -Math.PI/2+0.045, 0.75);
     }
   }
 
@@ -610,71 +740,120 @@
   }
 
   function spawnUpgrade(x,y){
-    if(Math.random() > 0.14) return;
-    upgrades.push({ x, y, r:12, type:pickUpgradeType(), vy:70 });
+    // Once the first boss is defeated, normal enemy upgrade drops are exactly half
+    // the original 14% chance: 7%.
+    const dropChance = firstBossDefeated ? 0.07 : 0.14;
+    if(Math.random() > dropChance) return;
+    upgrades.push({ x, y, r:12, type:pickUpgradeType(), vy:70, spin:Math.random()*6.28 });
   }
   function spawnUpgradeForced(x,y){
     upgrades.push({ x, y, r:12, type:pickUpgradeType(), vy:70 });
   }
 
+  function showUpgradeToast(type){
+    const toast = document.getElementById('toast');
+    document.getElementById('toastTitle').textContent = UPGRADE_LABELS[type] || type.toUpperCase();
+    document.getElementById('toastDesc').textContent = UPGRADE_DESC[type] || 'SYSTEM UPGRADE';
+    toast.style.color = UPGRADE_COLORS[type] || '#fff';
+    toast.style.opacity = '1';
+    clearTimeout(showUpgradeToast._timer);
+    showUpgradeToast._timer = setTimeout(()=>toast.style.opacity='0', 1100);
+  }
+
   function applyUpgrade(type){
     const L = player.levels;
     let maxed = false;
-    switch(type){
-      case 'weapon': if(L.weapon < UPGRADE_MAX.weapon) L.weapon++; else maxed = true; break;
-      case 'damage': if(L.damage < UPGRADE_MAX.damage) L.damage++; else maxed = true; break;
-      case 'rapid': if(L.rapid < UPGRADE_MAX.rapid) L.rapid++; else maxed = true; break;
-      case 'speed': if(L.speed < UPGRADE_MAX.speed) L.speed++; else maxed = true; break;
-      case 'pierce': if(L.pierce < UPGRADE_MAX.pierce) L.pierce++; else maxed = true; break;
-      case 'magnet': if(L.magnet < UPGRADE_MAX.magnet) L.magnet++; else maxed = true; break;
-      case 'explosive': if(L.explosive < UPGRADE_MAX.explosive) L.explosive++; else maxed = true; break;
-      case 'homing': if(L.homing < UPGRADE_MAX.homing) L.homing++; else maxed = true; break;
-      case 'shield':
-        if(player.shieldCharges < 3) player.shieldCharges++; else maxed = true;
-        break;
-      case 'life':
-        player.maxHp = Math.min(player.maxHp+1, 12);
-        player.hp = Math.min(player.hp+1, player.maxHp);
-        break;
+
+    if(type==='shield'){
+      if(player.shieldCharges < player.shieldMax) player.shieldCharges++;
+      else maxed=true;
+    } else if(type==='life'){
+      if(player.maxHp < 12){ player.maxHp++; player.hp=Math.min(player.hp+1,player.maxHp); }
+      else maxed=true;
+    } else if(L[type] !== undefined){
+      if(L[type] < (UPGRADE_MAX[type]||5)) L[type]++;
+      else maxed=true;
     }
+
     recomputeStats();
     updateHUD();
     sfx.upgrade();
-    spawnPopup(player.x, player.y-30, maxed ? 'MAXED!' : UPGRADE_LABELS[type], UPGRADE_COLORS[type]);
-
+    spawnPopup(player.x, player.y-30, maxed ? 'MAXED!' : (UPGRADE_LABELS[type]||type), UPGRADE_COLORS[type]);
     if(!maxed){
       player.upgradeCount++;
       const newTier = Math.min(SHIP_TIER_MAX, Math.floor(player.upgradeCount / SHIP_TIER_UPGRADES));
       if(newTier > player.shipTier){
         player.shipTier = newTier;
         sfx.classReward();
-        spawnPopup(player.x, player.y-50, 'SHIP UPGRADED!', '#7df3ff');
-        explode(player.x, player.y, '#7df3ff', 26);
+        spawnPopup(player.x, player.y-50, 'FORM SHIFT // TIER '+newTier, '#7df3ff');
+        explode(player.x, player.y, '#7df3ff', 34);
       }
+      showUpgradeToast(type);
     }
   }
 
+  // ---------- Boss relics ----------
+  const BOSS_RELICS = {
+    warbringer:[
+      {key:'siege',name:'SIEGE CANNONS',desc:'Twin heavy side cannons join your fighter.',color:'#ffcf4a'},
+      {key:'overdrive',name:'WAR OVERDRIVE',desc:'Kill streaks push your weapon into overdrive.',color:'#fff06a'},
+      {key:'bossbane',name:'ARMOR BREAKER',desc:'Your weapons tear through bosses harder.',color:'#ff3b3b'},
+      {key:'reactor',name:'WAR REACTOR',desc:'A reinforced reactor boosts core systems.',color:'#63faff'}
+    ],
+    hivemother:[
+      {key:'drone',name:'DRONE NEST',desc:'Twin combat drones orbit and fire with you.',color:'#4dd8ff'},
+      {key:'repair',name:'LEECH REACTOR',desc:'Periodic repairs restore hull integrity.',color:'#69ff9d'},
+      {key:'gravity',name:'GRAVITY WELL',desc:'Nearby enemies are slowed by your field.',color:'#55e0b0'},
+      {key:'pulse',name:'SWARM PULSE',desc:'Periodic energy pulses damage nearby enemies.',color:'#ff9f43'}
+    ],
+    twinreaper:[
+      {key:'phase',name:'PHASE DRIVE',desc:'Periodic phase windows make you untouchable.',color:'#a78bff'},
+      {key:'mirror',name:'SHADOW SPLIT',desc:'Chance to fire a spectral duplicate shot.',color:'#9ee7ff'},
+      {key:'orbitals',name:'REAPER ORBITALS',desc:'Orbiting cannons fire independently.',color:'#72b7ff'},
+      {key:'prism',name:'PRISM HEART',desc:'A spectral prism strengthens your weapons.',color:'#f0a0ff'}
+    ]
+  };
+
   function spawnClassCore(x,y){
-    const missing = CLASS_KEYS.filter(k=>!player.classes[k]);
-    const kind = missing.length ? missing[Math.floor(Math.random()*missing.length)] : null;
-    classCores.push({ x, y, r:18, vy:55, kind });
+    const defs = BOSS_RELICS[boss ? boss.kind : 'warbringer'] || BOSS_RELICS.warbringer;
+    // Prefer relics the player has not yet collected.
+    const missing = defs.filter(d => !player.relics || !player.relics[d.key]);
+    const pool = missing.length ? missing : defs;
+    const def = pool[Math.floor(Math.random()*pool.length)];
+    classCores.push({ x, y, r:20, vy:48, kind:def.key, relic:def, spin:Math.random()*6.28 });
   }
 
   function applyClassReward(kind){
     sfx.classReward();
-    if(!kind){
+    if(!player.relics) player.relics={};
+    const def = Object.values(BOSS_RELICS).flat().find(d=>d.key===kind);
+    if(!def){
       score += 250;
-      spawnUpgradeForced(player.x-20, player.y-40);
-      spawnUpgradeForced(player.x+20, player.y-40);
-      spawnPopup(player.x, player.y-34, 'CORE OVERFLOW +250', '#ffcf4a');
+      spawnUpgradeForced(player.x-26, player.y-40);
+      spawnUpgradeForced(player.x+26, player.y-40);
+      spawnPopup(player.x, player.y-34, 'RELIC OVERFLOW +250', '#ffcf4a');
       updateHUD();
       return;
     }
-    player.classes[kind] = true;
-    if(kind === 'nova') player.novaTimer = 3000;
-    if(kind === 'regen') player.regenTimer = 15000;
-    spawnPopup(player.x, player.y-34, CLASS_DEFS[kind].name+' UNLOCKED', CLASS_DEFS[kind].color);
-    spawnPopup(player.x, player.y-18, CLASS_DEFS[kind].desc, CLASS_DEFS[kind].color);
+
+    player.relics[kind]=true;
+    // Boss relics unlock a physical system and, where appropriate, upgrade levels.
+    if(kind==='siege') player.levels.sideguns=Math.max(player.levels.sideguns,2);
+    if(kind==='overdrive') player.levels.overdrive=Math.max(player.levels.overdrive,2);
+    if(kind==='bossbane') player.levels.bossbane=Math.max(player.levels.bossbane,2);
+    if(kind==='reactor') player.levels.reactor=Math.max(player.levels.reactor,2);
+    if(kind==='drone') player.classes.drone=true;
+    if(kind==='repair') player.levels.repair=Math.max(player.levels.repair,2);
+    if(kind==='gravity') player.levels.gravity=Math.max(player.levels.gravity,2);
+    if(kind==='pulse') player.levels.pulse=Math.max(player.levels.pulse,2);
+    if(kind==='phase') player.levels.phase=Math.max(player.levels.phase,2);
+    if(kind==='mirror') player.levels.mirror=Math.max(player.levels.mirror,2);
+    if(kind==='orbitals') player.levels.orbitals=Math.max(player.levels.orbitals,2);
+    if(kind==='prism') player.levels.prism=Math.max(player.levels.prism,2);
+    recomputeStats();
+    spawnPopup(player.x, player.y-34, def.name, def.color);
+    spawnPopup(player.x, player.y-18, def.desc, def.color);
+    explode(player.x,player.y,def.color,45);
     updateHUD();
   }
 
@@ -927,8 +1106,9 @@
   function defeatBoss(){
     sfx.bossDeath();
     explode(boss.x, boss.y, boss.color, 60);
-    score += 400 + wave*60;
+    score += 500 + wave*75 + (player.levels.salvage*40);
     spawnPopup(boss.x, boss.y-20, boss.name+' DEFEATED!', '#ffcf4a');
+    spawnPopup(boss.x, boss.y+2, 'CHOOSE YOUR RELIC', '#7df3ff');
     spawnClassCore(boss.x, boss.y);
     firstBossDefeated = true;
     boss = null;
@@ -949,31 +1129,41 @@
     const livesDiv = document.getElementById('lives');
     livesDiv.innerHTML = '';
     for(let i=0;i<player.hp;i++){
-      const s = document.createElement('div');
-      s.className='life-icon';
-      s.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><polygon points="12,2 15,9 22,10 17,15 18,22 12,18 6,22 7,15 2,10 9,9" fill="#ff3d6e"/></svg>';
+      const s=document.createElement('div'); s.className='life-icon';
+      s.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14"><polygon points="12,2 15,9 22,10 17,15 18,22 12,18 6,22 7,15 2,10 9,9" fill="#ff3d6e"/></svg>';
       livesDiv.appendChild(s);
     }
     for(let i=0;i<player.shieldCharges;i++){
-      const s = document.createElement('div');
-      s.className='shield-icon';
-      s.innerHTML = '<svg viewBox="0 0 24 24" width="11" height="11"><circle cx="12" cy="12" r="10" fill="none" stroke="#35e3ff" stroke-width="3"/></svg>';
+      const s=document.createElement('div'); s.className='shield-icon';
+      s.innerHTML='<svg viewBox="0 0 24 24" width="11" height="11"><circle cx="12" cy="12" r="10" fill="none" stroke="#35e3ff" stroke-width="3"/></svg>';
       livesDiv.appendChild(s);
     }
 
-    const L = player.levels;
-    const parts = [];
-    if(L.damage) parts.push('DMG'+L.damage);
-    if(L.rapid) parts.push('RPD'+L.rapid);
-    if(L.speed) parts.push('SPD'+L.speed);
-    if(L.pierce) parts.push('PRC'+L.pierce);
-    if(L.magnet) parts.push('MAG'+L.magnet);
-    if(L.explosive) parts.push('BLT'+L.explosive);
-    if(L.homing) parts.push('HOM'+L.homing);
-    if(player.classes.drone) parts.push('ENG');
-    if(player.classes.nova) parts.push('VAN');
-    if(player.classes.regen) parts.push('BER');
+    const L=player.levels, parts=[];
+    const order=['damage','rapid','speed','pierce','magnet','explosive','homing','sideguns','orbitals','missiles',
+      'critical','chain','burn','ricochet','bossbane','armor','repair','barrier','dash','phase','overdrive',
+      'prism','gravity','execution','pulse','mirror','capacitor','reactor','salvage'];
+    for(const k of order) if(L[k]) parts.push((UPGRADE_ICONS[k]||k[0].toUpperCase())+L[k]);
+    if(player.classes.drone) parts.push('DRN');
+    if(player.classes.nova) parts.push('NVA');
+    if(player.classes.regen) parts.push('REG');
     document.getElementById('upgradeRow').textContent = parts.join(' ');
+
+    const panel=document.getElementById('buildPanel');
+    panel.innerHTML='';
+    const chips=[];
+    if(L.weapon) chips.push(['W'+L.weapon,'#ffcf4a']);
+    for(const k of ['sideguns','orbitals','missiles','critical','chain','burn','ricochet','bossbane','armor','repair','barrier','dash','phase','overdrive','prism','gravity','execution','pulse','mirror','capacitor','reactor']){
+      if(L[k]) chips.push([(UPGRADE_ICONS[k]||k[0])+L[k],UPGRADE_COLORS[k]]);
+    }
+    if(player.classes.drone) chips.push(['DRN',CLASS_DEFS.drone.color]);
+    if(player.relics) for(const k of Object.keys(player.relics)){
+      const d=Object.values(BOSS_RELICS).flat().find(x=>x.key===k);
+      if(d) chips.push(['◆'+d.name.split(' ')[0],d.color]);
+    }
+    for(const [label,col] of chips.slice(-16)){
+      const el=document.createElement('span'); el.className='module-chip'; el.textContent=label; el.style.color=col; panel.appendChild(el);
+    }
   }
 
   // ---------- Main loop ----------
@@ -1030,6 +1220,53 @@
       player.x = Math.max(player.r, Math.min(W-player.r, player.x));
       player.y = Math.max(TOP_MARGIN+player.r, Math.min(bottomLimit()-player.r, player.y));
 
+      // Systems driven by the build.
+      if(player.levels.phase){
+        player.phaseTimer -= dt;
+        if(player.phaseTimer <= 0){
+          player.phaseTimer = Math.max(6500, 10500-player.levels.phase*1000);
+          player.invuln = Math.max(player.invuln, 900);
+          spawnPopup(player.x,player.y-35,'PHASED','#a78bff');
+        }
+      }
+      if(player.levels.dash && (Math.abs(joy.dx)+Math.abs(joy.dy)>0.2)){
+        player.dashTimer -= dt;
+        if(player.dashTimer<=0){
+          player.dashTimer = Math.max(2200,4800-player.levels.dash*550);
+          player.invuln = Math.max(player.invuln, 260);
+          player.x += joy.dx*80; player.y += joy.dy*80;
+          player.x=Math.max(player.r,Math.min(W-player.r,player.x));
+          player.y=Math.max(TOP_MARGIN+player.r,Math.min(bottomLimit()-player.r,player.y));
+          explode(player.x,player.y,'#7dffb5',8);
+        }
+      }
+      if(player.levels.repair){
+        player.repairTimer -= dt;
+        if(player.repairTimer<=0){
+          player.repairTimer = Math.max(6500,12000-player.levels.repair*1300);
+          if(player.hp<player.maxHp){ player.hp++; spawnPopup(player.x,player.y-30,'AUTO REPAIR','#69ff9d'); updateHUD(); }
+        }
+      }
+      if(player.levels.pulse){
+        player.pulseTimer -= dt;
+        if(player.pulseTimer<=0){
+          player.pulseTimer = Math.max(2600,5200-player.levels.pulse*500);
+          const R=75+player.levels.pulse*18, dmg=1+player.levels.pulse*0.8;
+          for(const e of enemies){
+            if(Math.hypot(e.x-player.x,e.y-player.y)<R) e.hp-=dmg;
+          }
+          novaPulses.push({x:player.x,y:player.y,r:8,life:420,t:0,color:'#ff9f43'});
+        }
+      }
+      if(player.levels.overdrive){
+        player.overdriveTimer -= dt;
+        if(player.overdriveTimer<=0 && player.killStreak>=8){
+          player.overdriveTimer = Math.max(1200,3600-player.levels.overdrive*350);
+          player.lastShot = 0;
+          spawnPopup(player.x,player.y-45,'OVERDRIVE','#fff06a');
+        }
+      }
+
       playerShoot(now);
       if(player.invuln>0) player.invuln -= dt;
 
@@ -1045,6 +1282,39 @@
           }
         }
       }
+      if(player.levels.orbitals){
+        player.droneAngle += dtS*(1.1+player.levels.orbitals*0.18);
+        player.droneTimer -= dt;
+        if(player.droneTimer<=0){
+          player.droneTimer=850;
+          const n=player.levels.orbitals;
+          for(let i=0;i<n;i++){
+            const a=player.droneAngle+i*(Math.PI*2/n);
+            const dx=player.x+Math.cos(a)*(42+player.levels.orbitals*5);
+            const dy=player.y+Math.sin(a)*(42+player.levels.orbitals*5);
+            makePlayerBullet(dx,dy,-Math.PI/2,0.55+player.levels.orbitals*0.08);
+          }
+        }
+      }
+      if(player.levels.missiles){
+        player.missileTimer=(player.missileTimer||0)-dt;
+        if(player.missileTimer<=0){
+          player.missileTimer=Math.max(1100,2600-player.levels.missiles*320);
+          const n=player.levels.missiles>=3?2:1;
+          for(let i=0;i<n;i++){
+            bullets.push({x:player.x+(i?8:-8),y:player.y-8,vx:(i?25:-25),vy:-260,r:5,
+              dmg:player.bulletDmg*(0.8+player.levels.missiles*0.18),pierce:0,dead:false,
+              missile:true,ricochet:0,burn:player.levels.burn});
+          }
+        }
+      }
+      if(player.levels.gravity){
+        const R=90+player.levels.gravity*22;
+        for(const e of enemies){
+          if(Math.hypot(e.x-player.x,e.y-player.y)<R) e.speed=Math.max(10,e.speed*(1-0.015*player.levels.gravity));
+        }
+      }
+
       if(player.classes.nova){
         player.novaTimer -= dt;
         if(player.novaTimer <= 0){
@@ -1094,6 +1364,9 @@
 
     for(const e of enemies){
       e.t += dtS;
+      if(e.burnUntil && frame < e.burnUntil && e.hp>0){
+        e.hp -= (e.burnDmg||0)*dtS*60;
+      }
 
       if(e.type === 'dasher'){
         if(e.dashState === 'fall'){
@@ -1229,14 +1502,33 @@
         if(e.hp<=0) continue;
         const d = Math.hypot(b.x-e.x, b.y-e.y);
         if(d < b.r + e.r){
-          e.hp -= b.dmg;
+          let hitDmg=b.dmg;
+          if(player.levels.execution && e.hp/e.maxHp<0.35) hitDmg*=1+player.levels.execution*0.25;
+          e.hp -= hitDmg;
+          if(b.burn){
+            e.burnUntil = Math.max(e.burnUntil||0, frame + 35*b.burn);
+            e.burnDmg = Math.max(e.burnDmg||0, 0.10*b.burn);
+          }
           explode(b.x,b.y,e.color,4);
           if(b.pierce>0){ b.pierce--; } else {
             b.dead = true;
             if(player.explosiveRadius>0) triggerExplosiveAoE(b.x,b.y,e);
           }
           if(e.hp<=0){
-            score += e.type==='tank'?35: e.type==='splitter'?25: e.type==='turret'?26: e.type==='sniper'?20: e.type==='bomber'?22: e.type==='dasher'?16: 10;
+            player.kills++;
+            player.killStreak++;
+            player.overdriveTimer = Math.max(player.overdriveTimer, 1800);
+            // Chain reaction: one kill can arc into a nearby enemy.
+            if(player.levels.chain){
+              const R=42+player.levels.chain*8;
+              for(const other of enemies){
+                if(other!==e && other.hp>0 && Math.hypot(other.x-e.x,other.y-e.y)<R){
+                  other.hp -= 0.7*player.levels.chain;
+                  explode(other.x,other.y,'#55f2ff',4);
+                }
+              }
+            }
+            score += (e.type==='tank'?35: e.type==='splitter'?25: e.type==='turret'?26: e.type==='sniper'?20: e.type==='bomber'?22: e.type==='dasher'?16: 10) + player.levels.salvage*3;
             sfx.enemyDeath();
             explode(e.x,e.y,e.color,18);
             if(e.type === 'splitter') spawnMiniDrones(e.x, e.y);
@@ -1338,6 +1630,7 @@
       return;
     }
     player.hp -= 1;
+    player.killStreak = 0;
     player.invuln = 1000;
     sfx.playerHit();
     explode(player.x, player.y, '#ff3d6e', 10);
@@ -1499,9 +1792,9 @@
     }
 
     // Bullets
-    ctx.fillStyle = '#7df3ff';
-    ctx.shadowColor = '#7df3ff'; ctx.shadowBlur = 8;
     for(const b of bullets){
+      const bc=b.charged?'#fff06a':b.missile?'#ff8b4a':(player.levels.prism?'#f0a0ff':'#7df3ff');
+      ctx.fillStyle=bc; ctx.shadowColor=bc; ctx.shadowBlur=b.charged?16:8;
       ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,7); ctx.fill();
     }
     ctx.fillStyle = '#ff6b6b';
@@ -1515,7 +1808,7 @@
     for(const u of upgrades){
       ctx.save();
       ctx.translate(u.x,u.y);
-      ctx.rotate(frame*0.05);
+      ctx.rotate((u.spin||0)+frame*0.04);
       ctx.fillStyle = UPGRADE_COLORS[u.type];
       ctx.shadowColor = UPGRADE_COLORS[u.type]; ctx.shadowBlur = 14;
       ctx.beginPath();
@@ -1534,39 +1827,29 @@
     ctx.shadowBlur = 0;
     ctx.textBaseline = 'alphabetic';
 
-    // Class cores (special boss drops)
+    // Boss relics — large, unmistakable and unique.
     for(const c of classCores){
-      ctx.save();
-      ctx.translate(c.x, c.y);
-      const pulse = 1 + Math.sin(frame*0.15)*0.14;
-      const col = c.kind ? CLASS_DEFS[c.kind].color : '#ffcf4a';
-      ctx.strokeStyle = col; ctx.lineWidth = 2.5;
-      ctx.shadowColor = col; ctx.shadowBlur = 20;
-      ctx.beginPath(); ctx.arc(0,0, c.r*1.6*pulse, 0, 7); ctx.stroke();
-      ctx.rotate(frame*0.03);
-      ctx.fillStyle = col;
+      ctx.save(); ctx.translate(c.x,c.y);
+      const pulse=1+Math.sin(frame*.12)*.12, col=c.relic?.color||'#ffcf4a';
+      ctx.strokeStyle=col; ctx.lineWidth=3; ctx.shadowColor=col; ctx.shadowBlur=24;
+      ctx.beginPath(); ctx.arc(0,0,c.r*1.65*pulse,0,Math.PI*2); ctx.stroke();
+      ctx.rotate((c.spin||0)+frame*.025);
+      ctx.fillStyle=col;
       ctx.beginPath();
-      for(let i=0;i<4;i++){
-        const a = i/4*Math.PI*2;
-        const px = Math.cos(a)*c.r, py = Math.sin(a)*c.r;
-        if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
-      }
+      for(let i=0;i<8;i++){const a=i*Math.PI/4,rr=i%2?c.r*.58:c.r;const px=Math.cos(a)*rr,py=Math.sin(a)*rr;if(!i)ctx.moveTo(px,py);else ctx.lineTo(px,py);}
       ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 1.5; ctx.shadowBlur = 0; ctx.stroke();
-      ctx.rotate(-frame*0.03);
-      ctx.fillStyle = '#0b0f1a';
-      ctx.font = 'bold 13px monospace';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(c.kind ? CLASS_DEFS[c.kind].icon : '$', 0, 1);
+      ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=1.5;ctx.stroke();
+      ctx.rotate(-(c.spin||0)-frame*.025);
+      ctx.fillStyle='#0b0f1a';ctx.font='bold 11px monospace';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(c.relic ? c.relic.name.split(' ')[0].slice(0,3) : '$',0,1);
       ctx.restore();
     }
-    ctx.textBaseline = 'alphabetic';
-
+    ctx.textBaseline='alphabetic';
     // Nova pulses
     for(const np of novaPulses){
       const p = np.t/np.life;
       ctx.globalAlpha = Math.max(0, 1-p);
-      ctx.strokeStyle = CLASS_DEFS.nova.color;
+      ctx.strokeStyle = np.color || CLASS_DEFS.nova.color;
       ctx.lineWidth = 3;
       ctx.shadowColor = CLASS_DEFS.nova.color; ctx.shadowBlur = 14;
       ctx.beginPath(); ctx.arc(np.x, np.y, np.r + p*190, 0, 7); ctx.stroke();
@@ -1581,121 +1864,151 @@
     }
     ctx.globalAlpha = 1;
 
-    // Player Ship
+    // Player Ship — the fighter is now a physical record of the build.
     if(player.alive){
       ctx.save();
-      ctx.translate(player.x, player.y);
-      if(player.invuln>0 && Math.floor(frame/4)%2===0) ctx.globalAlpha = 0.35;
-      if(player.shieldCharges>0){
-        ctx.strokeStyle = '#35e3ff'; ctx.lineWidth=2;
-        ctx.shadowColor='#35e3ff'; ctx.shadowBlur=16;
-        ctx.beginPath(); ctx.arc(0,0,player.r+8,0,7); ctx.stroke();
-      }
-      const tier = player.shipTier;
-      const r = player.r;
+      ctx.translate(player.x,player.y);
+      if(player.invuln>0 && Math.floor(frame/4)%2===0) ctx.globalAlpha=0.35;
 
-      // Tier 1+: swept side wings behind the main hull
+      const L=player.levels, tier=player.shipTier, r=player.r;
+      const reactorColor = L.reactor ? '#63faff' : '#ff8fa8';
+      const hull = tier>=6 ? '#f4f7ff' : tier>=3 ? '#e4eaff' : '#eef2ff';
+
+      // Outer phase/shield field.
+      if(player.shieldCharges>0 || L.phase){
+        ctx.strokeStyle=L.phase && player.invuln>0 ? '#a78bff' : '#35e3ff';
+        ctx.lineWidth=L.phase&&player.invuln>0?3:2;
+        ctx.shadowColor=ctx.strokeStyle; ctx.shadowBlur=18;
+        ctx.beginPath(); ctx.arc(0,0,r+9+Math.sin(frame*.1)*1.5,0,Math.PI*2); ctx.stroke();
+      }
+
+      // Tier-based silhouette: each tier adds a new physical form.
       if(tier>=1){
-        ctx.fillStyle = '#8fa8ff';
-        ctx.shadowColor = '#8fa8ff'; ctx.shadowBlur = 10;
-        ctx.beginPath();
-        ctx.moveTo(-r*0.7, r*0.2);
-        ctx.lineTo(-r*1.5, r*1.1);
-        ctx.lineTo(-r*0.5, r*0.9);
-        ctx.closePath(); ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(r*0.7, r*0.2);
-        ctx.lineTo(r*1.5, r*1.1);
-        ctx.lineTo(r*0.5, r*0.9);
-        ctx.closePath(); ctx.fill();
+        ctx.fillStyle='#8fa8ff'; ctx.shadowColor='#8fa8ff'; ctx.shadowBlur=10;
+        for(const side of [-1,1]){
+          ctx.beginPath(); ctx.moveTo(side*r*.45,r*.05); ctx.lineTo(side*r*1.8,r*.9);
+          ctx.lineTo(side*r*.72,r*.85); ctx.closePath(); ctx.fill();
+        }
       }
-
-      // Tier 2+: forward canards / nose fins
       if(tier>=2){
-        ctx.fillStyle = '#c9d4ff';
-        ctx.shadowColor = '#c9d4ff'; ctx.shadowBlur = 8;
-        ctx.beginPath();
-        ctx.moveTo(-r*0.35, -r*0.5);
-        ctx.lineTo(-r*0.9, -r*0.1);
-        ctx.lineTo(-r*0.25, r*0.05);
-        ctx.closePath(); ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(r*0.35, -r*0.5);
-        ctx.lineTo(r*0.9, -r*0.1);
-        ctx.lineTo(r*0.25, r*0.05);
-        ctx.closePath(); ctx.fill();
+        ctx.fillStyle='#aebcff';
+        for(const side of [-1,1]){
+          ctx.beginPath(); ctx.moveTo(side*r*.4,-r*.25); ctx.lineTo(side*r*1.35,-r*.65);
+          ctx.lineTo(side*r*.7,r*.15); ctx.closePath(); ctx.fill();
+        }
       }
-
-      // Main hull (grows slightly with tier)
-      const hullScale = 1 + tier*0.06;
-      ctx.fillStyle = '#eef2ff';
-      ctx.shadowColor = '#7df3ff'; ctx.shadowBlur = 14 + tier*2;
-      ctx.beginPath();
-      ctx.moveTo(0,-r*hullScale);
-      ctx.lineTo(r*0.8*hullScale, r*0.8*hullScale);
-      ctx.lineTo(0, r*0.4*hullScale);
-      ctx.lineTo(-r*0.8*hullScale, r*0.8*hullScale);
-      ctx.closePath();
-      ctx.fill();
-
-      // Tier 3+: hull racing stripe / plating accent
       if(tier>=3){
-        ctx.strokeStyle = '#35e3ff';
-        ctx.lineWidth = 2;
-        ctx.shadowBlur = 0;
-        ctx.beginPath();
-        ctx.moveTo(0, -r*0.7*hullScale);
-        ctx.lineTo(0, r*0.5*hullScale);
-        ctx.stroke();
+        ctx.strokeStyle='#35e3ff'; ctx.lineWidth=2; ctx.shadowBlur=0;
+        ctx.beginPath(); ctx.moveTo(-r*1.9,r*.65); ctx.lineTo(-r*.55,r*.25);
+        ctx.moveTo(r*1.9,r*.65); ctx.lineTo(r*.55,r*.25); ctx.stroke();
       }
-
-      // Tier 4+: outer armor ring
       if(tier>=4){
-        ctx.strokeStyle = '#c9d4ff';
-        ctx.lineWidth = 1.5;
-        ctx.shadowColor = '#c9d4ff'; ctx.shadowBlur = 6;
-        ctx.beginPath();
-        ctx.arc(0, r*0.1, r*1.15, 0, 7);
-        ctx.stroke();
-      }
-
-      // Engine glow(s): more/bigger engines at higher tiers
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = '#ff8fa8';
-      const engineY = r*0.9*hullScale;
-      ctx.beginPath();
-      ctx.arc(0, engineY, 5+Math.random()*3, 0, 7);
-      ctx.fill();
-      if(tier>=1){
-        ctx.beginPath(); ctx.arc(-r*0.75, engineY-2, 3.5+Math.random()*2, 0, 7); ctx.fill();
-        ctx.beginPath(); ctx.arc(r*0.75, engineY-2, 3.5+Math.random()*2, 0, 7); ctx.fill();
+        ctx.strokeStyle='#c9d4ff'; ctx.lineWidth=1.5; ctx.shadowColor='#c9d4ff'; ctx.shadowBlur=7;
+        ctx.beginPath(); ctx.arc(0,0,r*1.35,Math.PI*.15,Math.PI*.85); ctx.stroke();
       }
       if(tier>=5){
-        ctx.fillStyle = '#ffd66a';
-        ctx.beginPath(); ctx.arc(0, engineY+4, 3+Math.random()*2, 0, 7); ctx.fill();
+        ctx.fillStyle='#d7ddff';
+        ctx.beginPath(); ctx.moveTo(-r*.45,r*.3); ctx.lineTo(-r*1.65,r*1.15); ctx.lineTo(-r*.55,r*.85); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(r*.45,r*.3); ctx.lineTo(r*1.65,r*1.15); ctx.lineTo(r*.55,r*.85); ctx.closePath(); ctx.fill();
+      }
+      if(tier>=6){
+        ctx.strokeStyle='#72b7ff'; ctx.lineWidth=2; ctx.shadowColor='#72b7ff'; ctx.shadowBlur=12;
+        ctx.beginPath(); ctx.arc(0,r*.2,r*1.65,0,Math.PI*2); ctx.stroke();
+      }
+      if(tier>=7){
+        ctx.fillStyle='#fff06a'; ctx.shadowColor='#fff06a'; ctx.shadowBlur=14;
+        ctx.beginPath(); ctx.moveTo(0,-r*1.65); ctx.lineTo(r*.28,-r*.55); ctx.lineTo(-r*.28,-r*.55); ctx.closePath(); ctx.fill();
+      }
+      if(tier>=8){
+        ctx.strokeStyle='#f0a0ff'; ctx.lineWidth=2.5; ctx.shadowColor='#f0a0ff'; ctx.shadowBlur=18;
+        ctx.beginPath(); ctx.arc(0,0,r*1.9,0,Math.PI*2); ctx.stroke();
+      }
+
+      // Main hull.
+      const hs=1+tier*.045;
+      ctx.fillStyle=hull; ctx.shadowColor='#7df3ff'; ctx.shadowBlur=14+tier*2;
+      ctx.beginPath();
+      ctx.moveTo(0,-r*hs*1.12); ctx.lineTo(r*.82*hs,r*.75*hs);
+      ctx.lineTo(0,r*.42*hs); ctx.lineTo(-r*.82*hs,r*.75*hs); ctx.closePath(); ctx.fill();
+
+      // Weapon module visibly grows with weapon level.
+      if(L.weapon){
+        ctx.fillStyle='#ffcf4a'; ctx.shadowColor='#ffcf4a'; ctx.shadowBlur=10;
+        const n=Math.min(4,1+Math.floor(L.weapon/2));
+        for(let i=0;i<n;i++){
+          const x=(i-(n-1)/2)*r*.34;
+          ctx.fillRect(x-2,-r*1.28,4,Math.min(10,4+L.weapon));
+        }
+      }
+      if(L.sideguns){
+        ctx.fillStyle='#ffd36e'; ctx.shadowColor='#ffd36e'; ctx.shadowBlur=12;
+        for(const side of [-1,1]){
+          ctx.beginPath(); ctx.rect(side*r*.78-r*.12,-r*.05,r*.24,r*.95); ctx.fill();
+          ctx.fillStyle='#fff3a0'; ctx.fillRect(side*r*.78-2,-r*.35,4,8);
+        }
+      }
+      if(L.orbitals){
+        ctx.strokeStyle='#72b7ff'; ctx.lineWidth=2; ctx.shadowColor='#72b7ff'; ctx.shadowBlur=10;
+        ctx.beginPath(); ctx.arc(0,0,r*(1.65+L.orbitals*.08),0,Math.PI*2); ctx.stroke();
+        for(let i=0;i<L.orbitals;i++){
+          const a=player.droneAngle+i*Math.PI*2/L.orbitals;
+          ctx.fillStyle='#72b7ff'; ctx.beginPath(); ctx.arc(Math.cos(a)*r*1.65,Math.sin(a)*r*1.65,4,0,Math.PI*2); ctx.fill();
+        }
+      }
+      if(L.missiles){
+        ctx.fillStyle='#ff8b4a'; ctx.shadowColor='#ff8b4a'; ctx.shadowBlur=10;
+        for(const side of [-1,1]){
+          ctx.beginPath(); ctx.moveTo(side*r*.52,r*.45); ctx.lineTo(side*r*.78,r*.9); ctx.lineTo(side*r*.35,r*.72); ctx.closePath(); ctx.fill();
+        }
+      }
+      if(L.prism){
+        ctx.fillStyle='#f0a0ff'; ctx.shadowColor='#f0a0ff'; ctx.shadowBlur=15;
+        ctx.beginPath(); ctx.moveTo(0,-r*.35); ctx.lineTo(r*.22,0); ctx.lineTo(0,r*.28); ctx.lineTo(-r*.22,0); ctx.closePath(); ctx.fill();
+      }
+      if(L.bossbane){
+        ctx.strokeStyle='#ff3b3b'; ctx.lineWidth=2; ctx.shadowColor='#ff3b3b'; ctx.shadowBlur=10;
+        ctx.beginPath(); ctx.moveTo(-r*.55,r*.18); ctx.lineTo(0,r*.48); ctx.lineTo(r*.55,r*.18); ctx.stroke();
+      }
+      if(L.armor){
+        ctx.strokeStyle='#b8c6ff'; ctx.lineWidth=2; ctx.shadowColor='#b8c6ff'; ctx.shadowBlur=7;
+        ctx.beginPath(); ctx.arc(0,.1*r,r*.92,-.85,Math.PI+.85); ctx.stroke();
+      }
+      if(L.gravity){
+        ctx.strokeStyle='#55e0b0'; ctx.lineWidth=1.5; ctx.shadowColor='#55e0b0'; ctx.shadowBlur=8;
+        ctx.beginPath(); ctx.arc(0,0,r*(1.05+L.gravity*.08),0,Math.PI*2); ctx.stroke();
+      }
+      if(L.reactor){
+        ctx.fillStyle=reactorColor; ctx.shadowColor=reactorColor; ctx.shadowBlur=18;
+        ctx.beginPath(); ctx.arc(0,r*.28,5+L.reactor,0,Math.PI*2); ctx.fill();
+      }
+
+      // Engines.
+      ctx.fillStyle='#ff8fa8'; ctx.shadowColor='#ff8fa8'; ctx.shadowBlur=10;
+      ctx.beginPath(); ctx.arc(0,r*.9*hs,5+Math.random()*2,0,Math.PI*2); ctx.fill();
+      if(tier>=1 || L.speed>=2){
+        for(const side of [-1,1]){
+          ctx.beginPath(); ctx.arc(side*r*.72,r*.82*hs,3.5+Math.random()*1.5,0,Math.PI*2); ctx.fill();
+        }
+      }
+      if(L.dash){
+        ctx.fillStyle='#7dffb5'; ctx.shadowColor='#7dffb5'; ctx.shadowBlur=16;
+        ctx.beginPath(); ctx.moveTo(-r*.25,r*.95); ctx.lineTo(0,r*(1.6+L.dash*.1)); ctx.lineTo(r*.25,r*.95); ctx.closePath(); ctx.fill();
       }
 
       ctx.restore();
-      ctx.globalAlpha = 1;
+      ctx.globalAlpha=1;
 
+      // Drone relics / engineer drones.
       if(player.classes.drone){
         for(let i=0;i<2;i++){
-          const a = player.droneAngle + i*Math.PI;
-          const dx = player.x+Math.cos(a)*34, dy = player.y+Math.sin(a)*34;
-          ctx.save();
-          ctx.translate(dx,dy);
-          ctx.rotate(a+Math.PI/2);
-          ctx.fillStyle = CLASS_DEFS.drone.color;
-          ctx.shadowColor = CLASS_DEFS.drone.color; ctx.shadowBlur = 10;
-          ctx.beginPath();
-          ctx.moveTo(0,-6); ctx.lineTo(5,4); ctx.lineTo(-5,4);
-          ctx.closePath(); ctx.fill();
+          const a=player.droneAngle+i*Math.PI, dx=player.x+Math.cos(a)*34, dy=player.y+Math.sin(a)*34;
+          ctx.save(); ctx.translate(dx,dy); ctx.rotate(a+Math.PI/2);
+          ctx.fillStyle=CLASS_DEFS.drone.color; ctx.shadowColor=CLASS_DEFS.drone.color; ctx.shadowBlur=10;
+          ctx.beginPath(); ctx.moveTo(0,-7); ctx.lineTo(6,5); ctx.lineTo(-6,5); ctx.closePath(); ctx.fill();
           ctx.restore();
         }
-        ctx.shadowBlur = 0;
       }
     }
-
     // Popups
     ctx.textAlign='center';
     for(const p of popups){
