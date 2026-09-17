@@ -501,26 +501,28 @@
 
   function spawnEnemy(){
     let availableTypes = ['drone'];
-    if (wave >= 2) availableTypes.push('zigzag', 'swarm');
-    if (wave >= 3) availableTypes.push('tank', 'sniper');
+    if (wave >= 2) availableTypes.push('zigzag');
+    if (wave >= 3) availableTypes.push('swarm', 'sniper');
     if (wave >= 4) availableTypes.push('splitter');
-    if (wave >= 5) availableTypes.push('bomber');
-    if (wave >= 6) availableTypes.push('turret');
-    if (wave >= 7) availableTypes.push('dasher');
+    // Tougher "tank" enemies wait until after the first boss (wave 5),
+    // once the player has had a real chance to pick up damage upgrades.
+    if (wave >= 6) availableTypes.push('tank', 'bomber');
+    if (wave >= 7) availableTypes.push('turret');
+    if (wave >= 8) availableTypes.push('dasher');
 
     let type = availableTypes[Math.floor(Math.random() * availableTypes.length)];
     const x = 40 + Math.random() * (W - 80);
 
-    const hpMult = 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.85;
-    const speedMult = Math.min(1.6, 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.16);
-    const aggroMult = Math.min(2.0, 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.3);
+    const hpMult = 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.55;
+    const speedMult = Math.min(1.6, 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.14);
+    const aggroMult = Math.min(2.0, 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.26);
 
     let baseHp = 1, r = 14, speed = 60, color = '#ff5d8f', shootChance = 0.004;
 
     if (type === 'zigzag') {
       baseHp = 2; r = 13; speed = 90; color = '#ffa64a'; shootChance = 0.006;
     } else if (type === 'tank') {
-      baseHp = 6; r = 22; speed = 35; color = '#9d5dff'; shootChance = 0.01;
+      baseHp = 5; r = 22; speed = 35; color = '#9d5dff'; shootChance = 0.01;
     } else if (type === 'sniper') {
       baseHp = 3; r = 15; speed = 45; color = '#35e3ff'; shootChance = 0.008;
     } else if (type === 'swarm') {
