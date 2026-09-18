@@ -1,4 +1,4 @@
-const CACHE_NAME = 'galactic-defender-v1';
+const CACHE_NAME = 'galactic-defender-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -23,18 +23,14 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  // Network-first: always try to get the latest version when online.
+  // Only fall back to the saved offline copy if the network fails.
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const fetchPromise = fetch(event.request)
-        .then((networkResp) => {
-          if (networkResp && networkResp.ok) {
-            const copy = networkResp.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-          }
-          return networkResp;
-        })
-        .catch(() => cached);
-      return cached || fetchPromise;
-    })
-  );
-});
+    fetch(event.request)
+      .then((networkResp) => {
+        if (networkResp && networkResp.ok) {
+          const copy = networkResp.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        }
+        return networkResp;
+      })
