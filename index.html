@@ -51,9 +51,12 @@
   #weaponBadge{ text-align:right; }
   #weaponBadge b{ color: var(--gold); }
   #upgradeRow{ font-size:9.5px; color:var(--hull-dim); margin-top:5px; letter-spacing:0.5px; max-width:150px; }
+  #comboRow{ font-size:11px; color:#fff06a; margin-top:4px; letter-spacing:1px; text-shadow:0 0 10px rgba(255,240,106,.65); }
+    #buildRow{margin-top:4px;font-size:9px;letter-spacing:1px;min-height:12px;} .buildTag{display:inline-block;margin-right:5px;} .choiceSynergy{margin-top:5px;font-size:9px;letter-spacing:1.5px;font-weight:bold;}
+  #comboRow b{ color:#fff06a; font-size:15px; }
 
   #joyZone{
-    position:fixed; right:0; bottom:0; width:56%; height:34%;
+    position:fixed; right:0; bottom:0; width:48%; height:30%;
     z-index:10;
   }
   #joyBase{
@@ -100,6 +103,28 @@
   }
   .btn:active{ transform:scale(0.96); }
   .hidden{ display:none !important; }
+  .perkRow{
+    display:flex; align-items:center; justify-content:space-between;
+    background: rgba(53,227,255,0.06); border:1px solid rgba(53,227,255,0.25);
+    border-radius:8px; padding:10px 14px; width:100%; box-sizing:border-box;
+  }
+  .perkInfo{ text-align:left; }
+  .perkInfo .perkName{ font-weight:bold; color:var(--hull); font-size:14px; }
+  .perkInfo .perkDesc{ color:var(--hull-dim); font-size:12px; margin-top:2px; }
+  .perkBuyBtn{
+    padding:8px 14px; font-size:13px; font-weight:bold; border:none; border-radius:6px;
+    background: linear-gradient(135deg, var(--ion), #1c7fa0); color:#03131a; cursor:pointer;
+    white-space:nowrap;
+  }
+  .perkBuyBtn:disabled{ background:#3a4152; color:#7a8298; cursor:default; }
+  .choiceBtn{
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    padding:14px; border-radius:10px; border:2px solid; cursor:pointer;
+    background: rgba(255,255,255,0.04); color:var(--hull); font-family:inherit;
+  }
+  .choiceBtn .choiceName{ font-weight:bold; font-size:15px; letter-spacing:1px; }
+  .choiceBtn .choiceDesc{ font-size:12px; color:var(--hull-dim); }
+  .choiceBtn:active{ transform:scale(0.97); }
   #legend{ display:flex; gap:14px; margin-top:18px; flex-wrap:wrap; justify-content:center; max-width:360px; }
   .legend-item{ display:flex; flex-direction:column; align-items:center; font-size:9.5px; color:var(--hull-dim); gap:4px; width:52px; }
   .swatch{ width:16px; height:16px; border-radius:4px; }
@@ -129,27 +154,6 @@
     animation: bosspulse 1.6s ease-in-out infinite;
   }
   @keyframes bosspulse{ 0%,100%{ opacity:.45 } 50%{ opacity:1 } }
-
-  #buildPanel{
-    position:fixed; left:12px; bottom:12px; z-index:7; pointer-events:none;
-    max-width:min(52vw,260px); display:flex; flex-wrap:wrap; gap:4px;
-    justify-content:flex-start; align-items:flex-end;
-  }
-  .module-chip{
-    font-size:8px; line-height:1; padding:4px 5px; border-radius:5px;
-    border:1px solid rgba(255,255,255,.16); background:rgba(5,6,15,.72);
-    color:var(--hull-dim); text-shadow:0 0 7px currentColor;
-  }
-  #toast{
-    position:fixed; left:50%; top:18%; transform:translateX(-50%);
-    z-index:18; pointer-events:none; text-align:center; opacity:0;
-    padding:8px 12px; border:1px solid rgba(255,255,255,.16);
-    border-radius:8px; background:rgba(5,6,15,.82); min-width:180px;
-    transition:opacity .12s ease;
-  }
-  #toast b{display:block;font-size:15px;letter-spacing:1px}
-  #toast span{display:block;font-size:9px;color:var(--hull-dim);margin-top:3px}
-
 </style>
 </head>
 <body>
@@ -165,15 +169,14 @@
       WAVE <b id="waveVal">1</b><br>
       LVL <b id="weaponVal">1</b>
       <div id="upgradeRow"></div>
+      <div id="comboRow">FLOW <b id="comboVal">0</b></div>
+      <div id="buildRow"></div>
     </div>
   </div>
 
   <div id="joyZone">
     <div id="joyBase"><div id="joyStick"></div></div>
   </div>
-
-  <div id="buildPanel"></div>
-  <div id="toast"><b id="toastTitle"></b><span id="toastDesc"></span></div>
 
   <div id="topBtns">
     <button class="iconBtn" id="muteBtn">🔊</button>
@@ -189,8 +192,9 @@
   <div class="overlay" id="startScreen">
     <h1>GALACTIC DEFENDER</h1>
     <p id="highScoreLine"></p>
+    <p id="coresLine" style="color:var(--gold); font-size:13px;"></p>
     <p>Bottom-right joystick moves your ship — it's kept clear of your thumb so you can always see it. Your ship fires automatically.</p>
-    <p>Collect upgrades to permanently stack power. Every 5th wave, a BOSS locks down the field. Before the first boss, enemy fire rate ramps from 55% on wave 1 to 128% on wave 4. After the first boss, enemy upgrade drops are reduced by half — but bosses now drop unique relics that physically change your fighter.</p>
+    <p>Collect upgrades to permanently stack power. Every 3rd wave you'll choose a new upgrade directly. Elites can drop guaranteed caches, and each run starts with a random Blessing. Every 5th wave, one of three BOSS types locks down the field — defeat it for a class core and a choice of three upgrade rewards. Stack related upgrades to unlock signature builds like MIRV, ARC STORM, RAILGUN, AEGIS, INFERNO, GHOST WALKER, KALEIDOSCOPE and PINBALL.</p>
     <div id="legend">
       <div class="legend-item"><div class="swatch" style="background:#ffcf4a"></div>WEAPON</div>
       <div class="legend-item"><div class="swatch" style="background:#ff3d6e"></div>DAMAGE</div>
@@ -202,8 +206,27 @@
       <div class="legend-item"><div class="swatch" style="background:#4affd0"></div>MAGNET</div>
       <div class="legend-item"><div class="swatch" style="background:#ff6a2b"></div>BLAST</div>
       <div class="legend-item"><div class="swatch" style="background:#c9ff4a"></div>HOMING</div>
+      <div class="legend-item"><div class="swatch" style="background:#ff2b4d"></div>CRIT</div>
+      <div class="legend-item"><div class="swatch" style="background:#9db4ff"></div>ARMOR</div>
+      <div class="legend-item"><div class="swatch" style="background:#ff4d8d"></div>VAMPIRE</div>
+      <div class="legend-item"><div class="swatch" style="background:#4de3ff"></div>CHAIN</div>
+      <div class="legend-item"><div class="swatch" style="background:#ffb347"></div>REAR GUN</div>
     </div>
     <button class="btn" id="startBtn">START MISSION</button>
+    <button class="btn" id="hangarBtn" style="background:linear-gradient(135deg,#9db4ff,#4a5a9a); margin-top:12px;">HANGAR</button>
+  </div>
+
+  <div class="overlay hidden" id="hangarOverlay">
+    <h1 style="font-size:26px;">HANGAR</h1>
+    <p style="color:var(--gold); font-size:14px;" id="hangarCoresLine">CORES: 0</p>
+    <p style="max-width:340px;">Spend Cores earned from runs on permanent bonuses that apply to every future run.</p>
+    <div id="hangarList" style="display:flex; flex-direction:column; gap:10px; width:100%; max-width:360px; margin-top:8px;"></div>
+    <button class="btn" id="hangarBackBtn">BACK</button>
+  </div>
+
+  <div class="overlay hidden" id="choiceOverlay">
+    <h1 style="font-size:24px;">CHOOSE AN UPGRADE</h1>
+    <div id="choiceList" style="display:flex; flex-direction:column; gap:12px; width:100%; max-width:340px; margin-top:10px;"></div>
   </div>
 
   <div class="overlay hidden" id="overScreen">
@@ -211,6 +234,7 @@
     <h2 id="finalScore">SCORE: 0</h2>
     <p id="waveReached">Reached wave 1</p>
     <p id="bestScoreLine" style="color:var(--gold); font-size:13px;"></p>
+    <p id="coresEarnedLine" style="color:var(--gold); font-size:14px;"></p>
     <button class="btn" id="retryBtn">RETRY</button>
   </div>
 </div>
@@ -284,6 +308,46 @@
   document.getElementById('muteBtn').textContent = muted ? '🔇' : '🔊';
   document.getElementById('muteBtn').addEventListener('click', ()=>{ ensureAudio(); setMuted(!muted); });
 
+  // ---------- Background music (procedural loop, respects mute) ----------
+  let musicTimer = null;
+  let musicStep = 0;
+  const MUSIC_BASS = [110.00, 110.00, 130.81, 98.00, 110.00, 110.00, 87.31, 98.00];
+  const MUSIC_ARP  = [220.00, 261.63, 293.66, 329.63, 220.00, 261.63, 246.94, 220.00];
+  function musicTone(freq, dur, type, vol){
+    if(muted || !actx) return;
+    try{
+      const t0 = actx.currentTime;
+      const osc = actx.createOscillator();
+      const gain = actx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, t0);
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(vol, t0+0.04);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+      osc.connect(gain); gain.connect(actx.destination);
+      osc.start(t0); osc.stop(t0+dur+0.03);
+    }catch(e){}
+  }
+  function musicStepFn(){
+    if(!actx){ musicTimer = setTimeout(musicStepFn, 280); return; }
+    if(!muted){
+      const i = musicStep % 8;
+      musicTone(MUSIC_BASS[i], 0.5, 'triangle', 0.045);
+      if(i % 2 === 0) musicTone(MUSIC_ARP[i], 0.26, 'sine', 0.03);
+      if(bossActive && i % 4 === 0) musicTone(MUSIC_BASS[i]*0.5, 0.4, 'sawtooth', 0.03);
+    }
+    musicStep++;
+    musicTimer = setTimeout(musicStepFn, 280);
+  }
+  function startMusic(){
+    if(musicTimer) return;
+    musicStep = 0;
+    musicStepFn();
+  }
+  function stopMusic(){
+    if(musicTimer){ clearTimeout(musicTimer); musicTimer = null; }
+  }
+
   // ---------- High score ----------
   let highScore = parseInt(localStorage.getItem('gd_highscore') || '0', 10) || 0;
   function saveHighScoreIfNeeded(){
@@ -297,6 +361,7 @@
   let paused = false;
   function setPaused(p){
     if(state !== 'playing') return;
+    if(!document.getElementById('choiceOverlay').classList.contains('hidden')) return;
     paused = p;
     document.getElementById('pauseOverlay').classList.toggle('show', p);
     document.getElementById('pauseBtn').textContent = p ? '▶' : '⏸';
@@ -306,7 +371,9 @@
   document.getElementById('quitBtn').addEventListener('click', ()=>{
     setPaused(false);
     state = 'start';
+    stopMusic();
     document.getElementById('startScreen').classList.remove('hidden');
+    refreshStartScreenHighScore();
   });
   document.addEventListener('visibilitychange', ()=>{
     if(document.hidden && state === 'playing') setPaused(true);
@@ -338,9 +405,8 @@
   window.addEventListener('resize', initStars);
 
   const TOP_MARGIN = 46;
-  function bottomLimit(){ return H - (H*0.24 + 40); }
+  function bottomLimit(){ return Math.max(TOP_MARGIN+player.r+20, H-58); }
 
-  // ---------- Game State ----------
   // ---------- Upgrade system ----------
   // Common upgrades remain readable; after Boss 1, normal enemy drops are halved.
   const UPGRADE_TYPES = [
@@ -359,7 +425,7 @@
     armor:'#b8c6ff', repair:'#69ff9d', barrier:'#42d9ff', dash:'#7dffb5',
     phase:'#a78bff', overdrive:'#fff06a', prism:'#f0a0ff', gravity:'#55e0b0',
     execution:'#ff5577', pulse:'#ff9f43', mirror:'#9ee7ff', capacitor:'#ffe06a',
-    reactor:'#63faff', salvage:'#b5ff6a'
+    reactor:'#63faff', salvage:'#b5ff6a', vampire:'#ff4d8d'
   };
 
   const UPGRADE_LABELS = {
@@ -377,11 +443,11 @@
 
   const UPGRADE_ICONS = {
     weapon:'W', damage:'D', rapid:'R', speed:'S', pierce:'P', magnet:'M',
-    shield:'B', life:'+', explosive:'X', homing:'H',
-    sideguns:'G', orbitals:'O', missiles:'V', critical:'C', chain:'A',
-    burn:'F', ricochet:'Q', bossbane:'K', armor:'A', repair:'R', barrier:'B',
+    shield:'Z', life:'+', explosive:'X', homing:'H',
+    sideguns:'5', orbitals:'O', missiles:'V', critical:'C', chain:'I',
+    burn:'F', ricochet:'Q', bossbane:'K', armor:'A', repair:'L', barrier:'B',
     dash:'>', phase:'Φ', overdrive:'!', prism:'Y', gravity:'G', execution:'E',
-    pulse:'U', mirror:'2', capacitor:'C', reactor:'N', salvage:'$'
+    pulse:'U', mirror:'2', capacitor:'T', reactor:'N', salvage:'$'
   };
 
   const UPGRADE_WEIGHTS = {
@@ -396,7 +462,7 @@
     weapon:7, damage:10, rapid:10, speed:10, pierce:5, magnet:6, explosive:5, homing:5,
     sideguns:3, orbitals:3, missiles:4, critical:5, chain:5, burn:5, ricochet:4, bossbane:5,
     armor:5, repair:4, barrier:3, dash:4, phase:3, overdrive:5, prism:4, gravity:4,
-    execution:4, pulse:4, mirror:4, capacitor:5, reactor:5, salvage:3
+    execution:4, pulse:4, mirror:4, capacitor:5, reactor:5, salvage:3, vampire:3
   };
 
   const UPGRADE_DESC = {
@@ -450,6 +516,98 @@
     regen: { name:'BERSERKER',desc:'Adaptive Regen',     color:'#ff5d8f', icon:'B' }
   };
 
+  // ---------- Feel: hit-stop, screen shake (death/boss-kill only), haptics ----------
+  let hitStop = 0;
+  let shakeTime = 0, shakeMag = 0;
+  let bossFightDamageTaken = false;
+  function addHitStop(ms){ hitStop = Math.max(hitStop, ms); }
+  function addShake(time, mag){ shakeTime = time; shakeMag = mag; }
+  function vibrate(pattern){ try{ if(navigator.vibrate) navigator.vibrate(pattern); }catch(e){} }
+
+  // ---------- Achievements ----------
+  // Note: this build already has its own synergy system (BUILD_ARCHETYPES /
+  // getActiveBuilds) and a huge 32-type upgrade pool, so achievements hook
+  // into those existing systems rather than adding a parallel one.
+  const ACHIEVEMENTS = {
+    firstblood:  { name:'FIRST BLOOD',    desc:'Defeat your first boss',              coreReward:20 },
+    wave10:      { name:'DEEP SPACE',     desc:'Reach wave 10',                       coreReward:25 },
+    wave20:      { name:'VOID RUNNER',    desc:'Reach wave 20',                       coreReward:40 },
+    flawless:    { name:'UNTOUCHABLE',    desc:'Defeat a boss without taking damage', coreReward:35 },
+    acepilot:    { name:'ACE PILOT',      desc:'Unlock all 3 pilot classes',          coreReward:20 },
+    signature:   { name:'SIGNATURE MOVE', desc:'Unlock a signature build',            coreReward:20 },
+    maxbuild:    { name:'FULLY LOADED',   desc:'Max out any single upgrade',          coreReward:25 },
+    elitehunter: { name:'ELITE HUNTER',   desc:'Defeat an elite enemy',               coreReward:15 }
+  };
+  function loadAchievements(){
+    try{ return JSON.parse(localStorage.getItem('gd_achievements')||'{}'); }catch(e){ return {}; }
+  }
+  function saveAchievements(a){ localStorage.setItem('gd_achievements', JSON.stringify(a)); }
+  let achievements = loadAchievements();
+  function unlockAchievement(key){
+    if(achievements[key]) return;
+    achievements[key] = true;
+    saveAchievements(achievements);
+    const def = ACHIEVEMENTS[key];
+    cores += def.coreReward;
+    saveCores(cores);
+    spawnPopup(player.x, player.y-70, 'ACHIEVEMENT: '+def.name, '#ffd66a');
+    spawnPopup(player.x, player.y-54, '+'+def.coreReward+' CORES', '#ffd66a');
+    sfx.classReward();
+  }
+
+  // ---------- Cosmetic ship skins ----------
+  const SHIP_SKINS = {
+    default: { name:'ION HULL',    cost:0,   hull:'#eef2ff', accent:'#8fa8ff', engine:'#ff8fa8' },
+    crimson: { name:'CRIMSON RAID',cost:60,  hull:'#ffdada', accent:'#ff5d5d', engine:'#ffb347' },
+    verdant: { name:'VERDANT WING',cost:60,  hull:'#e2ffe8', accent:'#5dff8f', engine:'#c9ff4a' },
+    void:    { name:'VOID WALKER', cost:90,  hull:'#d8d0ff', accent:'#8f5dff', engine:'#4de3ff' },
+    gold:    { name:'GILDED ACE',  cost:140, hull:'#fff3d0', accent:'#ffd66a', engine:'#ff9d3d' }
+  };
+  function loadSkins(){
+    try{
+      const raw = JSON.parse(localStorage.getItem('gd_skins')||'{}');
+      return { owned: raw.owned || ['default'], selected: raw.selected || 'default' };
+    }catch(e){ return { owned:['default'], selected:'default' }; }
+  }
+  function saveSkins(s){ localStorage.setItem('gd_skins', JSON.stringify(s)); }
+  let skinState = loadSkins();
+
+  // Cores persist across runs (localStorage) and buy permanent perks from the Hangar.
+  const META_PERKS = {
+    hull:    { name:'HULL PLATING',       desc:'+1 Max HP at run start',        maxLevel:3, costBase:15, costStep:15 },
+    reactor: { name:'OVERCHARGED REACTOR',desc:'+1 Weapon Level at run start',  maxLevel:2, costBase:25, costStep:30 },
+    salvage: { name:'SALVAGE DRIVE',      desc:'+10% Cores earned per run',     maxLevel:3, costBase:20, costStep:20 }
+  };
+  function loadCores(){
+    const v = parseInt(localStorage.getItem('gd_cores') || '0', 10);
+    return isNaN(v) ? 0 : v;
+  }
+  function saveCores(v){ localStorage.setItem('gd_cores', String(v)); }
+  function loadMeta(){
+    try{
+      const raw = JSON.parse(localStorage.getItem('gd_meta') || '{}');
+      return { hull: raw.hull||0, reactor: raw.reactor||0, salvage: raw.salvage||0 };
+    }catch(e){ return { hull:0, reactor:0, salvage:0 }; }
+  }
+  function saveMeta(m){ localStorage.setItem('gd_meta', JSON.stringify(m)); }
+  let cores = loadCores();
+  let metaPerks = loadMeta();
+  function perkCost(key){
+    const p = META_PERKS[key], lvl = metaPerks[key];
+    return p.costBase + lvl*p.costStep;
+  }
+
+  // A random run-start Blessing adds variety between attempts, roguelite-style.
+  const BLESSINGS = [
+    { name:'OVERCHARGED START', desc:'+2 Weapon Level', apply:(L)=>{ L.weapon = Math.min(UPGRADE_MAX.weapon, L.weapon+2); } },
+    { name:'GLASS CANNON', desc:'+3 Damage, -1 Max HP', apply:(L,p)=>{ L.damage = Math.min(UPGRADE_MAX.damage, L.damage+3); p.maxHp = Math.max(1, p.maxHp-1); p.hp = Math.min(p.hp, p.maxHp); } },
+    { name:'SWIFT', desc:'+3 Speed Level', apply:(L)=>{ L.speed = Math.min(UPGRADE_MAX.speed, L.speed+3); } },
+    { name:'FORTIFIED', desc:'+2 Max HP', apply:(L,p)=>{ p.maxHp += 2; p.hp += 2; } },
+    { name:'VAMPIRIC PACT', desc:'+1 Vampire Level', apply:(L)=>{ L.vampire = Math.min(UPGRADE_MAX.vampire, L.vampire+1); } },
+    { name:'STATIC FIELD', desc:'+1 Chain Level', apply:(L)=>{ L.chain = Math.min(UPGRADE_MAX.chain, L.chain+1); } }
+  ];
+  let currentBlessing = null;
+
   let state = 'start';
   let score = 0;
   let wave = 1;
@@ -461,6 +619,8 @@
   let upgrades = [];
   let classCores = [];
   let novaPulses = [];
+  let chainZaps = [];
+  let bossRewardOrbs = [];
   let particles = [];
   let popups = [];
   let frame = 0;
@@ -480,12 +640,12 @@
       weapon:0, damage:0, rapid:0, speed:0, pierce:0, magnet:0, explosive:0, homing:0,
       sideguns:0, orbitals:0, missiles:0, critical:0, chain:0, burn:0, ricochet:0,
       bossbane:0, armor:0, repair:0, barrier:0, dash:0, phase:0, overdrive:0, prism:0,
-      gravity:0, execution:0, pulse:0, mirror:0, capacitor:0, reactor:0, salvage:0
+      gravity:0, execution:0, pulse:0, mirror:0, capacitor:0, reactor:0, salvage:0, vampire:0
     },
     classes: { drone:false, nova:false, regen:false },
     droneAngle:0, droneTimer:0, novaTimer:0, regenTimer:0,
     repairTimer:0, pulseTimer:0, dashTimer:0, phaseTimer:0, overdriveTimer:0,
-    capacitorShots:0, upgradeCount:0, shipTier:0, relics:{}
+    capacitorShots:0, upgradeCount:0, shipTier:0, relics:{}, signatures:{}
   };
 
   const SHIP_TIER_UPGRADES = 2;
@@ -501,49 +661,77 @@
     player.magnetR = 40 + L.magnet*22 + L.gravity*18;
     player.explosiveRadius = L.explosive>0 ? 26 + L.explosive*9 : 0;
     player.homingRate = L.homing>0 ? 2.0 + L.homing*0.55 : 0;
+    player.critChance = L.critical * 0.06;
+    player.armorInvulnBonus = L.armor * 120;
     player.shieldMax = 3 + L.barrier*2;
     player.shieldCharges = Math.min(player.shieldCharges, player.shieldMax);
+    // Capstone reward for fully investing in the missile rack: a rear-facing
+    // gun that catches enemies which slip behind the ship (advertised in the
+    // on-screen legend but previously never actually granted to anyone).
+    player.backshotLevel = L.missiles >= UPGRADE_MAX.missiles ? 1 : 0;
   }
 
   function resetGame(){
-    score = 0; wave = 1; waveTimer = 0; spawnTimer = 0;
-    enemies = []; bullets = []; enemyBullets = []; upgrades = []; classCores = []; novaPulses = []; particles = []; popups = [];
-    boss = null; bossActive = false; firstBossDefeated = false;
+    score=0; wave=1; waveTimer=0; spawnTimer=0;
+    enemies=[]; bullets=[]; enemyBullets=[]; upgrades=[]; classCores=[]; novaPulses=[]; chainZaps=[]; bossRewardOrbs=[]; particles=[]; popups=[];
+    boss=null; bossActive=false; firstBossDefeated=false;
     document.getElementById('wrap').classList.remove('boss-alert');
-    player.levels = {
-      weapon:0, damage:0, rapid:0, speed:0, pierce:0, magnet:0, explosive:0, homing:0,
-      sideguns:0, orbitals:0, missiles:0, critical:0, chain:0, burn:0, ricochet:0,
-      bossbane:0, armor:0, repair:0, barrier:0, dash:0, phase:0, overdrive:0, prism:0,
-      gravity:0, execution:0, pulse:0, mirror:0, capacitor:0, reactor:0, salvage:0
+    player.levels={
+      weapon:0,damage:0,rapid:0,speed:0,pierce:0,magnet:0,explosive:0,homing:0,
+      sideguns:0,orbitals:0,missiles:0,critical:0,chain:0,burn:0,ricochet:0,bossbane:0,
+      armor:0,repair:0,barrier:0,dash:0,phase:0,overdrive:0,prism:0,gravity:0,execution:0,
+      pulse:0,mirror:0,capacitor:0,reactor:0,salvage:0,vampire:0
     };
-    player.classes = { drone:false, nova:false, regen:false }; player.relics = {};
-    player.upgradeCount = 0;
-    player.shipTier = 0;
-    player.droneAngle = 0; player.droneTimer = 0; player.novaTimer = 0; player.regenTimer = 0;
-    player.repairTimer = 0; player.pulseTimer = 0; player.dashTimer = 0; player.phaseTimer = 0;
-    player.overdriveTimer = 0; player.capacitorShots = 0; player.missileTimer = 0; player.shotsFired = 0; player.kills = 0; player.killStreak = 0;
-    player.shieldCharges = 0; player.shieldMax = 3;
-    player.hp = 3; player.maxHp = 3;
-    player.invuln = 0; player.alive = true;
-    recomputeStats();
-    player.x = W/2;
-    player.y = bottomLimit() - 24;
-    updateHUD();
-  }
+    player.classes={drone:false,nova:false,regen:false}; player.relics={};
+    player.upgradeCount=0; player.shipTier=0; player.signatures={};
+    player.droneAngle=0; player.droneTimer=0; player.novaTimer=0; player.regenTimer=0;
+    player.repairTimer=0; player.pulseTimer=0; player.dashTimer=0; player.phaseTimer=0;
+    player.overdriveTimer=0; player.capacitorShots=0; player.missileTimer=0; player.signatureTimer=0; player.railTimer=0; player.shotsFired=0; player.kills=0; player.killStreak=0;
+    player.shieldCharges=0; player.shieldMax=3; player.hp=3; player.maxHp=3; player.invuln=0; player.alive=true;
+    player.combo=0; player.comboTimer=0;
 
+    player.maxHp += metaPerks.hull;
+    player.hp = player.maxHp;
+    player.levels.weapon += metaPerks.reactor;
+    currentBlessing=BLESSINGS[Math.floor(Math.random()*BLESSINGS.length)];
+    currentBlessing.apply(player.levels,player);
+
+    recomputeStats();
+    player.x=W/2; player.y=bottomLimit()-24;
+    updateHUD();
+    spawnPopup(player.x,player.y-50,currentBlessing.name,'#ffd66a');
+    spawnPopup(player.x,player.y-34,currentBlessing.desc,'#ffd66a');
+  }
   // ---------- Controls ----------
   const joy = { active:false, id:null, baseX:0, baseY:0, dx:0, dy:0 };
   const joyZone = document.getElementById('joyZone');
   const joyBase = document.getElementById('joyBase');
   const joyStick = document.getElementById('joyStick');
   const JOY_RADIUS = 42;
+  const keys = {left:false,right:false,up:false,down:false};
+  window.addEventListener('keydown', e=>{
+    const k=e.key.toLowerCase();
+    if(k==='arrowleft'||k==='a') keys.left=true;
+    if(k==='arrowright'||k==='d') keys.right=true;
+    if(k==='arrowup'||k==='w') keys.up=true;
+    if(k==='arrowdown'||k==='s') keys.down=true;
+  });
+  window.addEventListener('keyup', e=>{
+    const k=e.key.toLowerCase();
+    if(k==='arrowleft'||k==='a') keys.left=false;
+    if(k==='arrowright'||k==='d') keys.right=false;
+    if(k==='arrowup'||k==='w') keys.up=false;
+    if(k==='arrowdown'||k==='s') keys.down=false;
+  });
 
   function joyStart(x,y,id){
     joy.active = true; joy.id = id;
-    joy.baseX = x; joy.baseY = y;
+    joy.baseX = Math.max(48, Math.min(W-48, x));
+    joy.baseY = Math.max(48, Math.min(H-48, y));
+    joy.dx=0; joy.dy=0;
     joyBase.style.display = 'block';
-    joyBase.style.left = (x-48)+'px';
-    joyBase.style.top = (y-48)+'px';
+    joyBase.style.left = (joy.baseX-48)+'px';
+    joyBase.style.top = (joy.baseY-48)+'px';
     joyStick.style.left='25px'; joyStick.style.top='25px';
   }
   function joyMove(x,y){
@@ -629,13 +817,6 @@
     const speedMult = Math.min(1.6, 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.14);
     const aggroMult = Math.min(2.0, 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.26);
 
-    // Before the first boss, enemy fire rate ramps up by wave instead of
-    // using the generic aggro scaling. This keeps wave 1 calm and makes
-    // waves 2-4 progressively more dangerous without spiking too hard.
-    const preBossFireMult = wave <= 4
-      ? [0.55, 0.78, 1.02, 1.28][Math.max(0, wave - 1)]
-      : 1;
-
     let baseHp = 1, r = 14, speed = 60, color = '#ff5d8f', shootChance = 0.004;
 
     if (type === 'zigzag') {
@@ -658,10 +839,19 @@
 
     const hp = Math.max(1, Math.round(baseHp * hpMult));
     speed *= speedMult;
-    shootChance *= aggroMult * preBossFireMult;
+    shootChance *= aggroMult;
 
+    const eliteChance = wave >= 3 ? Math.min(0.12, 0.018 + wave*0.004) : 0;
+    const elite = Math.random() < eliteChance;
+    if(elite){
+      hp *= 1.8;
+      speed *= 1.10;
+      shootChance *= 1.12;
+      r *= 1.10;
+      color = '#ffcf4a';
+    }
     enemies.push({
-      x, y: -30, r, hp, maxHp: hp, type, speed, color, shootChance,
+      x, y: -30, r, hp, maxHp: hp, type, speed, color, shootChance, elite,
       t: Math.random() * 100, vx: 0, aimTimer: 0, dashState: 'fall'
     });
   }
@@ -690,25 +880,10 @@
     }
   }
 
-  function makePlayerBullet(x,y,a,dmgScale=1){
-    let dmg = player.bulletDmg*dmgScale;
-    if(player.levels.critical && Math.random() < 0.08*player.levels.critical) dmg *= 2.5;
-    if(player.levels.bossbane && boss) dmg *= 1 + player.levels.bossbane*0.08;
-    const charged = player.levels.capacitor && (++player.capacitorShots % Math.max(3,9-player.levels.capacitor))===0;
-    if(charged) dmg *= 2.3;
-    bullets.push({
-      x,y,vx:Math.cos(a)*(charged?650:560),vy:Math.sin(a)*(charged?650:560),
-      r:charged?6:4,dmg,pierce:player.pierce,dead:false,
-      ricochet:player.levels.ricochet, charged, burn:player.levels.burn
-    });
-  }
-
   function playerShoot(now){
     if(now - player.lastShot < player.fireRate) return;
     player.lastShot = now;
-    player.shotsFired++;
     sfx.shoot();
-
     const lvl = player.weaponLevel;
     const spread = Math.min(lvl-1, 6);
     const angleStep = 0.14;
@@ -716,23 +891,44 @@
     const startAngle = -((count-1)/2)*angleStep;
     for(let i=0;i<count;i++){
       const a = -Math.PI/2 + startAngle + i*angleStep;
-      makePlayerBullet(player.x, player.y-player.r, a);
+      bullets.push({
+        x: player.x, y: player.y - player.r,
+        vx: Math.cos(a)*560, vy: Math.sin(a)*560,
+        r:4, dmg: player.bulletDmg, pierce: player.pierce, dead:false, ricochet: player.levels.ricochet
+      });
     }
-
-    // Side cannons: visible modules and real bullets.
-    if(player.levels.sideguns){
-      const g = player.levels.sideguns;
-      makePlayerBullet(player.x-player.r*(1.0+g*0.08), player.y+2, -Math.PI/2-0.08, 0.82);
-      makePlayerBullet(player.x+player.r*(1.0+g*0.08), player.y+2, -Math.PI/2+0.08, 0.82);
-      if(g>=3){
-        makePlayerBullet(player.x-22, player.y+7, -Math.PI/2-0.2, 0.68);
-        makePlayerBullet(player.x+22, player.y+7, -Math.PI/2+0.2, 0.68);
+    // Mirror: a chance for the whole volley to be echoed by a weaker spectral copy.
+    if(player.levels.mirror>0 && Math.random() < Math.min(0.55, player.levels.mirror*0.13)){
+      const kaleido = player.levels.mirror>=3 && player.levels.prism>=2;
+      const mirrorMult = kaleido ? 1.0 : 0.6;
+      for(let i=0;i<count;i++){
+        const a = -Math.PI/2 + startAngle + i*angleStep;
+        bullets.push({
+          x: player.x, y: player.y - player.r,
+          vx: Math.cos(a)*560, vy: Math.sin(a)*560,
+          r:3.5, dmg: player.bulletDmg*mirrorMult, pierce: player.pierce, dead:false,
+          ricochet: player.levels.ricochet, mirror:true
+        });
       }
     }
-
-    // Mirror: occasional duplicate shot with a slight spectral offset.
-    if(player.levels.mirror && Math.random() < 0.07*player.levels.mirror){
-      makePlayerBullet(player.x, player.y-player.r-3, -Math.PI/2+0.045, 0.75);
+    if(player.levels.sideguns>=3){
+      for(const a of [-0.48,-0.24,0.24,0.48]){
+        bullets.push({x:player.x,y:player.y-player.r,vx:Math.sin(a)*600,vy:-Math.cos(a)*600,r:3.5,dmg:player.bulletDmg*0.72,pierce:player.pierce,dead:false,signature:true});
+      }
+    }
+    // Rear gun: fires downward, catches enemies that get behind the ship
+    if(player.backshotLevel > 0){
+      const rn = player.backshotLevel;
+      const rStep = 0.16;
+      const rStart = -((rn-1)/2)*rStep;
+      for(let i=0;i<rn;i++){
+        const a = Math.PI/2 + rStart + i*rStep;
+        bullets.push({
+          x: player.x, y: player.y + player.r,
+          vx: Math.cos(a)*480, vy: Math.sin(a)*480,
+          r:3.5, dmg: player.bulletDmg*0.65, pierce: 0, dead:false, rear:true
+        });
+      }
     }
   }
 
@@ -747,28 +943,19 @@
   }
 
   function spawnUpgrade(x,y){
-    // Once the first boss is defeated, normal enemy upgrade drops are exactly half
-    // the original 14% chance: 7%.
+    // Drops are halved once the first boss is down — by then the player
+    // has a real build going, so pickups should feel a bit more earned.
     const dropChance = firstBossDefeated ? 0.07 : 0.14;
     if(Math.random() > dropChance) return;
-    upgrades.push({ x, y, r:12, type:pickUpgradeType(), vy:70, spin:Math.random()*6.28 });
+    upgrades.push({ x, y, r:12, type:pickUpgradeType(), vy:70 });
   }
   function spawnUpgradeForced(x,y){
     upgrades.push({ x, y, r:12, type:pickUpgradeType(), vy:70 });
   }
 
-  function showUpgradeToast(type){
-    const toast = document.getElementById('toast');
-    document.getElementById('toastTitle').textContent = UPGRADE_LABELS[type] || type.toUpperCase();
-    document.getElementById('toastDesc').textContent = UPGRADE_DESC[type] || 'SYSTEM UPGRADE';
-    toast.style.color = UPGRADE_COLORS[type] || '#fff';
-    toast.style.opacity = '1';
-    clearTimeout(showUpgradeToast._timer);
-    showUpgradeToast._timer = setTimeout(()=>toast.style.opacity='0', 1100);
-  }
-
   function applyUpgrade(type){
     const L = player.levels;
+    const buildsBefore = getActiveBuilds();
     let maxed = false;
 
     if(type==='shield'){
@@ -786,6 +973,7 @@
     updateHUD();
     sfx.upgrade();
     spawnPopup(player.x, player.y-30, maxed ? 'MAXED!' : (UPGRADE_LABELS[type]||type), UPGRADE_COLORS[type]);
+    if(maxed) unlockAchievement('maxbuild');
     if(!maxed){
       player.upgradeCount++;
       const newTier = Math.min(SHIP_TIER_MAX, Math.floor(player.upgradeCount / SHIP_TIER_UPGRADES));
@@ -796,7 +984,52 @@
         explode(player.x, player.y, '#7df3ff', 34);
       }
       showUpgradeToast(type);
+      announceNewBuilds(buildsBefore);
     }
+  }
+
+  // ---------- Build archetypes / signature weapons ----------
+  // Reaching a threshold turns a loose collection of upgrades into a real run identity.
+  const BUILD_ARCHETYPES = [
+    { key:'missile', name:'MISSILE CARRIER', short:'MIRV', color:'#ff8b4a', req:{missiles:3}, desc:'Missiles split into a wider salvo and hit harder.' },
+    { key:'arc', name:'ARC STORM', short:'ARC STORM', color:'#55f2ff', req:{chain:3}, desc:'Kills can jump across a whole cluster.' },
+    { key:'nova', name:'NOVA RING', short:'NOVA RING', color:'#72b7ff', req:{orbitals:3}, desc:'Orbitals periodically sweep the space around you.' },
+    { key:'aegis', name:'AEGIS', short:'AEGIS', color:'#b8c6ff', req:{armor:2,barrier:1}, desc:'Taking a hit releases a defensive shockwave.' },
+    { key:'rail', name:'RAILGUN', short:'RAILGUN', color:'#ffe06a', req:{critical:3,capacitor:2}, desc:'Charged shots become piercing rail slugs.' },
+    { key:'broadside', name:'BROADSIDER', short:'BROADSIDER', color:'#ffd36e', req:{sideguns:3}, desc:'Side guns evolve into a five-lane volley.' },
+    { key:'inferno', name:'INFERNO', short:'INFERNO', color:'#ff7043', req:{burn:3,execution:2}, desc:'Burning kills ignite everything nearby.' },
+    { key:'ghost', name:'GHOST WALKER', short:'GHOST', color:'#a78bff', req:{phase:2,dash:2}, desc:'Dashing refreshes your phase window instantly.' },
+    { key:'kaleidoscope', name:'KALEIDOSCOPE', short:'KALEIDO', color:'#9ee7ff', req:{mirror:3,prism:2}, desc:'Mirror shots inherit the prism\u2019s full power.' },
+    { key:'pinball', name:'PINBALL', short:'PINBALL', color:'#d7ff4a', req:{ricochet:3,pierce:2}, desc:'Every wall bounce detonates on nearby enemies.' }
+  ];
+
+  function getActiveBuilds(){
+    return BUILD_ARCHETYPES.filter(a => Object.entries(a.req).every(([k,v]) =>
+      k==='shield' ? player.shieldCharges>=v : (player.levels[k]||0)>=v));
+  }
+  function buildProgress(a){
+    return Math.min(...Object.entries(a.req).map(([k,v]) => {
+      const cur = k==='shield' ? player.shieldCharges : (player.levels[k]||0);
+      return Math.min(1,cur/v);
+    }));
+  }
+  function announceNewBuilds(before){
+    const had = new Set(before.map(a=>a.key));
+    for(const a of getActiveBuilds()) if(!had.has(a.key)){
+      spawnPopup(player.x,player.y-62,'SIGNATURE: '+a.name,a.color);
+      explode(player.x,player.y,a.color,28);
+      sfx.classReward();
+      unlockAchievement('signature');
+    }
+  }
+  function upgradeSynergyScore(type){
+    let score=0;
+    for(const a of BUILD_ARCHETYPES){
+      if(a.req[type]!==undefined) score += buildProgress(a) < 1 ? 5 : 1;
+      const paired = Object.keys(a.req).some(k=>k!==type && (player.levels[k]||0)>0);
+      if(paired) score += 2;
+    }
+    return score;
   }
 
   // ---------- Boss relics ----------
@@ -822,46 +1055,69 @@
   };
 
   function spawnClassCore(x,y){
-    const defs = BOSS_RELICS[boss ? boss.kind : 'warbringer'] || BOSS_RELICS.warbringer;
-    // Prefer relics the player has not yet collected.
-    const missing = defs.filter(d => !player.relics || !player.relics[d.key]);
-    const pool = missing.length ? missing : defs;
-    const def = pool[Math.floor(Math.random()*pool.length)];
-    classCores.push({ x, y, r:20, vy:48, kind:def.key, relic:def, spin:Math.random()*6.28 });
+    const missing = CLASS_KEYS.filter(k=>!player.classes[k]);
+    const kind = missing.length ? missing[Math.floor(Math.random()*missing.length)] : null;
+    classCores.push({ x, y, r:18, vy:55, kind });
   }
 
   function applyClassReward(kind){
     sfx.classReward();
-    if(!player.relics) player.relics={};
-    const def = Object.values(BOSS_RELICS).flat().find(d=>d.key===kind);
-    if(!def){
+    if(!kind){
       score += 250;
-      spawnUpgradeForced(player.x-26, player.y-40);
-      spawnUpgradeForced(player.x+26, player.y-40);
-      spawnPopup(player.x, player.y-34, 'RELIC OVERFLOW +250', '#ffcf4a');
+      spawnUpgradeForced(player.x-20, player.y-40);
+      spawnUpgradeForced(player.x+20, player.y-40);
+      spawnPopup(player.x, player.y-34, 'CORE OVERFLOW +250', '#ffcf4a');
       updateHUD();
       return;
     }
-
-    player.relics[kind]=true;
-    // Boss relics unlock a physical system and, where appropriate, upgrade levels.
-    if(kind==='siege') player.levels.sideguns=Math.max(player.levels.sideguns,2);
-    if(kind==='overdrive') player.levels.overdrive=Math.max(player.levels.overdrive,2);
-    if(kind==='bossbane') player.levels.bossbane=Math.max(player.levels.bossbane,2);
-    if(kind==='reactor') player.levels.reactor=Math.max(player.levels.reactor,2);
-    if(kind==='drone') player.classes.drone=true;
-    if(kind==='repair') player.levels.repair=Math.max(player.levels.repair,2);
-    if(kind==='gravity') player.levels.gravity=Math.max(player.levels.gravity,2);
-    if(kind==='pulse') player.levels.pulse=Math.max(player.levels.pulse,2);
-    if(kind==='phase') player.levels.phase=Math.max(player.levels.phase,2);
-    if(kind==='mirror') player.levels.mirror=Math.max(player.levels.mirror,2);
-    if(kind==='orbitals') player.levels.orbitals=Math.max(player.levels.orbitals,2);
-    if(kind==='prism') player.levels.prism=Math.max(player.levels.prism,2);
-    recomputeStats();
-    spawnPopup(player.x, player.y-34, def.name, def.color);
-    spawnPopup(player.x, player.y-18, def.desc, def.color);
-    explode(player.x,player.y,def.color,45);
+    player.classes[kind] = true;
+    if(kind === 'nova') player.novaTimer = 3000;
+    if(kind === 'regen') player.regenTimer = 15000;
+    spawnPopup(player.x, player.y-34, CLASS_DEFS[kind].name+' UNLOCKED', CLASS_DEFS[kind].color);
+    spawnPopup(player.x, player.y-18, CLASS_DEFS[kind].desc, CLASS_DEFS[kind].color);
+    if(CLASS_KEYS.every(k=>player.classes[k])) unlockAchievement('acepilot');
     updateHUD();
+  }
+
+  // ---------- Boss Reward Choice ----------
+  // A special "pick one" drop that only appears after a boss dies —
+  // distinct from regular pickups, always a real choice between upgrades.
+  function pickDistinctUpgradeTypes(n){
+    const pool = UPGRADE_TYPES.slice();
+    const result = [];
+    while(result.length < n && pool.length){
+      const idx = Math.floor(Math.random()*pool.length);
+      result.push(pool[idx]);
+      pool.splice(idx,1);
+    }
+    return result;
+  }
+
+  function spawnBossRewardChoice(x,y){
+    const types = pickDistinctUpgradeTypes(3);
+    types.forEach((type, i) => {
+      const ang = -Math.PI/2 + (i-1)*0.55;
+      bossRewardOrbs.push({
+        x: x, y: y - 10,
+        vx: Math.cos(ang)*70,
+        vy: 40 + i*4,
+        r: 20,
+        type,
+        t: 0,
+        claimed: false,
+        fadeT: 0
+      });
+    });
+  }
+
+  function claimBossReward(orb){
+    applyUpgrade(orb.type);
+    spawnPopup(player.x, player.y-46, 'BOSS REWARD!', '#ffd66a');
+    explode(orb.x, orb.y, UPGRADE_COLORS[orb.type], 30);
+    sfx.classReward();
+    orb.claimed = true; orb.fadeT = 0;
+    // The unclaimed choices fade away rather than lingering
+    for(const other of bossRewardOrbs){ if(other !== orb){ other.claimed = true; other.fadeT = 0; } }
   }
 
   function triggerNova(){
@@ -916,6 +1172,29 @@
     updateHUD();
   }
 
+  function triggerChainZap(sourceEnemy){
+    const range = 90 + player.chainLevel*35;
+    const dmg = 1.5 + player.chainLevel*1.2;
+    let best = null, bestD = range;
+    for(const e of enemies){
+      if(e===sourceEnemy || e.hp<=0) continue;
+      const d = Math.hypot(e.x-sourceEnemy.x, e.y-sourceEnemy.y);
+      if(d < bestD){ bestD = d; best = e; }
+    }
+    if(!best) return;
+    best.hp -= dmg;
+    chainZaps.push({ x1:sourceEnemy.x, y1:sourceEnemy.y, x2:best.x, y2:best.y, t:0, life:180 });
+    explode(best.x, best.y, '#4de3ff', 6);
+    if(best.hp<=0){
+      score += 8;
+      sfx.enemyDeath();
+      explode(best.x,best.y,best.color,14);
+      if(best.type==='splitter') spawnMiniDrones(best.x,best.y);
+      if(best.type==='bomber') bomberBurst(best.x,best.y);
+      spawnUpgrade(best.x,best.y);
+    }
+  }
+
   function spawnPopup(x,y,text,color){
     popups.push({x,y,text,color,life:900,t:0});
   }
@@ -934,6 +1213,7 @@
   // ---------- Boss ----------
   function startBossFight(){
     bossActive = true;
+    bossFightDamageTaken = false;
     enemies = [];
     enemyBullets = [];
     spawnTimer = 999999;
@@ -1113,10 +1393,15 @@
   function defeatBoss(){
     sfx.bossDeath();
     explode(boss.x, boss.y, boss.color, 60);
-    score += 500 + wave*75 + (player.levels.salvage*40);
+    addHitStop(150);
+    addShake(400, 10);
+    vibrate([50,40,70]);
+    score += 400 + wave*60;
     spawnPopup(boss.x, boss.y-20, boss.name+' DEFEATED!', '#ffcf4a');
-    spawnPopup(boss.x, boss.y+2, 'CHOOSE YOUR RELIC', '#7df3ff');
     spawnClassCore(boss.x, boss.y);
+    spawnBossRewardChoice(boss.x, boss.y+40);
+    unlockAchievement('firstblood');
+    if(!bossFightDamageTaken) unlockAchievement('flawless');
     firstBossDefeated = true;
     boss = null;
     bossActive = false;
@@ -1132,45 +1417,37 @@
     document.getElementById('scoreVal').textContent = score;
     document.getElementById('waveVal').textContent = bossActive ? 'BOSS' : wave;
     document.getElementById('weaponVal').textContent = player.weaponLevel;
+    const comboEl=document.getElementById('comboVal'); if(comboEl) comboEl.textContent=player.combo>0 ? ('x'+(1+Math.min(2.5,Math.floor(player.combo/4)*0.5)).toFixed(1)+' ['+player.combo+']') : '0';
+    const buildEl=document.getElementById('buildRow'); if(buildEl){ buildEl.innerHTML=getActiveBuilds().map(a=>'<span class="buildTag" style="color:'+a.color+'">'+a.short+'</span>').join(''); }
 
     const livesDiv = document.getElementById('lives');
     livesDiv.innerHTML = '';
     for(let i=0;i<player.hp;i++){
-      const s=document.createElement('div'); s.className='life-icon';
-      s.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14"><polygon points="12,2 15,9 22,10 17,15 18,22 12,18 6,22 7,15 2,10 9,9" fill="#ff3d6e"/></svg>';
+      const s = document.createElement('div');
+      s.className='life-icon';
+      s.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14"><polygon points="12,2 15,9 22,10 17,15 18,22 12,18 6,22 7,15 2,10 9,9" fill="#ff3d6e"/></svg>';
       livesDiv.appendChild(s);
     }
     for(let i=0;i<player.shieldCharges;i++){
-      const s=document.createElement('div'); s.className='shield-icon';
-      s.innerHTML='<svg viewBox="0 0 24 24" width="11" height="11"><circle cx="12" cy="12" r="10" fill="none" stroke="#35e3ff" stroke-width="3"/></svg>';
+      const s = document.createElement('div');
+      s.className='shield-icon';
+      s.innerHTML = '<svg viewBox="0 0 24 24" width="11" height="11"><circle cx="12" cy="12" r="10" fill="none" stroke="#35e3ff" stroke-width="3"/></svg>';
       livesDiv.appendChild(s);
     }
 
-    const L=player.levels, parts=[];
-    const order=['damage','rapid','speed','pierce','magnet','explosive','homing','sideguns','orbitals','missiles',
-      'critical','chain','burn','ricochet','bossbane','armor','repair','barrier','dash','phase','overdrive',
-      'prism','gravity','execution','pulse','mirror','capacitor','reactor','salvage'];
-    for(const k of order) if(L[k]) parts.push((UPGRADE_ICONS[k]||k[0].toUpperCase())+L[k]);
-    if(player.classes.drone) parts.push('DRN');
-    if(player.classes.nova) parts.push('NVA');
-    if(player.classes.regen) parts.push('REG');
+    const L = player.levels;
+    const parts = [];
+    if(L.damage) parts.push('DMG'+L.damage);
+    if(L.rapid) parts.push('RPD'+L.rapid);
+    if(L.speed) parts.push('SPD'+L.speed);
+    if(L.pierce) parts.push('PRC'+L.pierce);
+    if(L.magnet) parts.push('MAG'+L.magnet);
+    if(L.explosive) parts.push('BLT'+L.explosive);
+    if(L.homing) parts.push('HOM'+L.homing);
+    if(player.classes.drone) parts.push('ENG');
+    if(player.classes.nova) parts.push('VAN');
+    if(player.classes.regen) parts.push('BER');
     document.getElementById('upgradeRow').textContent = parts.join(' ');
-
-    const panel=document.getElementById('buildPanel');
-    panel.innerHTML='';
-    const chips=[];
-    if(L.weapon) chips.push(['W'+L.weapon,'#ffcf4a']);
-    for(const k of ['sideguns','orbitals','missiles','critical','chain','burn','ricochet','bossbane','armor','repair','barrier','dash','phase','overdrive','prism','gravity','execution','pulse','mirror','capacitor','reactor']){
-      if(L[k]) chips.push([(UPGRADE_ICONS[k]||k[0])+L[k],UPGRADE_COLORS[k]]);
-    }
-    if(player.classes.drone) chips.push(['DRN',CLASS_DEFS.drone.color]);
-    if(player.relics) for(const k of Object.keys(player.relics)){
-      const d=Object.values(BOSS_RELICS).flat().find(x=>x.key===k);
-      if(d) chips.push(['◆'+d.name.split(' ')[0],d.color]);
-    }
-    for(const [label,col] of chips.slice(-16)){
-      const el=document.createElement('span'); el.className='module-chip'; el.textContent=label; el.style.color=col; panel.appendChild(el);
-    }
   }
 
   // ---------- Main loop ----------
@@ -1186,8 +1463,13 @@
       drawBackground(dt);
 
       if(state === 'playing' && !paused){
-        update(dt, ts);
-        draw();
+        if(hitStop > 0){
+          hitStop -= dt;
+          draw();
+        } else {
+          update(dt, ts);
+          draw();
+        }
       } else if(state === 'playing' && paused){
         draw();
       }
@@ -1220,10 +1502,21 @@
   function update(dt, now){
     const dtS = dt/1000;
 
+    if(player.comboTimer > 0){
+      player.comboTimer -= dt;
+      if(player.comboTimer <= 0){ player.combo=0; updateHUD(); }
+    }
+
     if(player.alive){
+      let mx=joy.dx, my=joy.dy;
+      if(keys.left||keys.right||keys.up||keys.down){
+        mx=(keys.right?1:0)-(keys.left?1:0);
+        my=(keys.down?1:0)-(keys.up?1:0);
+        const km=Math.hypot(mx,my); if(km>1){mx/=km;my/=km;}
+      }
       const spd = player.baseSpeed;
-      player.x += joy.dx * spd * dtS;
-      player.y += joy.dy * spd * dtS;
+      player.x += mx * spd * dtS;
+      player.y += my * spd * dtS;
       player.x = Math.max(player.r, Math.min(W-player.r, player.x));
       player.y = Math.max(TOP_MARGIN+player.r, Math.min(bottomLimit()-player.r, player.y));
 
@@ -1236,15 +1529,17 @@
           spawnPopup(player.x,player.y-35,'PHASED','#a78bff');
         }
       }
-      if(player.levels.dash && (Math.abs(joy.dx)+Math.abs(joy.dy)>0.2)){
+      if(player.levels.dash && (Math.abs(mx)+Math.abs(my)>0.2)){
         player.dashTimer -= dt;
         if(player.dashTimer<=0){
           player.dashTimer = Math.max(2200,4800-player.levels.dash*550);
-          player.invuln = Math.max(player.invuln, 260);
-          player.x += joy.dx*80; player.y += joy.dy*80;
+          const ghostBuild = player.levels.phase>=2 && player.levels.dash>=2;
+          player.invuln = Math.max(player.invuln, ghostBuild ? 900 : 260);
+          if(ghostBuild) player.phaseTimer = Math.min(player.phaseTimer, 500);
+          player.x += mx*80; player.y += my*80;
           player.x=Math.max(player.r,Math.min(W-player.r,player.x));
           player.y=Math.max(TOP_MARGIN+player.r,Math.min(bottomLimit()-player.r,player.y));
-          explode(player.x,player.y,'#7dffb5',8);
+          explode(player.x,player.y, ghostBuild?'#a78bff':'#7dffb5', ghostBuild?14:8);
         }
       }
       if(player.levels.repair){
@@ -1307,12 +1602,32 @@
         player.missileTimer=(player.missileTimer||0)-dt;
         if(player.missileTimer<=0){
           player.missileTimer=Math.max(1100,2600-player.levels.missiles*320);
-          const n=player.levels.missiles>=3?2:1;
+          const mirv = player.levels.missiles>=3;
+          const n=mirv?3:1;
           for(let i=0;i<n;i++){
-            bullets.push({x:player.x+(i?8:-8),y:player.y-8,vx:(i?25:-25),vy:-260,r:5,
-              dmg:player.bulletDmg*(0.8+player.levels.missiles*0.18),pierce:0,dead:false,
-              missile:true,ricochet:0,burn:player.levels.burn});
+            const spread = mirv ? (i-1)*55 : 0;
+            bullets.push({x:player.x+(i?spread*.15:0),y:player.y-8,vx:spread,vy:-260,r:5,
+              dmg:player.bulletDmg*(0.8+player.levels.missiles*0.18)*(mirv?1.08:1),pierce:0,dead:false,
+              missile:true,ricochet:0,burn:player.levels.burn,signature:mirv});
           }
+        }
+      }
+      // Signature systems: once a build is formed, it gets a mechanic of its own.
+      if(player.levels.orbitals>=3){
+        player.signatureTimer=(player.signatureTimer||0)-dt;
+        if(player.signatureTimer<=0){
+          player.signatureTimer=1650;
+          const R=105+player.levels.orbitals*14, dmg=0.8+player.levels.orbitals*0.35;
+          for(const e of enemies) if(e.hp>0 && Math.hypot(e.x-player.x,e.y-player.y)<R) e.hp-=dmg;
+          novaPulses.push({x:player.x,y:player.y,r:18,life:360,t:0,color:'#72b7ff'});
+        }
+      }
+      if(player.levels.critical>=3 && player.levels.capacitor>=2){
+        player.railTimer=(player.railTimer||0)-dt;
+        if(player.railTimer<=0 && player.shotsFired%9===0){
+          player.railTimer=180;
+          bullets.push({x:player.x,y:player.y-12,vx:0,vy:-760,r:7,dmg:player.bulletDmg*3.4,pierce:4,dead:false,rail:true});
+          spawnPopup(player.x,player.y-42,'RAIL CHARGED','#ffe06a');
         }
       }
       if(player.levels.gravity){
@@ -1363,7 +1678,10 @@
         } else {
           sfx.waveStart();
           spawnPopup(player.x, player.y-40, 'WAVE '+wave, '#35e3ff');
+          if(wave % 3 === 0) triggerUpgradeChoice();
         }
+        if(wave === 10) unlockAchievement('wave10');
+        if(wave === 20) unlockAchievement('wave20');
       }
     } else if(boss){
       updateBoss(dt, dtS);
@@ -1461,6 +1779,10 @@
         }
       }
       b.x += b.vx*dtS; b.y += b.vy*dtS;
+      if(b.ricochet>0){
+        if(b.x < b.r){ b.x = b.r; b.vx = Math.abs(b.vx); b.ricochet--; explode(b.x,b.y,'#d7ff4a',5); pinballBounce(b.x,b.y); }
+        else if(b.x > W-b.r){ b.x = W-b.r; b.vx = -Math.abs(b.vx); b.ricochet--; explode(b.x,b.y,'#d7ff4a',5); pinballBounce(b.x,b.y); }
+      }
     }
     bullets = bullets.filter(b => !b.dead && b.y > -20 && b.x>-20 && b.x<W+20);
 
@@ -1491,6 +1813,23 @@
     }
     classCores = classCores.filter(c => c.y < H+30);
 
+    for(const orb of bossRewardOrbs){
+      if(orb.claimed){
+        orb.fadeT += dt;
+        continue;
+      }
+      const d = Math.hypot(orb.x-player.x, orb.y-player.y);
+      if(d < player.magnetR){
+        const ang = Math.atan2(player.y-orb.y, player.x-orb.x);
+        orb.x += Math.cos(ang)*220*dtS;
+        orb.y += Math.sin(ang)*220*dtS;
+      } else {
+        orb.x += orb.vx*dtS;
+        orb.y += orb.vy*dtS;
+      }
+    }
+    bossRewardOrbs = bossRewardOrbs.filter(orb => orb.claimed ? orb.fadeT < 500 : orb.y < H+40);
+
     for(const np of novaPulses){ np.t += dt; }
     novaPulses = novaPulses.filter(np => np.t < np.life);
 
@@ -1510,8 +1849,11 @@
         const d = Math.hypot(b.x-e.x, b.y-e.y);
         if(d < b.r + e.r){
           let hitDmg=b.dmg;
+          let isCrit=false;
+          if(player.critChance>0 && Math.random()<player.critChance){ hitDmg*=2.5; isCrit=true; }
           if(player.levels.execution && e.hp/e.maxHp<0.35) hitDmg*=1+player.levels.execution*0.25;
           e.hp -= hitDmg;
+          if(isCrit){ spawnPopup(e.x,e.y-e.r-8,'CRIT!','#ff4ad8'); addHitStop(35); }
           if(b.burn){
             e.burnUntil = Math.max(e.burnUntil||0, frame + 35*b.burn);
             e.burnDmg = Math.max(e.burnDmg||0, 0.10*b.burn);
@@ -1524,18 +1866,49 @@
           if(e.hp<=0){
             player.kills++;
             player.killStreak++;
+            player.combo = Math.min(20, player.combo + 1);
+            player.comboTimer = 2200;
             player.overdriveTimer = Math.max(player.overdriveTimer, 1800);
+            if(player.levels.vampire && player.hp < player.maxHp && Math.random() < 0.05*player.levels.vampire){
+              player.hp = Math.min(player.maxHp, player.hp+1);
+              spawnPopup(player.x, player.y-30, '+1 HP', UPGRADE_COLORS.vampire);
+              updateHUD();
+            }
+            const comboMult = 1 + Math.min(2.5, Math.floor(player.combo/4)*0.5);
             // Chain reaction: one kill can arc into a nearby enemy.
             if(player.levels.chain){
-              const R=42+player.levels.chain*8;
+              const R=(player.levels.chain>=3?72:42)+player.levels.chain*8;
+              const targets=enemies.filter(other=>other!==e && other.hp>0 && Math.hypot(other.x-e.x,other.y-e.y)<R)
+                .sort((a,b)=>Math.hypot(a.x-e.x,a.y-e.y)-Math.hypot(b.x-e.x,b.y-e.y))
+                .slice(0,player.levels.chain>=3?3:99);
+              for(const other of targets){
+                other.hp -= (player.levels.chain>=3?1.0:0.7)*player.levels.chain;
+                chainZaps.push({x1:e.x,y1:e.y,x2:other.x,y2:other.y,t:0,life:150});
+                explode(other.x,other.y,'#55f2ff',5);
+              }
+            }
+            // INFERNO signature: a kill that dies while still burning spreads the fire.
+            if(player.levels.burn>=3 && player.levels.execution>=2 && e.burnUntil && frame < e.burnUntil){
+              const iR = 85;
               for(const other of enemies){
-                if(other!==e && other.hp>0 && Math.hypot(other.x-e.x,other.y-e.y)<R){
-                  other.hp -= 0.7*player.levels.chain;
-                  explode(other.x,other.y,'#55f2ff',4);
+                if(other===e || other.hp<=0) continue;
+                if(Math.hypot(other.x-e.x, other.y-e.y) < iR){
+                  other.burnUntil = Math.max(other.burnUntil||0, frame + 35*player.levels.burn);
+                  other.burnDmg = Math.max(other.burnDmg||0, 0.10*player.levels.burn);
+                  explode(other.x,other.y,'#ff7043',4);
                 }
               }
             }
-            score += (e.type==='tank'?35: e.type==='splitter'?25: e.type==='turret'?26: e.type==='sniper'?20: e.type==='bomber'?22: e.type==='dasher'?16: 10) + player.levels.salvage*3;
+            const baseScore = (e.type==='tank'?35: e.type==='splitter'?25: e.type==='turret'?26: e.type==='sniper'?20: e.type==='bomber'?22: e.type==='dasher'?16: 10);
+            score += Math.round(baseScore * comboMult * (e.elite ? 2 : 1)) + player.levels.salvage*3;
+            if(player.combo % 4 === 0) spawnPopup(player.x,player.y-48,'FLOW x'+comboMult.toFixed(1),'#fff06a');
+            if(e.elite){
+              spawnUpgradeForced(e.x,e.y);
+              spawnPopup(e.x,e.y-e.r-12,'ELITE CACHE','#ffcf4a');
+              explode(e.x,e.y,'#ffcf4a',24);
+              addHitStop(50);
+              unlockAchievement('elitehunter');
+            }
             sfx.enemyDeath();
             explode(e.x,e.y,e.color,18);
             if(e.type === 'splitter') spawnMiniDrones(e.x, e.y);
@@ -1620,31 +1993,102 @@
     }
     classCores = classCores.filter(c => c.y < 9000);
 
+    if(player.alive){
+      for(const orb of bossRewardOrbs){
+        if(orb.claimed) continue;
+        const d = Math.hypot(orb.x-player.x, orb.y-player.y);
+        if(d < orb.r + player.r) claimBossReward(orb);
+      }
+    }
+
     if(player.hp <= 0 && player.alive){
       player.alive = false;
       explode(player.x, player.y, '#35e3ff', 30);
+      addHitStop(200);
+      addShake(500, 14);
+      vibrate([40,60,80]);
       setTimeout(()=> gameOver(), 500);
     }
   }
 
-  function hitPlayer(){
-    if(player.shieldCharges > 0){
-      player.shieldCharges--;
-      player.invuln = 700;
-      sfx.shieldBlock();
-      spawnPopup(player.x, player.y-30, 'SHIELD -1', '#35e3ff');
-      updateHUD();
-      return;
+  function pinballBounce(x,y){
+    if(!(player.levels.ricochet>=3 && player.levels.pierce>=2)) return;
+    const R = 48, dmg = player.bulletDmg*0.5;
+    for(const e of enemies){
+      if(e.hp<=0) continue;
+      if(Math.hypot(e.x-x, e.y-y) < R){
+        e.hp -= dmg;
+        if(e.hp<=0){
+          score += 8;
+          explode(e.x,e.y,e.color,10);
+          if(e.type==='splitter') spawnMiniDrones(e.x,e.y);
+          if(e.type==='bomber') bomberBurst(e.x,e.y);
+          spawnUpgrade(e.x,e.y);
+        }
+      }
     }
-    player.hp -= 1;
-    player.killStreak = 0;
-    player.invuln = 1000;
-    sfx.playerHit();
-    explode(player.x, player.y, '#ff3d6e', 10);
+    enemies = enemies.filter(e => e.hp>0);
+    if(boss && boss.hp>0 && Math.hypot(boss.x-x, boss.y-y) < R) boss.hp -= dmg;
+  }
+
+  function triggerAegisShockwave(){
+    if(!(player.levels.armor>=2 && player.levels.barrier>=1)) return;
+    const R = 130 + player.levels.barrier*16;
+    const dmg = 2 + player.levels.armor*0.7 + player.levels.barrier*0.9;
+    for(const e of enemies){
+      if(e.hp<=0) continue;
+      if(Math.hypot(e.x-player.x, e.y-player.y) < R){
+        e.hp -= dmg;
+        if(e.hp<=0){
+          score += 8;
+          explode(e.x,e.y,e.color,14);
+          if(e.type==='splitter') spawnMiniDrones(e.x,e.y);
+          if(e.type==='bomber') bomberBurst(e.x,e.y);
+          spawnUpgrade(e.x,e.y);
+        } else {
+          explode(e.x,e.y,'#b8c6ff',5);
+        }
+      }
+    }
+    enemies = enemies.filter(e => e.hp>0);
+    if(boss && boss.hp>0 && Math.hypot(boss.x-player.x, boss.y-player.y) < R){
+      boss.hp -= dmg;
+    }
+    novaPulses.push({ x:player.x, y:player.y, r:10, life:420, t:0, color:'#b8c6ff' });
     updateHUD();
   }
 
+  function hitPlayer(){
+    if(bossActive) bossFightDamageTaken = true;
+    if(player.shieldCharges>0){
+      player.shieldCharges--;
+      player.invuln=700+player.armorInvulnBonus;
+      player.combo=0; player.comboTimer=0;
+      sfx.shieldBlock();
+      spawnPopup(player.x,player.y-30,'SHIELD -1','#35e3ff');
+      triggerAegisShockwave();
+      updateHUD();
+      vibrate(30);
+      return;
+    }
+    player.hp--;
+    player.killStreak=0;
+    player.combo=0; player.comboTimer=0;
+    player.invuln=1000+player.armorInvulnBonus;
+    sfx.playerHit();
+    explode(player.x,player.y,'#ff3d6e',14);
+    triggerAegisShockwave();
+    updateHUD();
+    addHitStop(70);
+    vibrate(60);
+  }
   function draw(){
+    ctx.save();
+    if(shakeTime > 0){
+      shakeTime -= 16;
+      const s = shakeMag * Math.max(0, shakeTime) / 400;
+      ctx.translate((Math.random()-0.5)*s*2, (Math.random()-0.5)*s*2);
+    }
     for(const e of enemies){
       ctx.save();
       ctx.translate(e.x, e.y);
@@ -1699,6 +2143,13 @@
       ctx.shadowBlur = 0;
       ctx.stroke();
       ctx.restore();
+
+      if(e.elite){
+        ctx.strokeStyle='#ffcf4a'; ctx.lineWidth=2;
+        ctx.shadowColor='#ffcf4a'; ctx.shadowBlur=16;
+        ctx.beginPath(); ctx.arc(e.x,e.y,e.r+5+Math.sin(frame*.12)*2,0,Math.PI*2); ctx.stroke();
+        ctx.shadowBlur=0;
+      }
 
       if(e.type==='dasher' && e.dashState==='charge'){
         ctx.strokeStyle = '#ffffff';
@@ -1800,7 +2251,7 @@
 
     // Bullets
     for(const b of bullets){
-      const bc=b.charged?'#fff06a':b.missile?'#ff8b4a':(player.levels.prism?'#f0a0ff':'#7df3ff');
+      const bc=b.charged?'#fff06a':b.mirror?'#9ee7ff':b.missile?'#ff8b4a':(player.levels.prism?'#f0a0ff':'#7df3ff');
       ctx.fillStyle=bc; ctx.shadowColor=bc; ctx.shadowBlur=b.charged?16:8;
       ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,7); ctx.fill();
     }
@@ -1852,6 +2303,26 @@
       ctx.restore();
     }
     ctx.textBaseline='alphabetic';
+    // Boss reward choice orbs — pick one of three upgrades dropped after a boss.
+    for(const orb of bossRewardOrbs){
+      const fadeP = orb.claimed ? Math.max(0, 1 - orb.fadeT/500) : 1;
+      if(fadeP<=0) continue;
+      ctx.save();
+      ctx.globalAlpha = fadeP;
+      ctx.translate(orb.x, orb.y);
+      const pulse = 1+Math.sin(frame*.1+orb.x)*.08;
+      const col = UPGRADE_COLORS[orb.type] || '#ffcf4a';
+      ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.shadowColor = col; ctx.shadowBlur = 20;
+      ctx.beginPath(); ctx.arc(0,0,orb.r*pulse,0,Math.PI*2); ctx.stroke();
+      ctx.fillStyle = col;
+      ctx.beginPath(); ctx.arc(0,0,orb.r*0.62,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#0b0f1a';
+      ctx.font = 'bold 13px monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(UPGRADE_ICONS[orb.type] || '?', 0, 1);
+      ctx.restore();
+    }
+    ctx.textBaseline='alphabetic';
     // Nova pulses
     for(const np of novaPulses){
       const p = np.t/np.life;
@@ -1878,8 +2349,9 @@
       if(player.invuln>0 && Math.floor(frame/4)%2===0) ctx.globalAlpha=0.35;
 
       const L=player.levels, tier=player.shipTier, r=player.r;
-      const reactorColor = L.reactor ? '#63faff' : '#ff8fa8';
-      const hull = tier>=6 ? '#f4f7ff' : tier>=3 ? '#e4eaff' : '#eef2ff';
+      const skin = SHIP_SKINS[skinState.selected] || SHIP_SKINS.default;
+      const reactorColor = L.reactor ? '#63faff' : skin.engine;
+      const hull = tier>=6 ? '#f4f7ff' : tier>=3 ? '#e4eaff' : skin.hull;
 
       // Outer phase/shield field.
       if(player.shieldCharges>0 || L.phase){
@@ -1891,7 +2363,7 @@
 
       // Tier-based silhouette: each tier adds a new physical form.
       if(tier>=1){
-        ctx.fillStyle='#8fa8ff'; ctx.shadowColor='#8fa8ff'; ctx.shadowBlur=10;
+        ctx.fillStyle=skin.accent; ctx.shadowColor=skin.accent; ctx.shadowBlur=10;
         for(const side of [-1,1]){
           ctx.beginPath(); ctx.moveTo(side*r*.45,r*.05); ctx.lineTo(side*r*1.8,r*.9);
           ctx.lineTo(side*r*.72,r*.85); ctx.closePath(); ctx.fill();
@@ -2005,6 +2477,28 @@
       ctx.restore();
       ctx.globalAlpha=1;
 
+      // Signature weapon visuals.
+      if(L.missiles>=3){
+        ctx.strokeStyle='#ff8b4a'; ctx.lineWidth=2; ctx.shadowColor='#ff8b4a'; ctx.shadowBlur=10;
+        ctx.beginPath(); ctx.moveTo(-r*.8,r*.55); ctx.lineTo(-r*1.15,r*.95); ctx.moveTo(r*.8,r*.55); ctx.lineTo(r*1.15,r*.95); ctx.stroke();
+      }
+      if(L.critical>=3 && L.capacitor>=2){
+        ctx.strokeStyle='#ffe06a'; ctx.lineWidth=3; ctx.shadowColor='#ffe06a'; ctx.shadowBlur=16;
+        ctx.beginPath(); ctx.moveTo(0,-r*1.45); ctx.lineTo(0,-r*2.05); ctx.stroke();
+      }
+      if(L.sideguns>=3){
+        ctx.fillStyle='#ffd36e'; ctx.shadowColor='#ffd36e'; ctx.shadowBlur=12;
+        for(const side of [-1,1]){ ctx.fillRect(side*r*1.02-3,-r*.15,6,r*.95); ctx.fillRect(side*r*1.28-2,r*.2,4,r*.7); }
+      }
+      if(L.orbitals>=3){
+        ctx.strokeStyle='#72b7ff'; ctx.lineWidth=1.5; ctx.shadowColor='#72b7ff'; ctx.shadowBlur=12;
+        ctx.beginPath(); ctx.arc(0,0,r*2.0+Math.sin(frame*.08)*2,0,Math.PI*2); ctx.stroke();
+      }
+      if(L.armor>=2 && L.barrier>=1){
+        ctx.strokeStyle='#b8c6ff'; ctx.lineWidth=2.5; ctx.shadowColor='#b8c6ff'; ctx.shadowBlur=15;
+        ctx.beginPath(); ctx.arc(0,0,r*2.15,Math.PI*.18,Math.PI*.82); ctx.stroke();
+      }
+
       // Drone relics / engineer drones.
       if(player.classes.drone){
         for(let i=0;i<2;i++){
@@ -2025,24 +2519,171 @@
       ctx.fillText(p.text, p.x, p.y);
     }
     ctx.globalAlpha=1;
+    ctx.restore();
   }
 
   function gameOver(){
     state = 'over';
     sfx.gameOver();
+    stopMusic();
     const isNewBest = score > highScore;
     saveHighScoreIfNeeded();
     document.getElementById('finalScore').textContent = 'SCORE: '+score;
     document.getElementById('waveReached').textContent = 'Reached wave '+wave;
     document.getElementById('bestScoreLine').textContent = isNewBest ? 'NEW BEST!' : ('BEST: '+highScore);
+
+    const baseCores = Math.floor(score/40) + wave*3;
+    const earned = Math.round(baseCores * (1 + metaPerks.salvage*0.1));
+    cores += earned;
+    saveCores(cores);
+    document.getElementById('coresEarnedLine').textContent = '+'+earned+' CORES';
+
     document.getElementById('overScreen').classList.remove('hidden');
   }
 
   function refreshStartScreenHighScore(){
     const el = document.getElementById('highScoreLine');
     el.textContent = highScore > 0 ? ('BEST SCORE: '+highScore) : '';
+    document.getElementById('coresLine').textContent = 'CORES: '+cores;
   }
   refreshStartScreenHighScore();
+
+  // ---------- Hangar UI ----------
+  function renderHangar(){
+    document.getElementById('hangarCoresLine').textContent = 'CORES: '+cores;
+    const list = document.getElementById('hangarList');
+    list.innerHTML = '';
+    for(const key of Object.keys(META_PERKS)){
+      const def = META_PERKS[key];
+      const lvl = metaPerks[key];
+      const maxed = lvl >= def.maxLevel;
+      const cost = perkCost(key);
+      const row = document.createElement('div');
+      row.className = 'perkRow';
+      const info = document.createElement('div');
+      info.className = 'perkInfo';
+      info.innerHTML = '<div class="perkName">'+def.name+' ('+lvl+'/'+def.maxLevel+')</div>'+
+                        '<div class="perkDesc">'+def.desc+'</div>';
+      const btn = document.createElement('button');
+      btn.className = 'perkBuyBtn';
+      btn.textContent = maxed ? 'MAXED' : ('BUY: '+cost);
+      btn.disabled = maxed || cores < cost;
+      btn.addEventListener('click', ()=>{
+        if(metaPerks[key] >= def.maxLevel || cores < perkCost(key)) return;
+        cores -= perkCost(key);
+        metaPerks[key]++;
+        saveCores(cores);
+        saveMeta(metaPerks);
+        renderHangar();
+        refreshStartScreenHighScore();
+      });
+      row.appendChild(info);
+      row.appendChild(btn);
+      list.appendChild(row);
+    }
+
+    // Ship skins
+    const skinHeader = document.createElement('div');
+    skinHeader.style.cssText = 'margin-top:6px; font-weight:bold; color:var(--hull-dim); font-size:12px; letter-spacing:1px;';
+    skinHeader.textContent = 'SHIP SKINS';
+    list.appendChild(skinHeader);
+    for(const key of Object.keys(SHIP_SKINS)){
+      const def = SHIP_SKINS[key];
+      const owned = skinState.owned.includes(key);
+      const selected = skinState.selected === key;
+      const row = document.createElement('div');
+      row.className = 'perkRow';
+      row.style.borderColor = def.hull+'55';
+      const info = document.createElement('div');
+      info.className = 'perkInfo';
+      info.innerHTML = '<div class="perkName" style="color:'+def.accent+'">'+def.name+(selected?' (EQUIPPED)':'')+'</div>'+
+                        '<div class="perkDesc">'+(owned ? 'Owned' : ('Cost: '+def.cost+' Cores'))+'</div>';
+      const btn = document.createElement('button');
+      btn.className = 'perkBuyBtn';
+      if(selected){
+        btn.textContent = 'EQUIPPED';
+        btn.disabled = true;
+      } else if(owned){
+        btn.textContent = 'EQUIP';
+        btn.disabled = false;
+        btn.addEventListener('click', ()=>{
+          skinState.selected = key;
+          saveSkins(skinState);
+          renderHangar();
+        });
+      } else {
+        btn.textContent = 'BUY: '+def.cost;
+        btn.disabled = cores < def.cost;
+        btn.addEventListener('click', ()=>{
+          if(cores < def.cost) return;
+          cores -= def.cost;
+          skinState.owned.push(key);
+          skinState.selected = key;
+          saveCores(cores);
+          saveSkins(skinState);
+          renderHangar();
+          refreshStartScreenHighScore();
+        });
+      }
+      row.appendChild(info);
+      row.appendChild(btn);
+      list.appendChild(row);
+    }
+  }
+  document.getElementById('hangarBtn').addEventListener('click', ()=>{
+    renderHangar();
+    document.getElementById('startScreen').classList.add('hidden');
+    document.getElementById('hangarOverlay').classList.remove('hidden');
+  });
+  document.getElementById('hangarBackBtn').addEventListener('click', ()=>{
+    document.getElementById('hangarOverlay').classList.add('hidden');
+    document.getElementById('startScreen').classList.remove('hidden');
+  });
+
+  // ---------- Upgrade Choice Shrine (every 3rd non-boss wave) ----------
+  function triggerUpgradeChoice(){
+    paused=true;
+    let pool=UPGRADE_TYPES.filter(type=>{
+      if(type==='shield') return player.shieldCharges < player.shieldMax;
+      if(type==='life') return player.maxHp < 12;
+      return (player.levels[type]||0) < (UPGRADE_MAX[type]||1);
+    });
+    if(pool.length<3) pool=UPGRADE_TYPES.slice();
+    const types=[];
+    while(types.length<3 && pool.length){
+      let total=0;
+      const weights=pool.map(type=>{
+        const w=1+upgradeSynergyScore(type)*0.9;
+        total+=w; return w;
+      });
+      let roll=Math.random()*total, idx=0;
+      for(;idx<pool.length;idx++){ roll-=weights[idx]; if(roll<=0) break; }
+      if(idx>=pool.length) idx=pool.length-1;
+      types.push(pool.splice(idx,1)[0]);
+    }
+    const list=document.getElementById('choiceList');
+    list.innerHTML='';
+    for(const type of types){
+      let curLvl=type==='shield'?player.shieldCharges:(type==='life'?Math.max(0,player.maxHp-3):(player.levels[type]||0));
+      const near = BUILD_ARCHETYPES.filter(a=>a.req[type]!==undefined && buildProgress(a)<1)
+        .sort((a,b)=>buildProgress(a)-buildProgress(b))[0];
+      const tag = near ? '<div class="choiceSynergy" style="color:'+near.color+'">'+near.short+' '+Math.round(buildProgress(near)*100)+'%</div>' : '';
+      const btn=document.createElement('button');
+      btn.className='choiceBtn';
+      btn.style.borderColor=UPGRADE_COLORS[type];
+      btn.style.boxShadow='0 0 18px '+UPGRADE_COLORS[type]+'44';
+      btn.innerHTML='<div class="choiceName" style="color:'+UPGRADE_COLORS[type]+'">'+UPGRADE_LABELS[type]+'</div>'+
+        '<div class="choiceDesc">Lv '+curLvl+' → '+(curLvl+1)+'</div>'+
+        '<div class="choiceDesc">'+(UPGRADE_DESC[type]||'SYSTEM UPGRADE')+'</div>'+tag;
+      btn.addEventListener('click',()=>{
+        applyUpgrade(type);
+        document.getElementById('choiceOverlay').classList.add('hidden');
+        paused=false;
+      });
+      list.appendChild(btn);
+    }
+    document.getElementById('choiceOverlay').classList.remove('hidden');
+  }
 
   document.getElementById('startBtn').addEventListener('click', ()=>{
     ensureAudio();
@@ -2051,6 +2692,7 @@
     state = 'playing';
     setPaused(false);
     sfx.waveStart();
+    startMusic();
   });
   document.getElementById('retryBtn').addEventListener('click', ()=>{
     ensureAudio();
@@ -2060,6 +2702,7 @@
     state = 'playing';
     setPaused(false);
     sfx.waveStart();
+    startMusic();
   });
 
   player.x = W/2; player.y = bottomLimit() - 24;
