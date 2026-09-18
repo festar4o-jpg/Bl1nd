@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="theme-color" content="#05060f">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#05060f">
 <meta name="description" content="Galactic Defender - twin-stick style wave shooter. Defend, upgrade, survive.">
@@ -154,7 +155,13 @@
     animation: bosspulse 1.6s ease-in-out infinite;
   }
   @keyframes bosspulse{ 0%,100%{ opacity:.45 } 50%{ opacity:1 } }
+
+  .settingRow{ width:min(340px,90vw); min-height:48px; display:flex; align-items:center; justify-content:space-between; gap:16px; color:var(--hull); font-size:14px; border-bottom:1px solid rgba(127,136,184,.22); }
+  .settingRow input{ width:22px; height:22px; accent-color:var(--ion); }
+  .iconBtn:focus-visible,.btn:focus-visible,.choiceBtn:focus-visible{ outline:2px solid var(--ion); outline-offset:3px; }
+  @media (prefers-reduced-motion: reduce){ *{ animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; } }
 </style>
+<meta name="robots" content="noindex">
 </head>
 <body>
 <div id="wrap">
@@ -181,6 +188,15 @@
   <div id="topBtns">
     <button class="iconBtn" id="muteBtn">🔊</button>
     <button class="iconBtn" id="pauseBtn">⏸</button>
+    <button class="iconBtn" id="settingsBtn" aria-label="Settings">⚙</button>
+  </div>
+
+  <div class="overlay hidden" id="settingsOverlay">
+    <h1 style="font-size:26px;">SETTINGS</h1>
+    <label class="settingRow"><span>Reduced effects</span><input type="checkbox" id="reducedFxToggle"></label>
+    <label class="settingRow"><span>Vibration</span><input type="checkbox" id="vibrationToggle" checked></label>
+    <label class="settingRow"><span>Auto-pause when unfocused</span><input type="checkbox" id="autoPauseToggle" checked></label>
+    <button class="btn" id="settingsCloseBtn">DONE</button>
   </div>
 
   <div class="overlay" id="pauseOverlay">
@@ -241,6 +257,13 @@
 
 <script>
 (function(){
+  // Release-candidate safety layer: browser storage is optional, never required for play.
+  const GD_STORAGE = {
+    get(key, fallback=null){ try { const v=localStorage.getItem(key); return v===null?fallback:v; } catch(e){ return fallback; } },
+    set(key, value){ try { localStorage.setItem(key, String(value)); return true; } catch(e){ return false; } },
+    jsonGet(key, fallback){ try { const raw=localStorage.getItem(key); if(!raw) return fallback; const v=JSON.parse(raw); return v ?? fallback; } catch(e){ return fallback; } },
+    jsonSet(key, value){ try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch(e){ return false; } }
+  };
   document.addEventListener('contextmenu', e => e.preventDefault());
   if('serviceWorker' in navigator){
     window.addEventListener('load', ()=>{
@@ -268,7 +291,11 @@
 
   // ---------- Audio (synth SFX, no external assets) ----------
   let actx = null;
-  let muted = localStorage.getItem('gd_muted') === '1';
+  let muted = GD_STORAGE.get('gd_muted','0') === '1';
+  let reducedFx = GD_STORAGE.get('gd_reduced_fx','0') === '1';
+  let vibrationEnabled = GD_STORAGE.get('gd_vibration','1') !== '0';
+  let autoPauseEnabled = GD_STORAGE.get('gd_autopause','1') !== '0';
+  if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) reducedFx = true;
   function ensureAudio(){
     if(!actx){
       try{ actx = new (window.AudioContext || window.webkitAudioContext)(); }
@@ -353,13 +380,31 @@
   }
 
   // ---------- High score ----------
-  let highScore = parseInt(localStorage.getItem('gd_highscore') || '0', 10) || 0;
+  let highScore = parseInt(GD_STORAGE.get('gd_highscore','0') || '0', 10) || 0;
   function saveHighScoreIfNeeded(){
     if(score > highScore){
       highScore = score;
-      localStorage.setItem('gd_highscore', String(highScore));
+      GD_STORAGE.set('gd_highscore', highScore);
     }
   }
+
+  // ---------- Settings ----------
+  const settingsOverlay = document.getElementById('settingsOverlay');
+  const reducedFxToggle = document.getElementById('reducedFxToggle');
+  const vibrationToggle = document.getElementById('vibrationToggle');
+  const autoPauseToggle = document.getElementById('autoPauseToggle');
+  reducedFxToggle.checked = reducedFx;
+  vibrationToggle.checked = vibrationEnabled;
+  autoPauseToggle.checked = autoPauseEnabled;
+  document.getElementById('settingsBtn').addEventListener('click', ()=>{
+    ensureAudio();
+    if(state==='playing') setPaused(true);
+    settingsOverlay.classList.remove('hidden');
+  });
+  document.getElementById('settingsCloseBtn').addEventListener('click', ()=>{ settingsOverlay.classList.add('hidden'); });
+  reducedFxToggle.addEventListener('change', ()=>{ reducedFx=reducedFxToggle.checked; localStorage.setItem('gd_reduced_fx',reducedFx?'1':'0'); });
+  vibrationToggle.addEventListener('change', ()=>{ vibrationEnabled=vibrationToggle.checked; localStorage.setItem('gd_vibration',vibrationEnabled?'1':'0'); });
+  autoPauseToggle.addEventListener('change', ()=>{ autoPauseEnabled=autoPauseToggle.checked; localStorage.setItem('gd_autopause',autoPauseEnabled?'1':'0'); });
 
   // ---------- Pause ----------
   let paused = false;
@@ -380,10 +425,10 @@
     refreshStartScreenHighScore();
   });
   document.addEventListener('visibilitychange', ()=>{
-    if(document.hidden && state === 'playing') setPaused(true);
+    if(autoPauseEnabled && document.hidden && state === 'playing') setPaused(true);
   });
   window.addEventListener('blur', ()=>{
-    if(state === 'playing') setPaused(true);
+    if(autoPauseEnabled && state === 'playing') setPaused(true);
   });
 
   // Best-effort Android hardware back button: pause instead of leaving the page.
@@ -629,6 +674,16 @@
   let popups = [];
   let frame = 0;
 
+  // Runtime safety caps keep late-run object counts bounded. These are intentionally
+  // generous so they do not change normal gameplay, but prevent runaway allocations.
+  const MAX_ENEMIES = 18;
+  const MAX_BULLETS = 520;
+  const MAX_ENEMY_BULLETS = 260;
+  const MAX_UPGRADES = 36;
+  const MAX_PARTICLES = 420;
+  const MAX_POPUPS = 80;
+  const MAX_PULSES = 24;
+
   let boss = null;
   let bossActive = false;
   let firstBossDefeated = false;
@@ -790,7 +845,7 @@
     // rate doesn't let spawns snowball into an overwhelming pile-up.
     // Keep the simulation bounded. Without a hard cap, late waves make
     // bullet/enemy collision work grow every run and eventually cause jank.
-    const maxOnScreen = Math.min(18, 6 + Math.floor(wave / 2));
+    const maxOnScreen = Math.min(MAX_ENEMIES, 6 + Math.floor(wave / 2));
     if(enemies.length >= maxOnScreen) return;
 
     // Scaling spawn count every 10 levels
@@ -897,7 +952,8 @@
     const startAngle = -((count-1)/2)*angleStep;
     for(let i=0;i<count;i++){
       const a = -Math.PI/2 + startAngle + i*angleStep;
-      bullets.push({
+      if(bullets.length >= MAX_BULLETS) return;
+    bullets.push({
         x: player.x, y: player.y - player.r,
         vx: Math.cos(a)*560, vy: Math.sin(a)*560,
         r:4, dmg: player.bulletDmg, pierce: player.pierce, dead:false, ricochet: player.levels.ricochet
@@ -953,13 +1009,26 @@
     // has a real build going, so pickups should feel a bit more earned.
     const dropChance = firstBossDefeated ? 0.07 : 0.14;
     if(Math.random() > dropChance) return;
+    if(upgrades.length >= MAX_UPGRADES) return;
     upgrades.push({ x, y, r:12, type:pickUpgradeType(), vy:70 });
   }
   function spawnUpgradeForced(x,y){
+    if(upgrades.length >= MAX_UPGRADES) return;
     upgrades.push({ x, y, r:12, type:pickUpgradeType(), vy:70 });
   }
 
+  function addNovaPulse(p){
+    if(novaPulses.length < MAX_PULSES) novaPulses.push(p);
+  }
+  function addPopup(p){
+    if(popups.length < MAX_POPUPS) popups.push(p);
+  }
+
   function applyUpgrade(type){
+    // Boss relics map onto the same underlying systems as normal upgrades,
+    // so selecting a relic always produces a persistent, visible effect.
+    if(type==='drone'){ applyClassReward('drone'); return; }
+    if(type==='siege') type='sideguns';
     const L = player.levels;
     const buildsBefore = getActiveBuilds();
     let maxed = false;
@@ -1148,7 +1217,7 @@
     if(boss && boss.hp>0 && Math.hypot(boss.x-player.x, boss.y-player.y) < R){
       boss.hp -= 6;
     }
-    novaPulses.push({ x:player.x, y:player.y, r:8, life:500, t:0 });
+    addNovaPulse({ x:player.x, y:player.y, r:8, life:500, t:0 });
     updateHUD();
   }
 
@@ -1202,12 +1271,11 @@
   }
 
   function spawnPopup(x,y,text,color){
-    popups.push({x,y,text,color,life:900,t:0});
+    addPopup({x,y,text,color,life:900,t:0});
   }
 
-  const MAX_PARTICLES = 420;
   function explode(x,y,color,n){
-    const count = Math.min(n, Math.max(0, MAX_PARTICLES - particles.length));
+    const count = Math.min(reducedFx ? Math.ceil(n*0.45) : n, Math.max(0, MAX_PARTICLES - particles.length));
     for(let i=0;i<count;i++){
       const a = Math.random()*Math.PI*2;
       const sp = Math.random()*160+40;
@@ -1459,6 +1527,43 @@
 
   // ---------- Main loop ----------
   let lastT = 0;
+  // ---------- Gamepad support ----------
+  let gamepadConnected = false;
+  let gamepadStartPressed = false;
+  function pollGamepad(){
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    const gp = pads && pads[0];
+    if(!gp){ gamepadConnected=false; gamepadStartPressed=false; return; }
+    gamepadConnected=true;
+    const dead=.16;
+    const axis=(v)=>Math.abs(v)<dead?0:(Math.sign(v)*(Math.abs(v)-dead)/(1-dead));
+    const x=axis(gp.axes[0]||0), y=axis(gp.axes[1]||0);
+    if(state==='playing'){
+      if(Math.hypot(x,y)>.08){ joy.dx=x; joy.dy=y; joy.active=true; }
+      else if(!joy.active || Math.hypot(x,y)<=.08){ joy.dx=0; joy.dy=0; }
+      const pressed=!!(gp.buttons && gp.buttons[9] && gp.buttons[9].pressed);
+      if(pressed && !gamepadStartPressed) setPaused(!paused);
+      gamepadStartPressed=pressed;
+    } else {
+      gamepadStartPressed=false;
+    }
+  }
+  window.addEventListener('gamepadconnected', ()=>{ gamepadConnected=true; });
+  window.addEventListener('gamepaddisconnected', ()=>{ gamepadConnected=false; });
+
+  // Lightweight performance monitor. It samples rather than doing work every frame.
+  const perf = { frames:0, sampleStart:0, fps:60, minFps:60, slowFrames:0 };
+  function samplePerformance(ts){
+    perf.frames++;
+    if(!perf.sampleStart) perf.sampleStart=ts;
+    if(ts-perf.sampleStart>=1000){
+      perf.fps = Math.round((perf.frames*1000)/(ts-perf.sampleStart));
+      perf.minFps = Math.min(perf.minFps, perf.fps);
+      if(perf.fps < 45) perf.slowFrames++;
+      perf.frames=0; perf.sampleStart=ts;
+    }
+  }
+
   function loop(ts){
     try{
       if(!lastT) lastT = ts;
@@ -1466,6 +1571,8 @@
       lastT = ts;
       if(dt > 50) dt = 50;
       frame++;
+      samplePerformance(ts);
+      pollGamepad();
 
       drawBackground(dt);
 
@@ -1501,6 +1608,32 @@
       ctx.fill();
     }
     ctx.globalAlpha = 1;
+  }
+
+  // Small uniform spatial hash for enemy lookups. At high waves this avoids
+  // repeatedly comparing every bullet with every enemy.
+  const enemyGrid = { cell: 96, map: new Map() };
+  function rebuildEnemyGrid(){
+    enemyGrid.map.clear();
+    for(const e of enemies){
+      if(e.hp<=0) continue;
+      const gx=Math.floor(e.x/enemyGrid.cell), gy=Math.floor(e.y/enemyGrid.cell);
+      const k=gx+'|'+gy;
+      let bucket=enemyGrid.map.get(k);
+      if(!bucket) enemyGrid.map.set(k,bucket=[]);
+      bucket.push(e);
+    }
+  }
+  function queryEnemies(x,y,r){
+    const out=[];
+    const c=enemyGrid.cell;
+    const minX=Math.floor((x-r)/c), maxX=Math.floor((x+r)/c);
+    const minY=Math.floor((y-r)/c), maxY=Math.floor((y+r)/c);
+    for(let gx=minX;gx<=maxX;gx++) for(let gy=minY;gy<=maxY;gy++){
+      const bucket=enemyGrid.map.get(gx+'|'+gy);
+      if(bucket) for(const e of bucket) out.push(e);
+    }
+    return out;
   }
 
   function update(dt, now){
@@ -1561,7 +1694,7 @@
           for(const e of enemies){
             if(Math.hypot(e.x-player.x,e.y-player.y)<R) e.hp-=dmg;
           }
-          novaPulses.push({x:player.x,y:player.y,r:8,life:420,t:0,color:'#ff9f43'});
+          addNovaPulse({x:player.x,y:player.y,r:8,life:420,t:0,color:'#ff9f43'});
         }
       }
       if(player.levels.overdrive){
@@ -1623,7 +1756,7 @@
           player.signatureTimer=1650;
           const R=105+player.levels.orbitals*14, dmg=0.8+player.levels.orbitals*0.35;
           for(const e of enemies) if(e.hp>0 && Math.hypot(e.x-player.x,e.y-player.y)<R) e.hp-=dmg;
-          novaPulses.push({x:player.x,y:player.y,r:18,life:360,t:0,color:'#72b7ff'});
+          addNovaPulse({x:player.x,y:player.y,r:18,life:360,t:0,color:'#72b7ff'});
         }
       }
       if(player.levels.critical>=3 && player.levels.capacitor>=2){
@@ -1756,11 +1889,14 @@
       }
     }
     enemies = enemies.filter(e => e.y < H+60);
+    if(enemyBullets.length > MAX_ENEMY_BULLETS) enemyBullets.splice(0, enemyBullets.length - MAX_ENEMY_BULLETS);
+    if(bullets.length > MAX_BULLETS) bullets.splice(0, bullets.length - MAX_BULLETS);
+    rebuildEnemyGrid();
 
     for(const b of bullets){
       if(player.homingRate>0){
         let target=null, bd=260;
-        for(const e of enemies){
+        for(const e of queryEnemies(b.x,b.y,bd+32)){
           if(e.hp<=0) continue;
           const dd = Math.hypot(e.x-b.x, e.y-b.y);
           if(dd<bd){ bd=dd; target=e; }
@@ -1848,7 +1984,7 @@
     // Collisions: player bullets vs enemies
     for(const b of bullets){
       if(b.dead) continue;
-      for(const e of enemies){
+      for(const e of queryEnemies(b.x,b.y,b.r+42)){
         if(e.hp<=0) continue;
         const d = Math.hypot(b.x-e.x, b.y-e.y);
         if(d < b.r + e.r){
@@ -1882,7 +2018,7 @@
             // Chain reaction: one kill can arc into a nearby enemy.
             if(player.levels.chain){
               const R=(player.levels.chain>=3?72:42)+player.levels.chain*8;
-              const targets=enemies.filter(other=>other!==e && other.hp>0 && Math.hypot(other.x-e.x,other.y-e.y)<R)
+              const targets=queryEnemies(e.x,e.y,R).filter(other=>other!==e && other.hp>0 && Math.hypot(other.x-e.x,other.y-e.y)<R)
                 .sort((a,b)=>Math.hypot(a.x-e.x,a.y-e.y)-Math.hypot(b.x-e.x,b.y-e.y))
                 .slice(0,player.levels.chain>=3?3:99);
               for(const other of targets){
@@ -2058,7 +2194,6 @@
     if(boss && boss.hp>0 && Math.hypot(boss.x-player.x, boss.y-player.y) < R){
       boss.hp -= dmg;
     }
-    novaPulses.push({ x:player.x, y:player.y, r:10, life:420, t:0, color:'#b8c6ff' });
     updateHUD();
   }
 
@@ -2669,7 +2804,7 @@
       });
     }
 
-    const relicPool = (BOSS_RELICS[bossKind] || []).slice();
+    const relicPool = (BOSS_RELICS[bossKind] || []).filter(r => !player.relics[r.key]).slice();
     while(options.length < 3 && relicPool.length){
       const idx = Math.floor(Math.random()*relicPool.length);
       const relic = relicPool.splice(idx,1)[0];
@@ -2824,6 +2959,10 @@
 
   player.x = W/2; player.y = bottomLimit() - 24;
   requestAnimationFrame(loop);
+  window.GalacticDefenderQA = window.GalacticDefenderQA || {};
+  window.GalacticDefenderQA.getStats = function(){
+    return { fps:perf.fps, minFps:perf.minFps, slowSamples:perf.slowFrames, state, paused, wave, score, enemies:enemies.length, bullets:bullets.length, enemyBullets:enemyBullets.length, particles:particles.length, upgrades:upgrades.length, popups:popups.length };
+  };
 })();
 </script>
 </body>
