@@ -225,7 +225,7 @@
   </div>
 
   <div class="overlay hidden" id="choiceOverlay">
-    <h1 style="font-size:24px;">CHOOSE AN UPGRADE</h1>
+    <h1 style="font-size:24px;" id="choiceTitle">CHOOSE AN UPGRADE</h1>
     <div id="choiceList" style="display:flex; flex-direction:column; gap:12px; width:100%; max-width:340px; margin-top:10px;"></div>
   </div>
 
@@ -250,6 +250,7 @@
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
   let W, H, DPR;
+  let bgGradient = null;
 
   function resize(){
     DPR = Math.min(window.devicePixelRatio || 1, 2);
@@ -258,6 +259,9 @@
     canvas.width = W * DPR;
     canvas.height = H * DPR;
     ctx.setTransform(DPR,0,0,DPR,0,0);
+    bgGradient = ctx.createLinearGradient(0,0,0,H);
+    bgGradient.addColorStop(0,'#05060f');
+    bgGradient.addColorStop(1,'#0b0e21');
   }
   window.addEventListener('resize', resize);
   resize();
@@ -784,7 +788,9 @@
   function spawnEnemyBatch(){
     // Cap how many enemies can be alive on screen at once, so a slow kill
     // rate doesn't let spawns snowball into an overwhelming pile-up.
-    const maxOnScreen = 6 + Math.floor(wave / 2);
+    // Keep the simulation bounded. Without a hard cap, late waves make
+    // bullet/enemy collision work grow every run and eventually cause jank.
+    const maxOnScreen = Math.min(18, 6 + Math.floor(wave / 2));
     if(enemies.length >= maxOnScreen) return;
 
     // Scaling spawn count every 10 levels
@@ -1199,13 +1205,15 @@
     popups.push({x,y,text,color,life:900,t:0});
   }
 
+  const MAX_PARTICLES = 420;
   function explode(x,y,color,n){
-    for(let i=0;i<n;i++){
+    const count = Math.min(n, Math.max(0, MAX_PARTICLES - particles.length));
+    for(let i=0;i<count;i++){
       const a = Math.random()*Math.PI*2;
       const sp = Math.random()*160+40;
       particles.push({
         x,y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
-        r:Math.random()*3+1, life:500+Math.random()*300, t:0, color
+        r:Math.random()*3+1, life:420+Math.random()*260, t:0, color
       });
     }
   }
@@ -1398,8 +1406,7 @@
     vibrate([50,40,70]);
     score += 400 + wave*60;
     spawnPopup(boss.x, boss.y-20, boss.name+' DEFEATED!', '#ffcf4a');
-    spawnClassCore(boss.x, boss.y);
-    spawnBossRewardChoice(boss.x, boss.y+40);
+    openBossRewardChoice(boss.kind);
     unlockAchievement('firstblood');
     if(!bossFightDamageTaken) unlockAchievement('flawless');
     firstBossDefeated = true;
@@ -1482,10 +1489,7 @@
 
   function drawBackground(dt){
     ctx.clearRect(0,0,W,H);
-    const g = ctx.createLinearGradient(0,0,0,H);
-    g.addColorStop(0,'#05060f');
-    g.addColorStop(1,'#0b0e21');
-    ctx.fillStyle = g;
+    ctx.fillStyle = bgGradient || '#05060f';
     ctx.fillRect(0,0,W,H);
     ctx.fillStyle = '#cfe8ff';
     for(const st of stars){
@@ -2640,6 +2644,109 @@
     document.getElementById('startScreen').classList.remove('hidden');
   });
 
+  // ---------- Boss Reward Choice ----------
+  // Boss rewards are presented as a readable modal instead of moving orbs.
+  // The player explicitly chooses one reward; nothing is auto-collected.
+  function openBossRewardChoice(bossKind){
+    paused = true;
+    bossRewardOrbs = [];
+    classCores = [];
+    const title = document.getElementById('choiceTitle');
+    const list = document.getElementById('choiceList');
+    title.textContent = 'BOSS REWARD — CHOOSE ONE';
+    list.innerHTML = '';
+
+    const options = [];
+    const missingClass = CLASS_KEYS.filter(k => !player.classes[k]);
+    if(missingClass.length){
+      const kind = missingClass[Math.floor(Math.random()*missingClass.length)];
+      options.push({
+        kind:'class', key:kind,
+        name: CLASS_DEFS[kind].name+' CORE',
+        desc: CLASS_DEFS[kind].desc,
+        color: CLASS_DEFS[kind].color,
+        level:'UNLOCK'
+      });
+    }
+
+    const relicPool = (BOSS_RELICS[bossKind] || []).slice();
+    while(options.length < 3 && relicPool.length){
+      const idx = Math.floor(Math.random()*relicPool.length);
+      const relic = relicPool.splice(idx,1)[0];
+      const level = relic.key==='drone'
+        ? 'UNLOCK'
+        : 'Lv '+(player.levels[relic.key]||0)+' → '+((player.levels[relic.key]||0)+1);
+      options.push({kind:'upgrade', key:relic.key, name:relic.name, desc:relic.desc, color:relic.color, level});
+    }
+
+    // If a class core filled one slot, use general upgrades to guarantee 3 choices.
+    while(options.length < 3){
+      const type = pickDistinctUpgradeTypes(UPGRADE_TYPES.length)
+        .find(t => {
+          if(t==='shield') return player.shieldCharges < player.shieldMax;
+          if(t==='life') return player.maxHp < 12;
+          return (player.levels[t]||0) < (UPGRADE_MAX[t]||1);
+        });
+      if(!type) break;
+      options.push({
+        kind:'upgrade', key:type, name:UPGRADE_LABELS[type]||type,
+        desc:UPGRADE_DESC[type]||'SYSTEM UPGRADE',
+        color:UPGRADE_COLORS[type]||'#ffcf4a',
+        level:'Lv '+(type==='shield'?player.shieldCharges:type==='life'?Math.max(0,player.maxHp-3):(player.levels[type]||0))+
+              ' → '+((type==='shield'?player.shieldCharges:type==='life'?Math.max(0,player.maxHp-3):(player.levels[type]||0))+1)
+      });
+    }
+
+    // Deterministic fallback: always show three distinct general upgrades.
+    const used = new Set(options.map(o=>o.key));
+    for(const type of UPGRADE_TYPES){
+      if(options.length>=3) break;
+      if(used.has(type)) continue;
+      used.add(type);
+      const cur = type==='shield'?player.shieldCharges:type==='life'?Math.max(0,player.maxHp-3):(player.levels[type]||0);
+      options.push({
+        kind:'upgrade', key:type, name:UPGRADE_LABELS[type]||type,
+        desc:UPGRADE_DESC[type]||'SYSTEM UPGRADE',
+        color:UPGRADE_COLORS[type]||'#ffcf4a',
+        level:'Lv '+cur+' → '+(cur+1)
+      });
+    }
+
+    for(const option of options.slice(0,3)){
+      const btn=document.createElement('button');
+      btn.className='choiceBtn';
+      btn.style.borderColor=option.color;
+      btn.style.boxShadow='0 0 18px '+option.color+'44';
+      btn.innerHTML='<div class="choiceName" style="color:'+option.color+'">'+option.name+'</div>'+
+        '<div class="choiceDesc">'+option.level+'</div>'+
+        '<div class="choiceDesc">'+option.desc+'</div>';
+
+      let claimed = false;
+      const choose = (ev)=>{
+        if(ev) { ev.preventDefault(); ev.stopPropagation(); }
+        if(claimed) return;
+        claimed = true;
+        btn.disabled = true;
+        if(option.kind==='class'){
+          applyClassReward(option.key);
+        } else {
+          applyUpgrade(option.key);
+        }
+        list.querySelectorAll('.choiceBtn').forEach(b=>b.disabled=true);
+        document.getElementById('choiceOverlay').classList.add('hidden');
+        title.textContent='CHOOSE AN UPGRADE';
+        paused=false;
+      };
+      // pointerdown is immediate on phones and avoids the unreliable
+      // delayed click/tap behavior some mobile browsers can produce.
+      btn.addEventListener('pointerdown', choose, {passive:false});
+      btn.addEventListener('click', choose);
+      list.appendChild(btn);
+    }
+
+    document.getElementById('choiceOverlay').classList.remove('hidden');
+  }
+
   // ---------- Upgrade Choice Shrine (every 3rd non-boss wave) ----------
   function triggerUpgradeChoice(){
     paused=true;
@@ -2661,6 +2768,7 @@
       if(idx>=pool.length) idx=pool.length-1;
       types.push(pool.splice(idx,1)[0]);
     }
+    document.getElementById('choiceTitle').textContent='CHOOSE AN UPGRADE';
     const list=document.getElementById('choiceList');
     list.innerHTML='';
     for(const type of types){
@@ -2675,11 +2783,20 @@
       btn.innerHTML='<div class="choiceName" style="color:'+UPGRADE_COLORS[type]+'">'+UPGRADE_LABELS[type]+'</div>'+
         '<div class="choiceDesc">Lv '+curLvl+' → '+(curLvl+1)+'</div>'+
         '<div class="choiceDesc">'+(UPGRADE_DESC[type]||'SYSTEM UPGRADE')+'</div>'+tag;
-      btn.addEventListener('click',()=>{
+      let chosen = false;
+      const choose = (ev)=>{
+        if(ev) { ev.preventDefault(); ev.stopPropagation(); }
+        if(chosen) return;
+        chosen = true;
+        btn.disabled = true;
         applyUpgrade(type);
+        list.querySelectorAll('.choiceBtn').forEach(b=>b.disabled=true);
         document.getElementById('choiceOverlay').classList.add('hidden');
+        document.getElementById('choiceTitle').textContent='CHOOSE AN UPGRADE';
         paused=false;
-      });
+      };
+      btn.addEventListener('pointerdown', choose, {passive:false});
+      btn.addEventListener('click', choose);
       list.appendChild(btn);
     }
     document.getElementById('choiceOverlay').classList.remove('hidden');
