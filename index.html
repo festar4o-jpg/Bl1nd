@@ -685,9 +685,9 @@
 
   // Runtime safety caps keep late-run object counts bounded. These are intentionally
   // generous so they do not change normal gameplay, but prevent runaway allocations.
-  const MAX_ENEMIES = 18;
-  const MAX_BULLETS = 520;
-  const MAX_ENEMY_BULLETS = 260;
+  const MAX_ENEMIES = 14;
+  const MAX_BULLETS = 420;
+  const MAX_ENEMY_BULLETS = 120;
   const MAX_UPGRADES = 36;
   const MAX_PARTICLES = 420;
   const MAX_POPUPS = 80;
@@ -879,12 +879,13 @@
     // rate doesn't let spawns snowball into an overwhelming pile-up.
     // Keep the simulation bounded. Without a hard cap, late waves make
     // bullet/enemy collision work grow every run and eventually cause jank.
-    const maxOnScreen = Math.min(MAX_ENEMIES, 6 + Math.floor(wave / 2));
+    const maxOnScreen = Math.min(MAX_ENEMIES, 5 + Math.floor(wave / 4));
     if(enemies.length >= maxOnScreen) return;
 
-    // Scaling spawn count every 10 levels
-    const tier = Math.floor((wave - 1) / 10);
-    const countToSpawn = Math.min(1 + tier, maxOnScreen - enemies.length);
+    // Later waves stay challenging, but only occasionally add a second enemy.
+    const countToSpawn = (wave >= 12 && Math.random() < 0.22)
+      ? Math.min(2, maxOnScreen - enemies.length)
+      : 1;
 
     for(let i = 0; i < countToSpawn; i++){
       spawnEnemy();
@@ -899,35 +900,35 @@
     // types are still introduced gradually rather than all at once.
     if (firstBossDefeated){
       availableTypes.push('zigzag', 'swarm', 'sniper');
-      if (wave >= 7) availableTypes.push('splitter');
-      if (wave >= 8) availableTypes.push('tank', 'bomber');
-      if (wave >= 9) availableTypes.push('turret');
-      if (wave >= 10) availableTypes.push('dasher');
+      if (wave >= 9) availableTypes.push('splitter');
+      if (wave >= 11) availableTypes.push('tank', 'bomber');
+      if (wave >= 13) availableTypes.push('turret');
+      if (wave >= 15) availableTypes.push('dasher');
     }
 
     let type = availableTypes[Math.floor(Math.random() * availableTypes.length)];
     const x = 40 + Math.random() * (W - 80);
 
-    const hpMult = 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.55;
-    const speedMult = Math.min(1.6, 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.14);
-    const aggroMult = Math.min(2.0, 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.26);
+    const hpMult = 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.42;
+    const speedMult = Math.min(1.45, 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.11);
+    const aggroMult = Math.min(1.35, 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.16);
 
     let baseHp = 1, r = 14, speed = 60, color = '#ff5d8f', shootChance = 0.004;
 
     if (type === 'zigzag') {
-      baseHp = 2; r = 13; speed = 90; color = '#ffa64a'; shootChance = 0.006;
+      baseHp = 2; r = 13; speed = 90; color = '#ffa64a'; shootChance = 0.0045;
     } else if (type === 'tank') {
-      baseHp = 5; r = 22; speed = 35; color = '#9d5dff'; shootChance = 0.01;
+      baseHp = 5; r = 22; speed = 35; color = '#9d5dff'; shootChance = 0.006;
     } else if (type === 'sniper') {
-      baseHp = 3; r = 15; speed = 45; color = '#35e3ff'; shootChance = 0.008;
+      baseHp = 3; r = 15; speed = 45; color = '#35e3ff'; shootChance = 0.0035;
     } else if (type === 'swarm') {
       baseHp = 1; r = 9; speed = 130; color = '#ffcf4a'; shootChance = 0.002;
     } else if (type === 'splitter') {
-      baseHp = 4; r = 18; speed = 50; color = '#7dff8f'; shootChance = 0.005;
+      baseHp = 4; r = 18; speed = 50; color = '#7dff8f'; shootChance = 0.0035;
     } else if (type === 'bomber') {
-      baseHp = 3; r = 17; speed = 48; color = '#ff7b3d'; shootChance = 0.003;
+      baseHp = 3; r = 17; speed = 48; color = '#ff7b3d'; shootChance = 0.002;
     } else if (type === 'turret') {
-      baseHp = 5; r = 17; speed = 20; color = '#e04aff'; shootChance = 0.009;
+      baseHp = 5; r = 17; speed = 20; color = '#e04aff'; shootChance = 0.005;
     } else if (type === 'dasher') {
       baseHp = 2; r = 12; speed = 78; color = '#4affaf'; shootChance = 0;
     }
@@ -936,7 +937,7 @@
     speed *= speedMult;
     shootChance *= aggroMult;
 
-    const eliteChance = wave >= 3 ? Math.min(0.12, 0.018 + wave*0.004) : 0;
+    const eliteChance = wave >= 3 ? Math.min(0.08, 0.015 + wave*0.0025) : 0;
     const elite = Math.random() < eliteChance;
     if(elite){
       hp *= 1.8;
@@ -963,7 +964,7 @@
   }
 
   function bomberBurst(x, y){
-    const n = 7;
+    const n = 5;
     const gapAngle = Math.random()*Math.PI*2;
     const gapWidth = 0.9;
     for(let i=0;i<n;i++){
@@ -1409,14 +1410,14 @@
     const cx = boss.x, cy = boss.y + boss.r*0.3;
     if(boss.kind === 'warbringer'){
       if(boss.pattern === 0){
-        const n = 10 + Math.min(6, Math.floor(wave / 3));
+        const n = 7 + Math.min(4, Math.floor(wave / 5));
         for(let i=0;i<n;i++){
           const a = (i/n)*Math.PI*2;
           enemyBullets.push({ x:cx, y:cy, vx:Math.cos(a)*150, vy:Math.sin(a)*150, r:5 });
         }
       } else if(boss.pattern === 1){
         const baseAng = Math.atan2(player.y-cy, player.x-cx);
-        const count = 3;
+        const count = 2;
         for(let i = -Math.floor(count/2); i <= Math.floor(count/2); i++){
           const a = baseAng + i * 0.22;
           enemyBullets.push({ x:cx, y:cy, vx:Math.cos(a)*210, vy:Math.sin(a)*210, r:5 });
@@ -1501,14 +1502,24 @@
       enemies.push({
         x, y: boss.y+boss.r*0.6, r:10,
         hp: baseHp, maxHp: baseHp, type:'swarm', speed:120,
-        color:'#ffcf4a', shootChance:0.003, t: Math.random()*100, vx:0, aimTimer:0, dashState:'fall'
+        color:'#ffcf4a', shootChance:0.0015, t: Math.random()*100, vx:0, aimTimer:0, dashState:'fall'
       });
     }
   }
 
+  function clearTransientCombatFx(){
+    enemyBullets.length = 0;
+    bullets = bullets.filter(b => b && !b.dead).slice(-180);
+    particles = particles.slice(-180);
+    popups = popups.slice(-30);
+    chainZaps = chainZaps.slice(-12);
+    novaPulses = novaPulses.slice(-12);
+  }
+
   function defeatBoss(){
+    clearTransientCombatFx();
     sfx.bossDeath();
-    explode(boss.x, boss.y, boss.color, 60);
+    explode(boss.x, boss.y, boss.color, 38);
     addHitStop(150);
     addShake(400, 10);
     vibrate([50,40,70]);
@@ -1878,8 +1889,8 @@
       spawnTimer -= dt;
       // Exponentially speed up spawn frequency every 10 levels
       const tier = Math.floor((wave - 1) / 10);
-      const baseInterval = Math.max(1300 - wave * 55, 300);
-      const spawnInterval = Math.max(150, baseInterval / (1 + tier * 0.4));
+      const baseInterval = Math.max(1650 - wave * 42, 650);
+      const spawnInterval = Math.max(500, baseInterval / (1 + tier * 0.18));
 
       if(spawnTimer <= 0){
         spawnEnemyBatch();
@@ -1971,6 +1982,15 @@
     enemies = enemies.filter(e => e.y < H+60);
     if(enemyBullets.length > MAX_ENEMY_BULLETS) enemyBullets.splice(0, enemyBullets.length - MAX_ENEMY_BULLETS);
     if(bullets.length > MAX_BULLETS) bullets.splice(0, bullets.length - MAX_BULLETS);
+
+    // Periodic stale-effect cleanup keeps long runs smooth.
+    if((frame & 127) === 0){
+      particles = particles.filter(p => p && p.t < p.life).slice(-MAX_PARTICLES);
+      popups = popups.filter(p => p && p.t < p.life).slice(-MAX_POPUPS);
+      chainZaps = chainZaps.filter(z => z && z.t < z.life).slice(-MAX_PULSES);
+      novaPulses = novaPulses.filter(n => n && n.t < n.life).slice(-MAX_PULSES);
+    }
+
     rebuildEnemyGrid();
 
     for(const b of bullets){
