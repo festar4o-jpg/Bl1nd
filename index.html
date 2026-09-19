@@ -1114,7 +1114,7 @@
   // ---------- Boss relics ----------
   const BOSS_RELICS = {
     warbringer:[
-      {key:'siege',name:'SIEGE CANNONS',desc:'Twin heavy side cannons join your fighter.',color:'#ffcf4a'},
+      {key:'sideguns',name:'SIEGE CANNONS',desc:'Twin heavy side cannons join your fighter.',color:'#ffcf4a'},
       {key:'overdrive',name:'WAR OVERDRIVE',desc:'Kill streaks push your weapon into overdrive.',color:'#fff06a'},
       {key:'bossbane',name:'ARMOR BREAKER',desc:'Your weapons tear through bosses harder.',color:'#ff3b3b'},
       {key:'reactor',name:'WAR REACTOR',desc:'A reinforced reactor boosts core systems.',color:'#63faff'}
@@ -1588,6 +1588,11 @@
     }
   }
 
+  function isModalOpen(){
+    return !document.getElementById('choiceOverlay').classList.contains('hidden')
+        || !document.getElementById('hangarOverlay').classList.contains('hidden')
+        || !document.getElementById('settingsOverlay').classList.contains('hidden');
+  }
   function loop(ts){
     try{
       if(!lastT) lastT = ts;
@@ -1597,6 +1602,17 @@
       frame++;
       samplePerformance(ts);
       pollGamepad();
+
+      // A full-screen DOM overlay (choice/hangar/settings) completely covers
+      // the canvas, so skip all canvas work while one is open. This isn't
+      // just a performance nicety — continuing to render every particle,
+      // enemy and the ship's loadout ring every frame underneath an opaque
+      // modal competes with the main thread for touch handling, and was
+      // making the choice buttons feel like they needed several presses.
+      if(isModalOpen()){
+        requestAnimationFrame(loop);
+        return;
+      }
 
       drawBackground(dt);
 
@@ -2443,4 +2459,587 @@
       ctx.beginPath();
       for(let i=0;i<6;i++){
         const a = i/6*Math.PI*2;
-        const px = Math.cos(a)*u.r, py = Math.sin(a
+        const px = Math.cos(a)*u.r, py = Math.sin(a)*u.r;
+        if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#0b0f1a';
+      ctx.font = 'bold 11px monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(UPGRADE_ICONS[u.type] || '', 0, 1);
+      ctx.restore();
+    }
+    ctx.shadowBlur = 0;
+    ctx.textBaseline = 'alphabetic';
+
+    // Boss relics — large, unmistakable and unique.
+    for(const c of classCores){
+      ctx.save(); ctx.translate(c.x,c.y);
+      const pulse=1+Math.sin(frame*.12)*.12, col=c.relic?.color||'#ffcf4a';
+      ctx.strokeStyle=col; ctx.lineWidth=3; ctx.shadowColor=col; ctx.shadowBlur=24;
+      ctx.beginPath(); ctx.arc(0,0,c.r*1.65*pulse,0,Math.PI*2); ctx.stroke();
+      ctx.rotate((c.spin||0)+frame*.025);
+      ctx.fillStyle=col;
+      ctx.beginPath();
+      for(let i=0;i<8;i++){const a=i*Math.PI/4,rr=i%2?c.r*.58:c.r;const px=Math.cos(a)*rr,py=Math.sin(a)*rr;if(!i)ctx.moveTo(px,py);else ctx.lineTo(px,py);}
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=1.5;ctx.stroke();
+      ctx.rotate(-(c.spin||0)-frame*.025);
+      ctx.fillStyle='#0b0f1a';ctx.font='bold 11px monospace';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(c.relic ? c.relic.name.split(' ')[0].slice(0,3) : '$',0,1);
+      ctx.restore();
+    }
+    ctx.textBaseline='alphabetic';
+    // Boss reward choice orbs — pick one of three upgrades dropped after a boss.
+    for(const orb of bossRewardOrbs){
+      const fadeP = orb.claimed ? Math.max(0, 1 - orb.fadeT/500) : 1;
+      if(fadeP<=0) continue;
+      ctx.save();
+      ctx.globalAlpha = fadeP;
+      ctx.translate(orb.x, orb.y);
+      const pulse = 1+Math.sin(frame*.1+orb.x)*.08;
+      const col = UPGRADE_COLORS[orb.type] || '#ffcf4a';
+      ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.shadowColor = col; ctx.shadowBlur = 20;
+      ctx.beginPath(); ctx.arc(0,0,orb.r*pulse,0,Math.PI*2); ctx.stroke();
+      ctx.fillStyle = col;
+      ctx.beginPath(); ctx.arc(0,0,orb.r*0.62,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#0b0f1a';
+      ctx.font = 'bold 13px monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(UPGRADE_ICONS[orb.type] || '?', 0, 1);
+      ctx.restore();
+    }
+    ctx.textBaseline='alphabetic';
+    // Nova pulses
+    for(const np of novaPulses){
+      const p = np.t/np.life;
+      ctx.globalAlpha = Math.max(0, 1-p);
+      ctx.strokeStyle = np.color || CLASS_DEFS.nova.color;
+      ctx.lineWidth = 3;
+      ctx.shadowColor = CLASS_DEFS.nova.color; ctx.shadowBlur = 14;
+      ctx.beginPath(); ctx.arc(np.x, np.y, np.r + p*190, 0, 7); ctx.stroke();
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    }
+
+    // Chain lightning arcs
+    for(const cz of chainZaps){
+      const p = cz.t/cz.life;
+      ctx.globalAlpha = Math.max(0, 1-p);
+      ctx.strokeStyle = '#55f2ff';
+      ctx.lineWidth = 2;
+      ctx.shadowColor = '#55f2ff'; ctx.shadowBlur = 10;
+      const midx = (cz.x1+cz.x2)/2 + (Math.random()-0.5)*10;
+      const midy = (cz.y1+cz.y2)/2 + (Math.random()-0.5)*10;
+      ctx.beginPath();
+      ctx.moveTo(cz.x1, cz.y1);
+      ctx.lineTo(midx, midy);
+      ctx.lineTo(cz.x2, cz.y2);
+      ctx.stroke();
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    }
+
+    // Particles
+    for(const p of particles){
+      ctx.globalAlpha = Math.max(0, 1-p.t/p.life);
+      ctx.fillStyle = p.color;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // Player Ship — the fighter is now a physical record of the build.
+    if(player.alive){
+      ctx.save();
+      ctx.translate(player.x,player.y);
+      if(player.invuln>0 && Math.floor(frame/4)%2===0) ctx.globalAlpha=0.35;
+
+      const L=player.levels, tier=player.shipTier, r=player.r;
+      const skin = SHIP_SKINS[skinState.selected] || SHIP_SKINS.default;
+      const reactorColor = L.reactor ? '#63faff' : skin.engine;
+      const hull = tier>=6 ? '#f4f7ff' : tier>=3 ? '#e4eaff' : skin.hull;
+
+      // Outer phase/shield field.
+      if(player.shieldCharges>0 || L.phase){
+        ctx.strokeStyle=L.phase && player.invuln>0 ? '#a78bff' : '#35e3ff';
+        ctx.lineWidth=L.phase&&player.invuln>0?3:2;
+        ctx.shadowColor=ctx.strokeStyle; ctx.shadowBlur=18;
+        ctx.beginPath(); ctx.arc(0,0,r+9+Math.sin(frame*.1)*1.5,0,Math.PI*2); ctx.stroke();
+      }
+
+      // Tier-based silhouette: each tier adds a new physical form.
+      if(tier>=1){
+        ctx.fillStyle=skin.accent; ctx.shadowColor=skin.accent; ctx.shadowBlur=10;
+        for(const side of [-1,1]){
+          ctx.beginPath(); ctx.moveTo(side*r*.45,r*.05); ctx.lineTo(side*r*1.8,r*.9);
+          ctx.lineTo(side*r*.72,r*.85); ctx.closePath(); ctx.fill();
+        }
+      }
+      if(tier>=2){
+        ctx.fillStyle='#aebcff';
+        for(const side of [-1,1]){
+          ctx.beginPath(); ctx.moveTo(side*r*.4,-r*.25); ctx.lineTo(side*r*1.35,-r*.65);
+          ctx.lineTo(side*r*.7,r*.15); ctx.closePath(); ctx.fill();
+        }
+      }
+      if(tier>=3){
+        ctx.strokeStyle='#35e3ff'; ctx.lineWidth=2; ctx.shadowBlur=0;
+        ctx.beginPath(); ctx.moveTo(-r*1.9,r*.65); ctx.lineTo(-r*.55,r*.25);
+        ctx.moveTo(r*1.9,r*.65); ctx.lineTo(r*.55,r*.25); ctx.stroke();
+      }
+      if(tier>=4){
+        ctx.strokeStyle='#c9d4ff'; ctx.lineWidth=1.5; ctx.shadowColor='#c9d4ff'; ctx.shadowBlur=7;
+        ctx.beginPath(); ctx.arc(0,0,r*1.35,Math.PI*.15,Math.PI*.85); ctx.stroke();
+      }
+      if(tier>=5){
+        ctx.fillStyle='#d7ddff';
+        ctx.beginPath(); ctx.moveTo(-r*.45,r*.3); ctx.lineTo(-r*1.65,r*1.15); ctx.lineTo(-r*.55,r*.85); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(r*.45,r*.3); ctx.lineTo(r*1.65,r*1.15); ctx.lineTo(r*.55,r*.85); ctx.closePath(); ctx.fill();
+      }
+      if(tier>=6){
+        ctx.strokeStyle='#72b7ff'; ctx.lineWidth=2; ctx.shadowColor='#72b7ff'; ctx.shadowBlur=12;
+        ctx.beginPath(); ctx.arc(0,r*.2,r*1.65,0,Math.PI*2); ctx.stroke();
+      }
+      if(tier>=7){
+        ctx.fillStyle='#fff06a'; ctx.shadowColor='#fff06a'; ctx.shadowBlur=14;
+        ctx.beginPath(); ctx.moveTo(0,-r*1.65); ctx.lineTo(r*.28,-r*.55); ctx.lineTo(-r*.28,-r*.55); ctx.closePath(); ctx.fill();
+      }
+      if(tier>=8){
+        ctx.strokeStyle='#f0a0ff'; ctx.lineWidth=2.5; ctx.shadowColor='#f0a0ff'; ctx.shadowBlur=18;
+        ctx.beginPath(); ctx.arc(0,0,r*1.9,0,Math.PI*2); ctx.stroke();
+      }
+
+      // Main hull.
+      const hs=1+tier*.045;
+      ctx.fillStyle=hull; ctx.shadowColor='#7df3ff'; ctx.shadowBlur=14+tier*2;
+      ctx.beginPath();
+      ctx.moveTo(0,-r*hs*1.12); ctx.lineTo(r*.82*hs,r*.75*hs);
+      ctx.lineTo(0,r*.42*hs); ctx.lineTo(-r*.82*hs,r*.75*hs); ctx.closePath(); ctx.fill();
+
+      // Weapon module visibly grows with weapon level.
+      if(L.weapon){
+        ctx.fillStyle='#ffcf4a'; ctx.shadowColor='#ffcf4a'; ctx.shadowBlur=10;
+        const n=Math.min(4,1+Math.floor(L.weapon/2));
+        for(let i=0;i<n;i++){
+          const x=(i-(n-1)/2)*r*.34;
+          ctx.fillRect(x-2,-r*1.28,4,Math.min(10,4+L.weapon));
+        }
+      }
+      if(L.sideguns){
+        ctx.fillStyle='#ffd36e'; ctx.shadowColor='#ffd36e'; ctx.shadowBlur=12;
+        for(const side of [-1,1]){
+          ctx.beginPath(); ctx.rect(side*r*.78-r*.12,-r*.05,r*.24,r*.95); ctx.fill();
+          ctx.fillStyle='#fff3a0'; ctx.fillRect(side*r*.78-2,-r*.35,4,8);
+        }
+      }
+      if(L.orbitals){
+        ctx.strokeStyle='#72b7ff'; ctx.lineWidth=2; ctx.shadowColor='#72b7ff'; ctx.shadowBlur=10;
+        ctx.beginPath(); ctx.arc(0,0,r*(1.65+L.orbitals*.08),0,Math.PI*2); ctx.stroke();
+        for(let i=0;i<L.orbitals;i++){
+          const a=player.droneAngle+i*Math.PI*2/L.orbitals;
+          ctx.fillStyle='#72b7ff'; ctx.beginPath(); ctx.arc(Math.cos(a)*r*1.65,Math.sin(a)*r*1.65,4,0,Math.PI*2); ctx.fill();
+        }
+      }
+      if(L.missiles){
+        ctx.fillStyle='#ff8b4a'; ctx.shadowColor='#ff8b4a'; ctx.shadowBlur=10;
+        for(const side of [-1,1]){
+          ctx.beginPath(); ctx.moveTo(side*r*.52,r*.45); ctx.lineTo(side*r*.78,r*.9); ctx.lineTo(side*r*.35,r*.72); ctx.closePath(); ctx.fill();
+        }
+      }
+      if(L.prism){
+        ctx.fillStyle='#f0a0ff'; ctx.shadowColor='#f0a0ff'; ctx.shadowBlur=15;
+        ctx.beginPath(); ctx.moveTo(0,-r*.35); ctx.lineTo(r*.22,0); ctx.lineTo(0,r*.28); ctx.lineTo(-r*.22,0); ctx.closePath(); ctx.fill();
+      }
+      if(L.bossbane){
+        ctx.strokeStyle='#ff3b3b'; ctx.lineWidth=2; ctx.shadowColor='#ff3b3b'; ctx.shadowBlur=10;
+        ctx.beginPath(); ctx.moveTo(-r*.55,r*.18); ctx.lineTo(0,r*.48); ctx.lineTo(r*.55,r*.18); ctx.stroke();
+      }
+      if(L.armor){
+        ctx.strokeStyle='#b8c6ff'; ctx.lineWidth=2; ctx.shadowColor='#b8c6ff'; ctx.shadowBlur=7;
+        ctx.beginPath(); ctx.arc(0,.1*r,r*.92,-.85,Math.PI+.85); ctx.stroke();
+      }
+      if(L.gravity){
+        ctx.strokeStyle='#55e0b0'; ctx.lineWidth=1.5; ctx.shadowColor='#55e0b0'; ctx.shadowBlur=8;
+        ctx.beginPath(); ctx.arc(0,0,r*(1.05+L.gravity*.08),0,Math.PI*2); ctx.stroke();
+      }
+      if(L.reactor){
+        ctx.fillStyle=reactorColor; ctx.shadowColor=reactorColor; ctx.shadowBlur=18;
+        ctx.beginPath(); ctx.arc(0,r*.28,5+L.reactor,0,Math.PI*2); ctx.fill();
+      }
+
+      // Engines.
+      ctx.fillStyle='#ff8fa8'; ctx.shadowColor='#ff8fa8'; ctx.shadowBlur=10;
+      ctx.beginPath(); ctx.arc(0,r*.9*hs,5+Math.random()*2,0,Math.PI*2); ctx.fill();
+      if(tier>=1 || L.speed>=2){
+        for(const side of [-1,1]){
+          ctx.beginPath(); ctx.arc(side*r*.72,r*.82*hs,3.5+Math.random()*1.5,0,Math.PI*2); ctx.fill();
+        }
+      }
+      if(L.dash){
+        ctx.fillStyle='#7dffb5'; ctx.shadowColor='#7dffb5'; ctx.shadowBlur=16;
+        ctx.beginPath(); ctx.moveTo(-r*.25,r*.95); ctx.lineTo(0,r*(1.6+L.dash*.1)); ctx.lineTo(r*.25,r*.95); ctx.closePath(); ctx.fill();
+      }
+
+      ctx.restore();
+      ctx.globalAlpha=1;
+
+      // Signature weapon visuals.
+      if(L.missiles>=3){
+        ctx.strokeStyle='#ff8b4a'; ctx.lineWidth=2; ctx.shadowColor='#ff8b4a'; ctx.shadowBlur=10;
+        ctx.beginPath(); ctx.moveTo(-r*.8,r*.55); ctx.lineTo(-r*1.15,r*.95); ctx.moveTo(r*.8,r*.55); ctx.lineTo(r*1.15,r*.95); ctx.stroke();
+      }
+      if(L.critical>=3 && L.capacitor>=2){
+        ctx.strokeStyle='#ffe06a'; ctx.lineWidth=3; ctx.shadowColor='#ffe06a'; ctx.shadowBlur=16;
+        ctx.beginPath(); ctx.moveTo(0,-r*1.45); ctx.lineTo(0,-r*2.05); ctx.stroke();
+      }
+      if(L.sideguns>=3){
+        ctx.fillStyle='#ffd36e'; ctx.shadowColor='#ffd36e'; ctx.shadowBlur=12;
+        for(const side of [-1,1]){ ctx.fillRect(side*r*1.02-3,-r*.15,6,r*.95); ctx.fillRect(side*r*1.28-2,r*.2,4,r*.7); }
+      }
+      if(L.orbitals>=3){
+        ctx.strokeStyle='#72b7ff'; ctx.lineWidth=1.5; ctx.shadowColor='#72b7ff'; ctx.shadowBlur=12;
+        ctx.beginPath(); ctx.arc(0,0,r*2.0+Math.sin(frame*.08)*2,0,Math.PI*2); ctx.stroke();
+      }
+      if(L.armor>=2 && L.barrier>=1){
+        ctx.strokeStyle='#b8c6ff'; ctx.lineWidth=2.5; ctx.shadowColor='#b8c6ff'; ctx.shadowBlur=15;
+        ctx.beginPath(); ctx.arc(0,0,r*2.15,Math.PI*.18,Math.PI*.82); ctx.stroke();
+      }
+
+      // Drone relics / engineer drones.
+      if(player.classes.drone){
+        for(let i=0;i<2;i++){
+          const a=player.droneAngle+i*Math.PI, dx=player.x+Math.cos(a)*34, dy=player.y+Math.sin(a)*34;
+          ctx.save(); ctx.translate(dx,dy); ctx.rotate(a+Math.PI/2);
+          ctx.fillStyle=CLASS_DEFS.drone.color; ctx.shadowColor=CLASS_DEFS.drone.color; ctx.shadowBlur=10;
+          ctx.beginPath(); ctx.moveTo(0,-7); ctx.lineTo(6,5); ctx.lineTo(-6,5); ctx.closePath(); ctx.fill();
+          ctx.restore();
+        }
+      }
+    }
+    // Popups
+    ctx.textAlign='center';
+    for(const p of popups){
+      ctx.globalAlpha = Math.max(0,1-p.t/p.life);
+      ctx.fillStyle = p.color;
+      ctx.font = 'bold 14px monospace';
+      ctx.fillText(p.text, p.x, p.y);
+    }
+    ctx.globalAlpha=1;
+    ctx.restore();
+  }
+
+  function gameOver(){
+    state = 'over';
+    sfx.gameOver();
+    stopMusic();
+    const isNewBest = score > highScore;
+    saveHighScoreIfNeeded();
+    document.getElementById('finalScore').textContent = 'SCORE: '+score;
+    document.getElementById('waveReached').textContent = 'Reached wave '+wave;
+    document.getElementById('bestScoreLine').textContent = isNewBest ? 'NEW BEST!' : ('BEST: '+highScore);
+
+    const baseCores = Math.floor(score/40) + wave*3;
+    const earned = Math.round(baseCores * (1 + metaPerks.salvage*0.1));
+    cores += earned;
+    saveCores(cores);
+    document.getElementById('coresEarnedLine').textContent = '+'+earned+' CORES';
+
+    document.getElementById('overScreen').classList.remove('hidden');
+  }
+
+  function refreshStartScreenHighScore(){
+    const el = document.getElementById('highScoreLine');
+    el.textContent = highScore > 0 ? ('BEST SCORE: '+highScore) : '';
+    document.getElementById('coresLine').textContent = 'CORES: '+cores;
+  }
+  refreshStartScreenHighScore();
+
+  // ---------- Hangar UI ----------
+  function renderHangar(){
+    document.getElementById('hangarCoresLine').textContent = 'CORES: '+cores;
+    const list = document.getElementById('hangarList');
+    list.innerHTML = '';
+    for(const key of Object.keys(META_PERKS)){
+      const def = META_PERKS[key];
+      const lvl = metaPerks[key];
+      const maxed = lvl >= def.maxLevel;
+      const cost = perkCost(key);
+      const row = document.createElement('div');
+      row.className = 'perkRow';
+      const info = document.createElement('div');
+      info.className = 'perkInfo';
+      info.innerHTML = '<div class="perkName">'+def.name+' ('+lvl+'/'+def.maxLevel+')</div>'+
+                        '<div class="perkDesc">'+def.desc+'</div>';
+      const btn = document.createElement('button');
+      btn.className = 'perkBuyBtn';
+      btn.textContent = maxed ? 'MAXED' : ('BUY: '+cost);
+      btn.disabled = maxed || cores < cost;
+      btn.addEventListener('click', ()=>{
+        if(metaPerks[key] >= def.maxLevel || cores < perkCost(key)) return;
+        cores -= perkCost(key);
+        metaPerks[key]++;
+        saveCores(cores);
+        saveMeta(metaPerks);
+        renderHangar();
+        refreshStartScreenHighScore();
+      });
+      row.appendChild(info);
+      row.appendChild(btn);
+      list.appendChild(row);
+    }
+
+    // Ship skins
+    const skinHeader = document.createElement('div');
+    skinHeader.style.cssText = 'margin-top:6px; font-weight:bold; color:var(--hull-dim); font-size:12px; letter-spacing:1px;';
+    skinHeader.textContent = 'SHIP SKINS';
+    list.appendChild(skinHeader);
+    for(const key of Object.keys(SHIP_SKINS)){
+      const def = SHIP_SKINS[key];
+      const owned = skinState.owned.includes(key);
+      const selected = skinState.selected === key;
+      const row = document.createElement('div');
+      row.className = 'perkRow';
+      row.style.borderColor = def.hull+'55';
+      const info = document.createElement('div');
+      info.className = 'perkInfo';
+      info.innerHTML = '<div class="perkName" style="color:'+def.accent+'">'+def.name+(selected?' (EQUIPPED)':'')+'</div>'+
+                        '<div class="perkDesc">'+(owned ? 'Owned' : ('Cost: '+def.cost+' Cores'))+'</div>';
+      const btn = document.createElement('button');
+      btn.className = 'perkBuyBtn';
+      if(selected){
+        btn.textContent = 'EQUIPPED';
+        btn.disabled = true;
+      } else if(owned){
+        btn.textContent = 'EQUIP';
+        btn.disabled = false;
+        btn.addEventListener('click', ()=>{
+          skinState.selected = key;
+          saveSkins(skinState);
+          renderHangar();
+        });
+      } else {
+        btn.textContent = 'BUY: '+def.cost;
+        btn.disabled = cores < def.cost;
+        btn.addEventListener('click', ()=>{
+          if(cores < def.cost) return;
+          cores -= def.cost;
+          skinState.owned.push(key);
+          skinState.selected = key;
+          saveCores(cores);
+          saveSkins(skinState);
+          renderHangar();
+          refreshStartScreenHighScore();
+        });
+      }
+      row.appendChild(info);
+      row.appendChild(btn);
+      list.appendChild(row);
+    }
+  }
+  document.getElementById('hangarBtn').addEventListener('click', ()=>{
+    renderHangar();
+    document.getElementById('startScreen').classList.add('hidden');
+    document.getElementById('hangarOverlay').classList.remove('hidden');
+  });
+  document.getElementById('hangarBackBtn').addEventListener('click', ()=>{
+    document.getElementById('hangarOverlay').classList.add('hidden');
+    document.getElementById('startScreen').classList.remove('hidden');
+  });
+
+  // ---------- Boss Reward Choice ----------
+  // Boss rewards are presented as a readable modal instead of moving orbs.
+  // The player explicitly chooses one reward; nothing is auto-collected.
+  function openBossRewardChoice(bossKind){
+    paused = true;
+    bossRewardOrbs = [];
+    classCores = [];
+    const title = document.getElementById('choiceTitle');
+    const list = document.getElementById('choiceList');
+    title.textContent = 'BOSS REWARD — CHOOSE ONE';
+    list.innerHTML = '';
+
+    const options = [];
+    const missingClass = CLASS_KEYS.filter(k => !player.classes[k]);
+    if(missingClass.length){
+      const kind = missingClass[Math.floor(Math.random()*missingClass.length)];
+      options.push({
+        kind:'class', key:kind,
+        name: CLASS_DEFS[kind].name+' CORE',
+        desc: CLASS_DEFS[kind].desc,
+        color: CLASS_DEFS[kind].color,
+        level:'UNLOCK'
+      });
+    }
+
+    const relicPool = (BOSS_RELICS[bossKind] || []).filter(r => {
+      if(player.relics[r.key]) return false;
+      if(r.key==='drone') return !player.classes.drone;
+      return true;
+    }).slice();
+    while(options.length < 3 && relicPool.length){
+      const idx = Math.floor(Math.random()*relicPool.length);
+      const relic = relicPool.splice(idx,1)[0];
+      // DRONE NEST unlocks the Engineer class, not a leveled upgrade stat —
+      // route it through the class-reward path, same as a class core.
+      if(relic.key==='drone'){
+        options.push({
+          kind:'class', key:'drone', isRelic:true,
+          name: relic.name, desc: relic.desc, color: relic.color, level:'UNLOCK'
+        });
+        continue;
+      }
+      const level = 'Lv '+(player.levels[relic.key]||0)+' → '+((player.levels[relic.key]||0)+1);
+      options.push({kind:'upgrade', key:relic.key, isRelic:true, name:relic.name, desc:relic.desc, color:relic.color, level});
+    }
+
+    // If a class core filled one slot, use general upgrades to guarantee 3 choices.
+    while(options.length < 3){
+      const type = pickDistinctUpgradeTypes(UPGRADE_TYPES.length)
+        .find(t => {
+          if(t==='shield') return player.shieldCharges < player.shieldMax;
+          if(t==='life') return player.maxHp < 12;
+          return (player.levels[t]||0) < (UPGRADE_MAX[t]||1);
+        });
+      if(!type) break;
+      options.push({
+        kind:'upgrade', key:type, name:UPGRADE_LABELS[type]||type,
+        desc:UPGRADE_DESC[type]||'SYSTEM UPGRADE',
+        color:UPGRADE_COLORS[type]||'#ffcf4a',
+        level:'Lv '+(type==='shield'?player.shieldCharges:type==='life'?Math.max(0,player.maxHp-3):(player.levels[type]||0))+
+              ' → '+((type==='shield'?player.shieldCharges:type==='life'?Math.max(0,player.maxHp-3):(player.levels[type]||0))+1)
+      });
+    }
+
+    // Deterministic fallback: always show three distinct general upgrades.
+    const used = new Set(options.map(o=>o.key));
+    for(const type of UPGRADE_TYPES){
+      if(options.length>=3) break;
+      if(used.has(type)) continue;
+      used.add(type);
+      const cur = type==='shield'?player.shieldCharges:type==='life'?Math.max(0,player.maxHp-3):(player.levels[type]||0);
+      options.push({
+        kind:'upgrade', key:type, name:UPGRADE_LABELS[type]||type,
+        desc:UPGRADE_DESC[type]||'SYSTEM UPGRADE',
+        color:UPGRADE_COLORS[type]||'#ffcf4a',
+        level:'Lv '+cur+' → '+(cur+1)
+      });
+    }
+
+    for(const option of options.slice(0,3)){
+      const btn=document.createElement('button');
+      btn.className='choiceBtn';
+      btn.style.borderColor=option.color;
+      btn.style.boxShadow='0 0 18px '+option.color+'44';
+      btn.innerHTML='<div class="choiceName" style="color:'+option.color+'">'+option.name+'</div>'+
+        '<div class="choiceDesc">'+option.level+'</div>'+
+        '<div class="choiceDesc">'+option.desc+'</div>';
+
+      let claimed = false;
+      const choose = ()=>{
+        if(claimed) return;
+        claimed = true;
+        btn.disabled = true;
+        if(option.kind==='class'){
+          applyClassReward(option.key);
+        } else {
+          applyUpgrade(option.key);
+        }
+        if(option.isRelic) player.relics[option.key] = true;
+        list.querySelectorAll('.choiceBtn').forEach(b=>b.disabled=true);
+        document.getElementById('choiceOverlay').classList.add('hidden');
+        title.textContent='CHOOSE AN UPGRADE';
+        paused=false;
+      };
+      // Plain click only — matches the same pattern already proven to work
+      // for Start/Retry/Hangar buttons. An earlier pointerdown+preventDefault
+      // approach could suppress the resulting click entirely in some Android
+      // WebView/TWA pointer-event implementations, leaving these buttons
+      // completely unresponsive to touch.
+      btn.addEventListener('click', choose);
+      list.appendChild(btn);
+    }
+
+    document.getElementById('choiceOverlay').classList.remove('hidden');
+  }
+
+  // ---------- Upgrade Choice Shrine (every 3rd non-boss wave) ----------
+  function triggerUpgradeChoice(){
+    paused=true;
+    let pool=UPGRADE_TYPES.filter(type=>{
+      if(type==='shield') return player.shieldCharges < player.shieldMax;
+      if(type==='life') return player.maxHp < 12;
+      return (player.levels[type]||0) < (UPGRADE_MAX[type]||1);
+    });
+    if(pool.length<3) pool=UPGRADE_TYPES.slice();
+    const types=[];
+    while(types.length<3 && pool.length){
+      let total=0;
+      const weights=pool.map(type=>{
+        const w=1+upgradeSynergyScore(type)*0.9;
+        total+=w; return w;
+      });
+      let roll=Math.random()*total, idx=0;
+      for(;idx<pool.length;idx++){ roll-=weights[idx]; if(roll<=0) break; }
+      if(idx>=pool.length) idx=pool.length-1;
+      types.push(pool.splice(idx,1)[0]);
+    }
+    document.getElementById('choiceTitle').textContent='CHOOSE AN UPGRADE';
+    const list=document.getElementById('choiceList');
+    list.innerHTML='';
+    for(const type of types){
+      let curLvl=type==='shield'?player.shieldCharges:(type==='life'?Math.max(0,player.maxHp-3):(player.levels[type]||0));
+      const near = BUILD_ARCHETYPES.filter(a=>a.req[type]!==undefined && buildProgress(a)<1)
+        .sort((a,b)=>buildProgress(a)-buildProgress(b))[0];
+      const tag = near ? '<div class="choiceSynergy" style="color:'+near.color+'">'+near.short+' '+Math.round(buildProgress(near)*100)+'%</div>' : '';
+      const btn=document.createElement('button');
+      btn.className='choiceBtn';
+      btn.style.borderColor=UPGRADE_COLORS[type];
+      btn.style.boxShadow='0 0 18px '+UPGRADE_COLORS[type]+'44';
+      btn.innerHTML='<div class="choiceName" style="color:'+UPGRADE_COLORS[type]+'">'+UPGRADE_LABELS[type]+'</div>'+
+        '<div class="choiceDesc">Lv '+curLvl+' → '+(curLvl+1)+'</div>'+
+        '<div class="choiceDesc">'+(UPGRADE_DESC[type]||'SYSTEM UPGRADE')+'</div>'+tag;
+      let chosen = false;
+      const choose = ()=>{
+        if(chosen) return;
+        chosen = true;
+        btn.disabled = true;
+        applyUpgrade(type);
+        list.querySelectorAll('.choiceBtn').forEach(b=>b.disabled=true);
+        document.getElementById('choiceOverlay').classList.add('hidden');
+        document.getElementById('choiceTitle').textContent='CHOOSE AN UPGRADE';
+        paused=false;
+      };
+      btn.addEventListener('click', choose);
+      list.appendChild(btn);
+    }
+    document.getElementById('choiceOverlay').classList.remove('hidden');
+  }
+
+  document.getElementById('startBtn').addEventListener('click', ()=>{
+    ensureAudio();
+    document.getElementById('startScreen').classList.add('hidden');
+    resetGame();
+    state = 'playing';
+    setPaused(false);
+    sfx.waveStart();
+    startMusic();
+  });
+  document.getElementById('retryBtn').addEventListener('click', ()=>{
+    ensureAudio();
+    refreshStartScreenHighScore();
+    document.getElementById('overScreen').classList.add('hidden');
+    resetGame();
+    state = 'playing';
+    setPaused(false);
+    sfx.waveStart();
+    startMusic();
+  });
+
+  player.x = W/2; player.y = bottomLimit() - 24;
+  requestAnimationFrame(loop);
+  window.GalacticDefenderQA = window.GalacticDefenderQA || {};
+  window.GalacticDefenderQA.getStats = function(){
+    return { fps:perf.fps, minFps:perf.minFps, slowSamples:perf.slowFrames, state, paused, wave, score, enemies:enemies.length, bullets:bullets.length, enemyBullets:enemyBullets.length, particles:particles.length, upgrades:upgrades.length, popups:popups.length };
+  };
+})();
+</script>
+</body>
+</html>
