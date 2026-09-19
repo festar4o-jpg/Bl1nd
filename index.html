@@ -74,7 +74,7 @@
   }
 
   .overlay{
-    position:fixed; inset:0; z-index:10000; pointer-events:auto;
+    position:fixed; inset:0; z-index:20;
     display:flex; flex-direction:column; align-items:center; justify-content:center;
     background: radial-gradient(circle at 50% 30%, rgba(20,10,40,0.92), rgba(2,2,10,0.97));
     color: var(--hull);
@@ -118,8 +118,10 @@
     white-space:nowrap;
   }
   .perkBuyBtn:disabled{ background:#3a4152; color:#7a8298; cursor:default; }
+  #choiceOverlay{ z-index:9999; pointer-events:auto; }
+  #choiceList{ position:relative; z-index:10000; pointer-events:auto; }
   .choiceBtn{
-    position:relative; z-index:10001; pointer-events:auto !important;
+    position:relative; z-index:10001; pointer-events:auto; -webkit-user-select:none;
     display:flex; flex-direction:column; align-items:center; gap:4px;
     padding:14px; border-radius:10px; border:2px solid; cursor:pointer;
     background: rgba(255,255,255,0.04); color:var(--hull); font-family:inherit;
@@ -267,9 +269,18 @@
     jsonSet(key, value){ try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch(e){ return false; } }
   };
   document.addEventListener('contextmenu', e => e.preventDefault());
+  // IMPORTANT: do not let an old service-worker cache serve an older copy
+  // of the game after an HTML update.
   if('serviceWorker' in navigator){
-    window.addEventListener('load', ()=>{
-      navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+    window.addEventListener('load', async ()=>{
+      try{
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for(const reg of regs) await reg.unregister();
+        if(window.caches){
+          const names = await caches.keys();
+          for(const name of names) await caches.delete(name);
+        }
+      }catch(e){}
     });
   }
   const canvas = document.getElementById('game');
@@ -2966,63 +2977,60 @@
         '<div class="choiceDesc">'+option.desc+'</div>';
 
       let claimed = false;
-      const choose = (e)=>{
-        if(claimed || btn.disabled) return;
-        if(e && e.cancelable) e.preventDefault();
-        if(e && e.stopPropagation) e.stopPropagation();
+      const choose = ()=>{
+        if(claimed) return;
         claimed = true;
         btn.disabled = true;
-        try{
-          if(option.kind==='class') applyClassReward(option.key);
-          else applyUpgrade(option.key);
-          if(option.isRelic) player.relics[option.key] = true;
-        }catch(err){ console.error('Boss reward choice error:',err); }
-        finally{
-          list.querySelectorAll('.choiceBtn').forEach(b=>b.disabled=true);
-          document.getElementById('choiceOverlay').classList.add('hidden');
-          title.textContent='CHOOSE AN UPGRADE';
-          paused=false;
-          joyEnd(); capturedTouchId=null; mouseJoyDown=false;
+        if(option.kind==='class'){
+          applyClassReward(option.key);
+        } else {
+          applyUpgrade(option.key);
         }
+        if(option.isRelic) player.relics[option.key] = true;
+        list.querySelectorAll('.choiceBtn').forEach(b=>b.disabled=true);
+        document.getElementById('choiceOverlay').classList.add('hidden');
+        title.textContent='CHOOSE AN UPGRADE';
+        paused=false;
       };
-      btn.addEventListener('pointerdown', choose, {passive:false});
-      btn.addEventListener('touchstart', choose, {passive:false});
-      btn.addEventListener('click', choose);
+      // touchend is a safe supplementary trigger (unlike pointerdown, it
+      // doesn't risk suppressing the resulting click when preventDefault
+      // isn't called on it) plus a plain click listener for mouse/desktop
+      // and as a fallback if touchend behaves oddly in a given WebView.
+      btn.onclick = choose;
+      btn.ontouchend = function(e){ e.preventDefault(); choose(e); };
+      btn.onpointerup = function(e){ e.preventDefault(); choose(e); };
       list.appendChild(btn);
     }
 
     document.getElementById('choiceOverlay').classList.remove('hidden');
   }
 
-  // Capture upgrade taps before the joystick/gameplay surface can consume them.
-  document.addEventListener('touchstart', e=>{
+  // Modal input failsafe: catch the user's finger before any gameplay
+  // surface can consume it. This is capture-phase and works for both the
+  // normal upgrade shrine and boss reward modal.
+  document.addEventListener('touchstart', function(e){
     const overlay=document.getElementById('choiceOverlay');
     if(!overlay || overlay.classList.contains('hidden')) return;
-    for(const t of e.changedTouches){
-      const el=document.elementFromPoint(t.clientX,t.clientY);
-      const btn=el && el.closest ? el.closest('.choiceBtn') : null;
-      if(btn && !btn.disabled){
-        if(e.cancelable) e.preventDefault();
-        if(e.stopPropagation) e.stopPropagation();
-        btn.dispatchEvent(new Event('pointerdown',{bubbles:true,cancelable:true}));
-        return;
-      }
+    const t=e.changedTouches && e.changedTouches[0];
+    if(!t) return;
+    const el=document.elementFromPoint(t.clientX,t.clientY);
+    const b=el && el.closest ? el.closest('#choiceList .choiceBtn') : null;
+    if(b && !b.disabled){
+      e.preventDefault();
+      e.stopPropagation();
+      b.click();
     }
-  },{capture:true,passive:false});
-
-  document.addEventListener('pointerdown', e=>{
+  }, {capture:true, passive:false});
+  document.addEventListener('pointerdown', function(e){
     const overlay=document.getElementById('choiceOverlay');
     if(!overlay || overlay.classList.contains('hidden')) return;
-    const el=document.elementFromPoint(e.clientX,e.clientY);
-    const btn=el && el.closest ? el.closest('.choiceBtn') : null;
-    if(btn && !btn.disabled){
-      if(e.cancelable) e.preventDefault();
-      if(e.stopPropagation) e.stopPropagation();
-      // Calling click here is intentionally direct; it bypasses any stale
-      // touch target held by the joystick.
-      btn.click();
+    const b=e.target && e.target.closest ? e.target.closest('#choiceList .choiceBtn') : null;
+    if(b && !b.disabled){
+      e.preventDefault();
+      e.stopPropagation();
+      b.click();
     }
-  },{capture:true,passive:false});
+  }, {capture:true});
 
   // ---------- Upgrade Choice Shrine (every 3rd non-boss wave) ----------
   function triggerUpgradeChoice(){
@@ -3062,25 +3070,19 @@
         '<div class="choiceDesc">Lv '+curLvl+' → '+(curLvl+1)+'</div>'+
         '<div class="choiceDesc">'+(UPGRADE_DESC[type]||'SYSTEM UPGRADE')+'</div>'+tag;
       let chosen = false;
-      const choose = (e)=>{
-        if(chosen || btn.disabled) return;
-        if(e && e.cancelable) e.preventDefault();
-        if(e && e.stopPropagation) e.stopPropagation();
+      const choose = ()=>{
+        if(chosen) return;
         chosen = true;
         btn.disabled = true;
-        try{ applyUpgrade(type); }
-        catch(err){ console.error('Upgrade choice error:',err); }
-        finally{
-          list.querySelectorAll('.choiceBtn').forEach(b=>b.disabled=true);
-          document.getElementById('choiceOverlay').classList.add('hidden');
-          document.getElementById('choiceTitle').textContent='CHOOSE AN UPGRADE';
-          paused=false;
-          joyEnd(); capturedTouchId=null; mouseJoyDown=false;
-        }
+        applyUpgrade(type);
+        list.querySelectorAll('.choiceBtn').forEach(b=>b.disabled=true);
+        document.getElementById('choiceOverlay').classList.add('hidden');
+        document.getElementById('choiceTitle').textContent='CHOOSE AN UPGRADE';
+        paused=false;
       };
-      btn.addEventListener('pointerdown', choose, {passive:false});
-      btn.addEventListener('touchstart', choose, {passive:false});
-      btn.addEventListener('click', choose);
+      btn.onclick = choose;
+      btn.ontouchend = function(e){ e.preventDefault(); choose(e); };
+      btn.onpointerup = function(e){ e.preventDefault(); choose(e); };
       list.appendChild(btn);
     }
     document.getElementById('choiceOverlay').classList.remove('hidden');
