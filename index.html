@@ -475,7 +475,7 @@
     'weapon','damage','rapid','speed','pierce','magnet','shield','life','explosive','homing',
     'sideguns','orbitals','missiles','critical','chain','burn','ricochet','bossbane',
     'armor','repair','barrier','dash','phase','overdrive','prism','gravity','execution','pulse',
-    'mirror','capacitor','reactor','salvage'
+    'mirror','capacitor','reactor','salvage','vampire'
   ];
 
   const UPGRADE_COLORS = {
@@ -500,7 +500,7 @@
     barrier:'BARRIER MATRIX', dash:'AFTERBURN DASH', phase:'PHASE DRIVE',
     overdrive:'OVERDRIVE', prism:'PRISM CORE', gravity:'GRAVITY WELL',
     execution:'EXECUTIONER', pulse:'PULSE ENGINE', mirror:'MIRROR SHOT',
-    capacitor:'CAPACITOR', reactor:'REACTOR', salvage:'SALVAGE MATRIX'
+    capacitor:'CAPACITOR', reactor:'REACTOR', salvage:'SALVAGE MATRIX', vampire:'VAMPIRIC PACT'
   };
 
   const UPGRADE_ICONS = {
@@ -509,7 +509,7 @@
     sideguns:'5', orbitals:'O', missiles:'V', critical:'C', chain:'I',
     burn:'F', ricochet:'Q', bossbane:'K', armor:'A', repair:'L', barrier:'B',
     dash:'>', phase:'Φ', overdrive:'!', prism:'Y', gravity:'G', execution:'E',
-    pulse:'U', mirror:'2', capacitor:'T', reactor:'N', salvage:'$'
+    pulse:'U', mirror:'2', capacitor:'T', reactor:'N', salvage:'$', vampire:'V'
   };
 
   const UPGRADE_WEIGHTS = {
@@ -517,7 +517,7 @@
     explosive:7, homing:7, sideguns:7, orbitals:5, missiles:6, critical:6, chain:5,
     burn:6, ricochet:5, bossbane:4, armor:5, repair:4, barrier:4, dash:4, phase:3,
     overdrive:4, prism:4, gravity:4, execution:4, pulse:4, mirror:3, capacitor:4,
-    reactor:4, salvage:2
+    reactor:4, salvage:2, vampire:3
   };
 
   const UPGRADE_MAX = {
@@ -557,9 +557,10 @@
     execution:'Damages weakened enemies more heavily.',
     pulse:'Releases periodic damaging pulses around the fighter.',
     mirror:'Chance to duplicate a shot.',
-    capacitor:'Every few shots becomes a charged heavy shot.',
+    capacitor:'Every few shots becomes a charged heavy shot; higher levels charge more often.',
     reactor:'Boosts several core systems and changes the reactor glow.',
-    salvage:'Elites and bosses pay out more score.'
+    salvage:'Elites and bosses pay out more score.',
+    vampire:'Chance to restore 1 hull when you defeat an enemy.'
   };
 
 
@@ -691,6 +692,12 @@
   const MAX_UPGRADES = 36;
   const MAX_PARTICLES = 420;
   const MAX_POPUPS = 80;
+  const LATE_WAVE = 20;
+  const LATE_MAX_ENEMIES = 10;
+  const LATE_MAX_BULLETS = 300;
+  const LATE_MAX_ENEMY_BULLETS = 80;
+  const LATE_MAX_PARTICLES = 280;
+  const LATE_MAX_POPUPS = 50;
   const MAX_PULSES = 24;
 
   let boss = null;
@@ -879,7 +886,7 @@
     // rate doesn't let spawns snowball into an overwhelming pile-up.
     // Keep the simulation bounded. Without a hard cap, late waves make
     // bullet/enemy collision work grow every run and eventually cause jank.
-    const maxOnScreen = Math.min(MAX_ENEMIES, 5 + Math.floor(wave / 4));
+    const maxOnScreen = Math.min(wave >= LATE_WAVE ? LATE_MAX_ENEMIES : MAX_ENEMIES, 5 + Math.floor(wave / 4));
     if(enemies.length >= maxOnScreen) return;
 
     // Later waves stay challenging, but only occasionally add a second enemy.
@@ -987,20 +994,25 @@
     const count = 1 + spread;
     const startAngle = -((count-1)/2)*angleStep;
     const center = (count-1)/2;
+    const capacitorEvery = player.levels.capacitor>0 ? Math.max(3, 8-player.levels.capacitor) : 999999;
+    const chargedVolley = player.levels.capacitor>0 && player.shotsFired % capacitorEvery === 0;
     for(let i=0;i<count;i++){
       const a = -Math.PI/2 + startAngle + i*angleStep;
       if(bullets.length >= MAX_BULLETS) return;
       // Only the center lane fires at full damage; each additional lane
-      // from the WEAPON upgrade adds coverage at reduced damage, so this
-      // upgrade doesn't multiply total DPS 1:1 with bullet count.
+      // from the WEAPON upgrade adds coverage at reduced damage.
       const isCenter = Math.abs(i-center) < 0.01;
-      const laneDmg = isCenter ? player.bulletDmg : player.bulletDmg*0.55;
-    bullets.push({
+      let laneDmg = isCenter ? player.bulletDmg : player.bulletDmg*0.55;
+      if(chargedVolley) laneDmg *= isCenter ? (1.8 + player.levels.capacitor*0.22) : 1.15;
+      bullets.push({
         x: player.x, y: player.y - player.r,
         vx: Math.cos(a)*560, vy: Math.sin(a)*560,
-        r:4, dmg: laneDmg, pierce: player.pierce, dead:false, ricochet: player.levels.ricochet
+        r:chargedVolley && isCenter ? 6 : 4,
+        dmg: laneDmg, pierce: player.pierce + (chargedVolley && isCenter ? 1 : 0),
+        dead:false, ricochet: player.levels.ricochet, charged:chargedVolley
       });
     }
+    if(chargedVolley) spawnPopup(player.x,player.y-42,'CHARGED VOLLEY','#ffe06a');
     // Mirror: a chance for the whole volley to be echoed by a weaker spectral copy.
     if(player.levels.mirror>0 && Math.random() < Math.min(0.55, player.levels.mirror*0.13)){
       const kaleido = player.levels.mirror>=3 && player.levels.prism>=2;
@@ -1015,9 +1027,16 @@
         });
       }
     }
-    if(player.levels.sideguns>=3){
-      for(const a of [-0.48,-0.24,0.24,0.48]){
-        bullets.push({x:player.x,y:player.y-player.r,vx:Math.sin(a)*600,vy:-Math.cos(a)*600,r:3.5,dmg:player.bulletDmg*0.72,pierce:player.pierce,dead:false,signature:true});
+    if(player.levels.sideguns>0){
+      const sideAngles = player.levels.sideguns===1 ? [-0.18,0.18] :
+                         player.levels.sideguns===2 ? [-0.30,-0.12,0.12,0.30] :
+                         [-0.48,-0.24,0.24,0.48];
+      for(const a of sideAngles){
+        if(bullets.length >= MAX_BULLETS) break;
+        bullets.push({x:player.x,y:player.y-player.r,vx:Math.sin(a)*600,vy:-Math.cos(a)*600,
+          r:3.5,dmg:player.bulletDmg*(player.levels.sideguns>=3?0.72:0.62),
+          pierce:player.pierce,dead:false,signature:player.levels.sideguns>=3,
+          burn:player.levels.burn});
       }
     }
     // Rear gun: fires downward, catches enemies that get behind the ship
@@ -1288,29 +1307,6 @@
     updateHUD();
   }
 
-  function triggerChainZap(sourceEnemy){
-    const range = 90 + player.chainLevel*35;
-    const dmg = 1.5 + player.chainLevel*1.2;
-    let best = null, bestD = range;
-    for(const e of enemies){
-      if(e===sourceEnemy || e.hp<=0) continue;
-      const d = Math.hypot(e.x-sourceEnemy.x, e.y-sourceEnemy.y);
-      if(d < bestD){ bestD = d; best = e; }
-    }
-    if(!best) return;
-    best.hp -= dmg;
-    chainZaps.push({ x1:sourceEnemy.x, y1:sourceEnemy.y, x2:best.x, y2:best.y, t:0, life:180 });
-    explode(best.x, best.y, '#4de3ff', 6);
-    if(best.hp<=0){
-      score += 8;
-      sfx.enemyDeath();
-      explode(best.x,best.y,best.color,14);
-      if(best.type==='splitter') spawnMiniDrones(best.x,best.y);
-      if(best.type==='bomber') bomberBurst(best.x,best.y);
-      spawnUpgrade(best.x,best.y);
-    }
-  }
-
   function spawnPopup(x,y,text,color){
     addPopup({x,y,text,color,life:900,t:0});
   }
@@ -1523,7 +1519,7 @@
     addHitStop(150);
     addShake(400, 10);
     vibrate([50,40,70]);
-    score += 400 + wave*60;
+    score += 400 + wave*60 + player.levels.salvage*60;
     spawnPopup(boss.x, boss.y-20, boss.name+' DEFEATED!', '#ffcf4a');
     openBossRewardChoice(boss.kind);
     unlockAchievement('firstblood');
@@ -1858,12 +1854,9 @@
           spawnPopup(player.x,player.y-42,'RAIL CHARGED','#ffe06a');
         }
       }
-      if(player.levels.gravity){
-        const R=90+player.levels.gravity*22;
-        for(const e of enemies){
-          if(Math.hypot(e.x-player.x,e.y-player.y)<R) e.speed=Math.max(10,e.speed*(1-0.015*player.levels.gravity));
-        }
-      }
+      // Gravity is applied as a temporary movement multiplier below.
+      // Do not mutate e.speed here: repeated multiplication would permanently
+      // slow enemies every frame until they hit the floor speed.
 
       if(player.classes.nova){
         player.novaTimer -= dt;
@@ -1921,9 +1914,13 @@
         e.hp -= (e.burnDmg||0)*dtS*60;
       }
 
+      const gravityR = 90 + player.levels.gravity*22;
+      const gravitySlow = player.levels.gravity && Math.hypot(e.x-player.x,e.y-player.y)<gravityR
+        ? Math.max(0.55, 1-0.035*player.levels.gravity) : 1;
+
       if(e.type === 'dasher'){
         if(e.dashState === 'fall'){
-          e.y += e.speed * dtS;
+          e.y += e.speed * gravitySlow * dtS;
           e.x += Math.sin(e.t*2) * 20 * dtS;
           if(e.y > H*0.22){
             e.dashState = 'charge';
@@ -1940,12 +1937,12 @@
           }
         } else if(e.dashState === 'dash'){
           e.dashTimer -= dt;
-          e.x += e.dvx * dtS;
-          e.y += e.dvy * dtS;
+          e.x += e.dvx * gravitySlow * dtS;
+          e.y += e.dvy * gravitySlow * dtS;
           if(e.dashTimer <= 0) e.dashState = 'fall';
         }
       } else {
-        e.y += e.speed * dtS;
+        e.y += e.speed * gravitySlow * dtS;
         if(e.type === 'zigzag'){
           e.x += Math.sin(e.t * 3.5) * 110 * dtS;
         } else if(e.type === 'drone'){
@@ -1980,15 +1977,22 @@
       }
     }
     enemies = enemies.filter(e => e.y < H+60);
-    if(enemyBullets.length > MAX_ENEMY_BULLETS) enemyBullets.splice(0, enemyBullets.length - MAX_ENEMY_BULLETS);
-    if(bullets.length > MAX_BULLETS) bullets.splice(0, bullets.length - MAX_BULLETS);
+    const activeEnemyBulletCap = wave >= LATE_WAVE ? LATE_MAX_ENEMY_BULLETS : MAX_ENEMY_BULLETS;
+    const activeBulletCap = wave >= LATE_WAVE ? LATE_MAX_BULLETS : MAX_BULLETS;
+    if(enemyBullets.length > activeEnemyBulletCap) enemyBullets.splice(0, enemyBullets.length - activeEnemyBulletCap);
+    if(bullets.length > activeBulletCap) bullets.splice(0, bullets.length - activeBulletCap);
 
     // Periodic stale-effect cleanup keeps long runs smooth.
     if((frame & 127) === 0){
-      particles = particles.filter(p => p && p.t < p.life).slice(-MAX_PARTICLES);
-      popups = popups.filter(p => p && p.t < p.life).slice(-MAX_POPUPS);
+      const late = wave >= LATE_WAVE;
+      particles = particles.filter(p => p && p.t < p.life).slice(-(late ? LATE_MAX_PARTICLES : MAX_PARTICLES));
+      popups = popups.filter(p => p && p.t < p.life).slice(-(late ? LATE_MAX_POPUPS : MAX_POPUPS));
       chainZaps = chainZaps.filter(z => z && z.t < z.life).slice(-MAX_PULSES);
       novaPulses = novaPulses.filter(n => n && n.t < n.life).slice(-MAX_PULSES);
+      if(late){
+        if(enemyBullets.length > LATE_MAX_ENEMY_BULLETS) enemyBullets.splice(0, enemyBullets.length-LATE_MAX_ENEMY_BULLETS);
+        if(bullets.length > LATE_MAX_BULLETS) bullets.splice(0, bullets.length-LATE_MAX_BULLETS);
+      }
     }
 
     rebuildEnemyGrid();
@@ -2091,6 +2095,8 @@
         if(e.hp<=0) continue;
         const d = Math.hypot(b.x-e.x, b.y-e.y);
         if(d < b.r + e.r){
+          // INCENDIARY applies to every player-fired projectile, not just missiles.
+          if(player.levels.burn>0) b.burn = Math.max(b.burn||0, player.levels.burn);
           let hitDmg=b.dmg;
           let isCrit=false;
           if(player.critChance>0 && Math.random()<player.critChance){ hitDmg*=2.5; isCrit=true; }
@@ -2143,7 +2149,7 @@
               }
             }
             const baseScore = (e.type==='tank'?35: e.type==='splitter'?25: e.type==='turret'?26: e.type==='sniper'?20: e.type==='bomber'?22: e.type==='dasher'?16: 10);
-            score += Math.round(baseScore * comboMult * (e.elite ? 2 : 1)) + player.levels.salvage*3;
+            score += Math.round(baseScore * comboMult * (e.elite ? 2 + player.levels.salvage*0.25 : 1)) + player.levels.salvage*3;
             if(player.combo % 4 === 0) spawnPopup(player.x,player.y-48,'FLOW x'+comboMult.toFixed(1),'#fff06a');
             if(e.elite){
               spawnUpgradeForced(e.x,e.y);
