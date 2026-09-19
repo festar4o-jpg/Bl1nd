@@ -2849,6 +2849,10 @@
   // The player explicitly chooses one reward; nothing is auto-collected.
   function openBossRewardChoice(bossKind){
     paused = true;
+    // Release any in-progress joystick touch so it can't keep capturing
+    // touch events for the finger that's still down when this screen
+    // pops up mid-gameplay.
+    joyEnd(); mouseJoyDown = false;
     bossRewardOrbs = [];
     classCores = [];
     const title = document.getElementById('choiceTitle');
@@ -2948,11 +2952,11 @@
         title.textContent='CHOOSE AN UPGRADE';
         paused=false;
       };
-      // Plain click only — matches the same pattern already proven to work
-      // for Start/Retry/Hangar buttons. An earlier pointerdown+preventDefault
-      // approach could suppress the resulting click entirely in some Android
-      // WebView/TWA pointer-event implementations, leaving these buttons
-      // completely unresponsive to touch.
+      // touchend is a safe supplementary trigger (unlike pointerdown, it
+      // doesn't risk suppressing the resulting click when preventDefault
+      // isn't called on it) plus a plain click listener for mouse/desktop
+      // and as a fallback if touchend behaves oddly in a given WebView.
+      btn.addEventListener('touchend', choose, {passive:true});
       btn.addEventListener('click', choose);
       list.appendChild(btn);
     }
@@ -2963,6 +2967,7 @@
   // ---------- Upgrade Choice Shrine (every 3rd non-boss wave) ----------
   function triggerUpgradeChoice(){
     paused=true;
+    joyEnd(); mouseJoyDown = false;
     let pool=UPGRADE_TYPES.filter(type=>{
       if(type==='shield') return player.shieldCharges < player.shieldMax;
       if(type==='life') return player.maxHp < 12;
@@ -3007,6 +3012,7 @@
         document.getElementById('choiceTitle').textContent='CHOOSE AN UPGRADE';
         paused=false;
       };
+      btn.addEventListener('touchend', choose, {passive:true});
       btn.addEventListener('click', choose);
       list.appendChild(btn);
     }
