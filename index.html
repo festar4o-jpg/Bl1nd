@@ -780,8 +780,17 @@
     if(k==='arrowdown'||k==='s') keys.down=false;
   });
 
+  // Tracks the physical touch identifier independently of joy.id. A screen
+  // (choice / boss reward / game over) can call joyEnd() early — to snap the
+  // on-screen stick away immediately — while the real finger is still down.
+  // joy.id gets cleared at that moment, but this survives until the actual
+  // touchend/touchcancel for that finger arrives, so the redirect logic
+  // below can still recognize it.
+  let capturedTouchId = null;
+
   function joyStart(x,y,id){
     joy.active = true; joy.id = id;
+    capturedTouchId = id;
     joy.baseX = Math.max(48, Math.min(W-48, x));
     joy.baseY = Math.max(48, Math.min(H-48, y));
     joy.dx=0; joy.dy=0;
@@ -826,7 +835,7 @@
   joyZone.addEventListener('touchend', e=>{
     e.preventDefault();
     for(const t of e.changedTouches){
-      if(t.identifier === joy.id){
+      if(t.identifier === capturedTouchId){
         // A screen (upgrade choice, boss reward, game over...) can appear
         // while this exact touch is still down. Once a touch starts on an
         // element, the browser locks touchmove/touchend for that touch to
@@ -840,11 +849,12 @@
         const el = document.elementFromPoint(t.clientX, t.clientY);
         const btn = el && el.closest('button');
         if(btn && !btn.disabled && !joyZone.contains(btn)) btn.click();
+        capturedTouchId = null;
         joyEnd();
       }
     }
   }, {passive:false});
-  joyZone.addEventListener('touchcancel', joyEnd);
+  joyZone.addEventListener('touchcancel', ()=>{ capturedTouchId=null; joyEnd(); });
 
   let mouseJoyDown = false;
   joyZone.addEventListener('mousedown', e=>{ mouseJoyDown=true; joyStart(e.clientX,e.clientY,'mouse'); });
