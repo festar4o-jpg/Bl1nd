@@ -118,8 +118,9 @@
     white-space:nowrap;
   }
   .perkBuyBtn:disabled{ background:#3a4152; color:#7a8298; cursor:default; }
+  #choiceOverlay{ pointer-events:auto !important; touch-action:manipulation !important; }
+  #choiceList{ pointer-events:auto !important; }
   .choiceBtn{
-    position:relative; z-index:100; pointer-events:auto; -webkit-user-select:none;
     display:flex; flex-direction:column; align-items:center; gap:4px;
     padding:14px; border-radius:10px; border:2px solid; cursor:pointer;
     background: rgba(255,255,255,0.04); color:var(--hull); font-family:inherit;
@@ -244,7 +245,11 @@
 
   <div class="overlay hidden" id="choiceOverlay">
     <h1 style="font-size:24px;" id="choiceTitle">CHOOSE AN UPGRADE</h1>
-    <div id="choiceList" style="display:flex; flex-direction:column; gap:12px; width:100%; max-width:340px; margin-top:10px;"></div>
+    <div id="choiceList" style="display:flex; flex-direction:column; gap:12px; width:100%; max-width:340px; margin-top:10px; position:relative; z-index:1000; pointer-events:auto; touch-action:manipulation;">
+      <button type="button" class="choiceBtn" id="choiceBtn0" data-choice-index="0"></button>
+      <button type="button" class="choiceBtn" id="choiceBtn1" data-choice-index="1"></button>
+      <button type="button" class="choiceBtn" id="choiceBtn2" data-choice-index="2"></button>
+    </div>
   </div>
 
   <div class="overlay hidden" id="overScreen">
@@ -1181,6 +1186,63 @@
     spawnPopup(player.x, player.y-18, CLASS_DEFS[kind].desc, CLASS_DEFS[kind].color);
     if(CLASS_KEYS.every(k=>player.classes[k])) unlockAchievement('acepilot');
     updateHUD();
+  }
+
+  // ---------- Static choice-button input ----------
+  // Keep these buttons in the DOM from page load. Some Android WebViews
+  // behave unreliably with buttons created dynamically while a canvas/gameplay
+  // touch surface is active. A permanent button + delegated handler avoids
+  // that class of problem entirely.
+  let activeChoiceOptions = [];
+  function renderChoiceButton(index, option){
+    const btn = document.getElementById('choiceBtn'+index);
+    if(!btn) return;
+    btn.disabled = !option;
+    btn.dataset.choiceIndex = String(index);
+    btn.style.borderColor = option ? option.color : 'transparent';
+    btn.style.boxShadow = option ? '0 0 18px '+option.color+'44' : 'none';
+    btn.innerHTML = option ?
+      '<div class="choiceName" style="color:'+option.color+'">'+option.name+'</div>'+
+      '<div class="choiceDesc">'+option.level+'</div>'+
+      '<div class="choiceDesc">'+option.desc+'</div>'+
+      (option.tag||'') : '';
+  }
+  function clearChoiceButtons(){
+    activeChoiceOptions = [];
+    for(let i=0;i<3;i++) renderChoiceButton(i,null);
+  }
+  function selectChoice(index){
+    const option = activeChoiceOptions[index];
+    if(!option) return;
+    const overlay = document.getElementById('choiceOverlay');
+    if(!overlay || overlay.classList.contains('hidden')) return;
+    // Lock immediately so a touch + click compatibility pair cannot apply twice.
+    activeChoiceOptions = [];
+    for(let i=0;i<3;i++) document.getElementById('choiceBtn'+i).disabled=true;
+    try{
+      if(option.kind==='class') applyClassReward(option.key);
+      else applyUpgrade(option.key);
+      if(option.isRelic) player.relics[option.key] = true;
+    }catch(err){
+      console.error('Choice selection error:', err);
+    }finally{
+      overlay.classList.add('hidden');
+      document.getElementById('choiceTitle').textContent='CHOOSE AN UPGRADE';
+      paused=false;
+      joyEnd();
+      capturedTouchId=null;
+      mouseJoyDown=false;
+    }
+  }
+  for(let i=0;i<3;i++){
+    const btn=document.getElementById('choiceBtn'+i);
+    const handler=(e)=>{
+      if(e && e.cancelable) e.preventDefault();
+      selectChoice(i);
+    };
+    btn.addEventListener('click',handler);
+    btn.addEventListener('pointerup',handler,{passive:false});
+    btn.addEventListener('touchend',handler,{passive:false});
   }
 
   // ---------- Boss Reward Choice ----------
@@ -2878,30 +2940,18 @@
   // The player explicitly chooses one reward; nothing is auto-collected.
   function openBossRewardChoice(bossKind){
     paused = true;
-    // Release any in-progress joystick touch so it can't keep capturing
-    // touch events for the finger that's still down when this screen
-    // pops up mid-gameplay.
     joyEnd(); mouseJoyDown = false;
     bossRewardOrbs = [];
     classCores = [];
     const title = document.getElementById('choiceTitle');
-    const list = document.getElementById('choiceList');
     title.textContent = 'BOSS REWARD — CHOOSE ONE';
-    list.innerHTML = '';
 
     const options = [];
     const missingClass = CLASS_KEYS.filter(k => !player.classes[k]);
     if(missingClass.length){
       const kind = missingClass[Math.floor(Math.random()*missingClass.length)];
-      options.push({
-        kind:'class', key:kind,
-        name: CLASS_DEFS[kind].name+' CORE',
-        desc: CLASS_DEFS[kind].desc,
-        color: CLASS_DEFS[kind].color,
-        level:'UNLOCK'
-      });
+      options.push({kind:'class', key:kind, name:CLASS_DEFS[kind].name+' CORE', desc:CLASS_DEFS[kind].desc, color:CLASS_DEFS[kind].color, level:'UNLOCK'});
     }
-
     const relicPool = (BOSS_RELICS[bossKind] || []).filter(r => {
       if(player.relics[r.key]) return false;
       if(r.key==='drone') return !player.classes.drone;
@@ -2910,115 +2960,36 @@
     while(options.length < 3 && relicPool.length){
       const idx = Math.floor(Math.random()*relicPool.length);
       const relic = relicPool.splice(idx,1)[0];
-      // DRONE NEST unlocks the Engineer class, not a leveled upgrade stat —
-      // route it through the class-reward path, same as a class core.
       if(relic.key==='drone'){
-        options.push({
-          kind:'class', key:'drone', isRelic:true,
-          name: relic.name, desc: relic.desc, color: relic.color, level:'UNLOCK'
-        });
-        continue;
+        options.push({kind:'class', key:'drone', isRelic:true, name:relic.name, desc:relic.desc, color:relic.color, level:'UNLOCK'});
+      }else{
+        const level='Lv '+(player.levels[relic.key]||0)+' → '+((player.levels[relic.key]||0)+1);
+        options.push({kind:'upgrade', key:relic.key, isRelic:true, name:relic.name, desc:relic.desc, color:relic.color, level});
       }
-      const level = 'Lv '+(player.levels[relic.key]||0)+' → '+((player.levels[relic.key]||0)+1);
-      options.push({kind:'upgrade', key:relic.key, isRelic:true, name:relic.name, desc:relic.desc, color:relic.color, level});
     }
-
-    // If a class core filled one slot, use general upgrades to guarantee 3 choices.
     while(options.length < 3){
-      const type = pickDistinctUpgradeTypes(UPGRADE_TYPES.length)
-        .find(t => {
-          if(t==='shield') return player.shieldCharges < player.shieldMax;
-          if(t==='life') return player.maxHp < 12;
-          return (player.levels[t]||0) < (UPGRADE_MAX[t]||1);
-        });
-      if(!type) break;
-      options.push({
-        kind:'upgrade', key:type, name:UPGRADE_LABELS[type]||type,
-        desc:UPGRADE_DESC[type]||'SYSTEM UPGRADE',
-        color:UPGRADE_COLORS[type]||'#ffcf4a',
-        level:'Lv '+(type==='shield'?player.shieldCharges:type==='life'?Math.max(0,player.maxHp-3):(player.levels[type]||0))+
-              ' → '+((type==='shield'?player.shieldCharges:type==='life'?Math.max(0,player.maxHp-3):(player.levels[type]||0))+1)
+      const type = pickDistinctUpgradeTypes(UPGRADE_TYPES.length).find(t=>{
+        if(t==='shield') return player.shieldCharges < player.shieldMax;
+        if(t==='life') return player.maxHp < 12;
+        return (player.levels[t]||0) < (UPGRADE_MAX[t]||1);
       });
+      if(!type) break;
+      const cur=type==='shield'?player.shieldCharges:type==='life'?Math.max(0,player.maxHp-3):(player.levels[type]||0);
+      options.push({kind:'upgrade',key:type,name:UPGRADE_LABELS[type]||type,desc:UPGRADE_DESC[type]||'SYSTEM UPGRADE',color:UPGRADE_COLORS[type]||'#ffcf4a',level:'Lv '+cur+' → '+(cur+1)});
     }
-
-    // Deterministic fallback: always show three distinct general upgrades.
-    const used = new Set(options.map(o=>o.key));
+    const used=new Set(options.map(o=>o.key));
     for(const type of UPGRADE_TYPES){
       if(options.length>=3) break;
       if(used.has(type)) continue;
       used.add(type);
-      const cur = type==='shield'?player.shieldCharges:type==='life'?Math.max(0,player.maxHp-3):(player.levels[type]||0);
-      options.push({
-        kind:'upgrade', key:type, name:UPGRADE_LABELS[type]||type,
-        desc:UPGRADE_DESC[type]||'SYSTEM UPGRADE',
-        color:UPGRADE_COLORS[type]||'#ffcf4a',
-        level:'Lv '+cur+' → '+(cur+1)
-      });
+      const cur=type==='shield'?player.shieldCharges:type==='life'?Math.max(0,player.maxHp-3):(player.levels[type]||0);
+      options.push({kind:'upgrade',key:type,name:UPGRADE_LABELS[type]||type,desc:UPGRADE_DESC[type]||'SYSTEM UPGRADE',color:UPGRADE_COLORS[type]||'#ffcf4a',level:'Lv '+cur+' → '+(cur+1)});
     }
-
-    for(const option of options.slice(0,3)){
-      const btn=document.createElement('button');
-      btn.className='choiceBtn';
-      btn.style.borderColor=option.color;
-      btn.style.boxShadow='0 0 18px '+option.color+'44';
-      btn.innerHTML='<div class="choiceName" style="color:'+option.color+'">'+option.name+'</div>'+
-        '<div class="choiceDesc">'+option.level+'</div>'+
-        '<div class="choiceDesc">'+option.desc+'</div>';
-
-      let claimed = false;
-      const choose = (ev)=>{
-        if(claimed || btn.disabled) return;
-        if(ev && ev.type === 'touchend') ev.preventDefault();
-        claimed = true;
-        btn.disabled = true;
-        try{
-          if(option.kind==='class'){
-            applyClassReward(option.key);
-          } else {
-            applyUpgrade(option.key);
-          }
-          if(option.isRelic) player.relics[option.key] = true;
-        }catch(err){
-          console.error('Upgrade choice error:', err);
-        }finally{
-          list.querySelectorAll('.choiceBtn').forEach(b=>b.disabled=true);
-          document.getElementById('choiceOverlay').classList.add('hidden');
-          title.textContent='CHOOSE AN UPGRADE';
-          paused=false;
-          joyEnd();
-          capturedTouchId=null;
-          mouseJoyDown=false;
-        }
-      };
-      btn.__choose = choose;
-      btn.addEventListener('pointerdown', choose, {passive:false});
-      btn.addEventListener('touchstart', choose, {passive:false});
-      btn.addEventListener('click', choose);
-      list.appendChild(btn);
-    }
-
+    activeChoiceOptions=options.slice(0,3);
+    for(let i=0;i<3;i++) renderChoiceButton(i,activeChoiceOptions[i]||null);
     document.getElementById('choiceOverlay').classList.remove('hidden');
   }
 
-  // Mobile/WebView safety net: if a touch began on the joystick and the
-  // upgrade overlay appeared before release, route the release to the
-  // button currently under the finger. This complements the pointer/click
-  // handlers above and avoids relying on touch target retargeting.
-  document.addEventListener('touchend', e=>{
-    const overlay=document.getElementById('choiceOverlay');
-    if(!overlay || overlay.classList.contains('hidden')) return;
-    for(const t of e.changedTouches){
-      const el=document.elementFromPoint(t.clientX,t.clientY);
-      const btn=el && el.closest && el.closest('#choiceList .choiceBtn');
-      if(btn && !btn.disabled){
-        e.preventDefault();
-        btn.click();
-        return;
-      }
-    }
-  }, {passive:false});
-
-  // ---------- Upgrade Choice Shrine (every 3rd non-boss wave) ----------
   function triggerUpgradeChoice(){
     paused=true;
     joyEnd(); mouseJoyDown = false;
@@ -3031,83 +3002,22 @@
     const types=[];
     while(types.length<3 && pool.length){
       let total=0;
-      const weights=pool.map(type=>{
-        const w=1+upgradeSynergyScore(type)*0.9;
-        total+=w; return w;
-      });
+      const weights=pool.map(type=>{const w=1+upgradeSynergyScore(type)*0.9; total+=w; return w;});
       let roll=Math.random()*total, idx=0;
-      for(;idx<pool.length;idx++){ roll-=weights[idx]; if(roll<=0) break; }
+      for(;idx<pool.length;idx++){roll-=weights[idx]; if(roll<=0) break;}
       if(idx>=pool.length) idx=pool.length-1;
       types.push(pool.splice(idx,1)[0]);
     }
     document.getElementById('choiceTitle').textContent='CHOOSE AN UPGRADE';
-    const list=document.getElementById('choiceList');
-    list.innerHTML='';
-    for(const type of types){
-      let curLvl=type==='shield'?player.shieldCharges:(type==='life'?Math.max(0,player.maxHp-3):(player.levels[type]||0));
-      const near = BUILD_ARCHETYPES.filter(a=>a.req[type]!==undefined && buildProgress(a)<1)
-        .sort((a,b)=>buildProgress(a)-buildProgress(b))[0];
-      const tag = near ? '<div class="choiceSynergy" style="color:'+near.color+'">'+near.short+' '+Math.round(buildProgress(near)*100)+'%</div>' : '';
-      const btn=document.createElement('button');
-      btn.className='choiceBtn';
-      btn.style.borderColor=UPGRADE_COLORS[type];
-      btn.style.boxShadow='0 0 18px '+UPGRADE_COLORS[type]+'44';
-      btn.innerHTML='<div class="choiceName" style="color:'+UPGRADE_COLORS[type]+'">'+UPGRADE_LABELS[type]+'</div>'+
-        '<div class="choiceDesc">Lv '+curLvl+' → '+(curLvl+1)+'</div>'+
-        '<div class="choiceDesc">'+(UPGRADE_DESC[type]||'SYSTEM UPGRADE')+'</div>'+tag;
-      let chosen = false;
-      const choose = (ev)=>{
-        if(chosen || btn.disabled) return;
-        if(ev && ev.type === 'touchend') ev.preventDefault();
-        chosen = true;
-        btn.disabled = true;
-        try{
-          applyUpgrade(type);
-        }catch(err){
-          console.error('Upgrade choice error:', err);
-        }finally{
-          list.querySelectorAll('.choiceBtn').forEach(b=>b.disabled=true);
-          document.getElementById('choiceOverlay').classList.add('hidden');
-          document.getElementById('choiceTitle').textContent='CHOOSE AN UPGRADE';
-          paused=false;
-          joyEnd();
-          capturedTouchId=null;
-          mouseJoyDown=false;
-        }
-      };
-      btn.__choose = choose;
-      btn.addEventListener('pointerdown', choose, {passive:false});
-      btn.addEventListener('touchstart', choose, {passive:false});
-      btn.addEventListener('click', choose);
-      list.appendChild(btn);
-    }
+    activeChoiceOptions=types.map(type=>{
+      const curLvl=type==='shield'?player.shieldCharges:(type==='life'?Math.max(0,player.maxHp-3):(player.levels[type]||0));
+      const near=BUILD_ARCHETYPES.filter(a=>a.req[type]!==undefined && buildProgress(a)<1).sort((a,b)=>buildProgress(a)-buildProgress(b))[0];
+      const tag=near?'<div class="choiceSynergy" style="color:'+near.color+'">'+near.short+' '+Math.round(buildProgress(near)*100)+'%</div>':'';
+      return {kind:'upgrade',key:type,name:UPGRADE_LABELS[type],desc:UPGRADE_DESC[type]||'SYSTEM UPGRADE',color:UPGRADE_COLORS[type],level:'Lv '+curLvl+' → '+(curLvl+1),tag};
+    });
+    for(let i=0;i<3;i++) renderChoiceButton(i,activeChoiceOptions[i]||null);
     document.getElementById('choiceOverlay').classList.remove('hidden');
   }
-
-
-  // HARD MOBILE INPUT FALLBACK
-  // Some Android WebViews can leave dynamically-created buttons without a
-  // usable compatibility click after the gameplay touch surface has been
-  // active. Handle the choice at the document capture phase as well.
-  function routeChoiceInput(ev){
-    const overlay=document.getElementById('choiceOverlay');
-    if(!overlay || overlay.classList.contains('hidden')) return;
-    let target=ev.target;
-    let btn=target && target.closest ? target.closest('#choiceList .choiceBtn') : null;
-    if(!btn && ev.changedTouches && ev.changedTouches.length){
-      const t=ev.changedTouches[0];
-      const el=document.elementFromPoint(t.clientX,t.clientY);
-      btn=el && el.closest ? el.closest('#choiceList .choiceBtn') : null;
-    }
-    if(!btn || btn.disabled) return;
-    if(ev.type==='touchstart' || ev.type==='touchend' || ev.type==='pointerdown') ev.preventDefault();
-    const fn=btn.__choose;
-    if(typeof fn==='function') fn(ev);
-  }
-  document.addEventListener('pointerdown', routeChoiceInput, {capture:true, passive:false});
-  document.addEventListener('touchstart', routeChoiceInput, {capture:true, passive:false});
-  document.addEventListener('touchend', routeChoiceInput, {capture:true, passive:false});
-
 
   document.getElementById('startBtn').addEventListener('click', ()=>{
     ensureAudio();
