@@ -826,7 +826,22 @@
   joyZone.addEventListener('touchend', e=>{
     e.preventDefault();
     for(const t of e.changedTouches){
-      if(t.identifier === joy.id) joyEnd();
+      if(t.identifier === joy.id){
+        // A screen (upgrade choice, boss reward, game over...) can appear
+        // while this exact touch is still down. Once a touch starts on an
+        // element, the browser locks touchmove/touchend for that touch to
+        // that *original* element for its whole lifetime, no matter what's
+        // rendered on top afterward — so touchend still fires here on the
+        // joystick even though the finger is now resting on a button.
+        // elementFromPoint tells us what's actually under the finger at
+        // release, and .click() dispatches a real click on it directly,
+        // which isn't subject to touch capture. This one fix covers every
+        // overlay that can pop up mid-drag, not just the choice screen.
+        const el = document.elementFromPoint(t.clientX, t.clientY);
+        const btn = el && el.closest('button');
+        if(btn && !btn.disabled && !joyZone.contains(btn)) btn.click();
+        joyEnd();
+      }
     }
   }, {passive:false});
   joyZone.addEventListener('touchcancel', joyEnd);
