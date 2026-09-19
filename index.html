@@ -62,9 +62,11 @@
   }
   #joyBase{
     position:absolute; width:96px; height:96px; border-radius:50%;
-    border:2px solid rgba(53,227,255,0.35);
-    background: radial-gradient(circle, rgba(53,227,255,0.08), rgba(53,227,255,0.02));
-    display:none;
+    border:2px solid rgba(53,227,255,0.32);
+    background: radial-gradient(circle, rgba(53,227,255,0.09), rgba(53,227,255,0.025));
+    box-shadow:0 0 18px rgba(53,227,255,0.12), inset 0 0 18px rgba(53,227,255,0.06);
+    left:calc(50% - 48px); bottom:22px;
+    display:block; opacity:.72; pointer-events:none;
   }
   #joyStick{
     position:absolute; width:46px; height:46px; border-radius:50%;
@@ -807,15 +809,19 @@
   // below can still recognize it.
   let capturedTouchId = null;
 
+  function positionJoyBase(){
+    joy.baseX = Math.max(48, Math.min(W-48, W*0.76));
+    joy.baseY = Math.max(48, Math.min(H-48, H-70));
+    joyBase.style.left = (joy.baseX-48)+'px';
+    joyBase.style.top = (joy.baseY-48)+'px';
+  }
+
   function joyStart(x,y,id){
     joy.active = true; joy.id = id;
     capturedTouchId = id;
-    joy.baseX = Math.max(48, Math.min(W-48, x));
-    joy.baseY = Math.max(48, Math.min(H-48, y));
+    positionJoyBase();
     joy.dx=0; joy.dy=0;
-    joyBase.style.display = 'block';
-    joyBase.style.left = (joy.baseX-48)+'px';
-    joyBase.style.top = (joy.baseY-48)+'px';
+    joyBase.style.opacity='.92';
     joyStick.style.left='25px'; joyStick.style.top='25px';
   }
   function joyMove(x,y){
@@ -836,8 +842,13 @@
   }
   function joyEnd(){
     joy.active=false; joy.id=null; joy.dx=0; joy.dy=0;
-    joyBase.style.display='none';
+    joyStick.style.left='25px'; joyStick.style.top='25px';
+    joyBase.style.opacity='.72';
+    positionJoyBase();
   }
+
+  positionJoyBase();
+  window.addEventListener('resize', positionJoyBase);
 
   joyZone.addEventListener('touchstart', e=>{
     e.preventDefault();
