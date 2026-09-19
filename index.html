@@ -119,6 +119,7 @@
   }
   .perkBuyBtn:disabled{ background:#3a4152; color:#7a8298; cursor:default; }
   .choiceBtn{
+    position:relative; z-index:100; pointer-events:auto; -webkit-user-select:none;
     display:flex; flex-direction:column; align-items:center; gap:4px;
     padding:14px; border-radius:10px; border:2px solid; cursor:pointer;
     background: rgba(255,255,255,0.04); color:var(--hull); font-family:inherit;
@@ -2989,7 +2990,9 @@
           mouseJoyDown=false;
         }
       };
-      btn.addEventListener('pointerup', choose);
+      btn.__choose = choose;
+      btn.addEventListener('pointerdown', choose, {passive:false});
+      btn.addEventListener('touchstart', choose, {passive:false});
       btn.addEventListener('click', choose);
       list.appendChild(btn);
     }
@@ -3072,12 +3075,39 @@
           mouseJoyDown=false;
         }
       };
-      btn.addEventListener('pointerup', choose);
+      btn.__choose = choose;
+      btn.addEventListener('pointerdown', choose, {passive:false});
+      btn.addEventListener('touchstart', choose, {passive:false});
       btn.addEventListener('click', choose);
       list.appendChild(btn);
     }
     document.getElementById('choiceOverlay').classList.remove('hidden');
   }
+
+
+  // HARD MOBILE INPUT FALLBACK
+  // Some Android WebViews can leave dynamically-created buttons without a
+  // usable compatibility click after the gameplay touch surface has been
+  // active. Handle the choice at the document capture phase as well.
+  function routeChoiceInput(ev){
+    const overlay=document.getElementById('choiceOverlay');
+    if(!overlay || overlay.classList.contains('hidden')) return;
+    let target=ev.target;
+    let btn=target && target.closest ? target.closest('#choiceList .choiceBtn') : null;
+    if(!btn && ev.changedTouches && ev.changedTouches.length){
+      const t=ev.changedTouches[0];
+      const el=document.elementFromPoint(t.clientX,t.clientY);
+      btn=el && el.closest ? el.closest('#choiceList .choiceBtn') : null;
+    }
+    if(!btn || btn.disabled) return;
+    if(ev.type==='touchstart' || ev.type==='touchend' || ev.type==='pointerdown') ev.preventDefault();
+    const fn=btn.__choose;
+    if(typeof fn==='function') fn(ev);
+  }
+  document.addEventListener('pointerdown', routeChoiceInput, {capture:true, passive:false});
+  document.addEventListener('touchstart', routeChoiceInput, {capture:true, passive:false});
+  document.addEventListener('touchend', routeChoiceInput, {capture:true, passive:false});
+
 
   document.getElementById('startBtn').addEventListener('click', ()=>{
     ensureAudio();
