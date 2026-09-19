@@ -1077,7 +1077,6 @@
         spawnPopup(player.x, player.y-50, 'FORM SHIFT // TIER '+newTier, '#7df3ff');
         explode(player.x, player.y, '#7df3ff', 34);
       }
-      showUpgradeToast(type);
       announceNewBuilds(buildsBefore);
     }
   }
@@ -1786,7 +1785,11 @@
             const a=player.droneAngle+i*(Math.PI*2/n);
             const dx=player.x+Math.cos(a)*(42+player.levels.orbitals*5);
             const dy=player.y+Math.sin(a)*(42+player.levels.orbitals*5);
-            makePlayerBullet(dx,dy,-Math.PI/2,0.55+player.levels.orbitals*0.08);
+            const speed = 500;
+            bullets.push({
+              x:dx, y:dy, vx:Math.cos(-Math.PI/2)*speed, vy:Math.sin(-Math.PI/2)*speed,
+              r:3.5, dmg: player.bulletDmg*(0.55+player.levels.orbitals*0.08), pierce:0, dead:false
+            });
           }
         }
       }
