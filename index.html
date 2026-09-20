@@ -704,15 +704,24 @@
   window.addEventListener('mouseup', ()=>{ if(mouseJoyDown){ mouseJoyDown=false; joyEnd(); } });
 
   // ---------- Enemy Scaling & Spawning ----------
+  // Hard ceiling on live enemies. Waves 1-5 behave essentially as before (the
+  // old cap was never reached there); after that it grows slowly instead of
+  // jumping to 9+ the moment the first boss dies.
+  function maxOnScreen(){
+    return Math.min(12, 5 + Math.floor(wave / 4));
+  }
+  // Tanky / slow / shooter types. Only a few of these may be alive at once,
+  // otherwise they fill the cap and the screen turns into a wall of enemies.
+  const HEAVY_TYPES = ['tank','turret','splitter','sniper','bomber'];
+  function maxHeavy(){ return 2 + Math.floor(wave / 5); }
+
   function spawnEnemyBatch(){
-    // Cap how many enemies can be alive on screen at once, so a slow kill
-    // rate doesn't let spawns snowball into an overwhelming pile-up.
-    const maxOnScreen = 6 + Math.floor(wave / 2);
-    if(enemies.length >= maxOnScreen) return;
+    const cap = maxOnScreen();
+    if(enemies.length >= cap) return;
 
     // Scaling spawn count every 10 levels
     const tier = Math.floor((wave - 1) / 10);
-    const countToSpawn = Math.min(1 + tier, maxOnScreen - enemies.length);
+    const countToSpawn = Math.min(1 + tier, cap - enemies.length);
 
     for(let i = 0; i < countToSpawn; i++){
       spawnEnemy();
@@ -734,6 +743,11 @@
     }
 
     let type = availableTypes[Math.floor(Math.random() * availableTypes.length)];
+    if(HEAVY_TYPES.includes(type)){
+      let heavy = 0;
+      for(const e of enemies) if(HEAVY_TYPES.includes(e.type)) heavy++;
+      if(heavy >= maxHeavy()) type = Math.random() < 0.5 ? 'drone' : (firstBossDefeated ? 'zigzag' : 'drone');
+    }
     const x = 40 + Math.random() * (W - 80);
 
     const hpMult = 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.55;
@@ -760,7 +774,7 @@
       baseHp = 2; r = 12; speed = 78; color = '#4affaf'; shootChance = 0;
     }
 
-    const hp = Math.max(1, Math.round(baseHp * hpMult));
+    let hp = Math.max(1, Math.round(baseHp * hpMult));
     speed *= speedMult;
     shootChance *= aggroMult;
 
@@ -780,12 +794,14 @@
   }
 
   function spawnMiniDrones(x, y) {
+    const mh = Math.max(1, Math.floor(1 * (1 + (wave - 1) * 0.2)));
     for (let i = 0; i < 2; i++) {
+      // Splitter offspring used to bypass the on-screen cap entirely.
+      if (enemies.length >= maxOnScreen() + 3) return;
       enemies.push({
         x: x + (i === 0 ? -12 : 12), y: y, r: 8,
-        hp: Math.max(1, Math.floor(1 * (1 + (wave - 1) * 0.2))),
-        maxHp: 1, type: 'swarm', speed: 110, color: '#7dff8f',
-        shootChance: 0.003, t: Math.random() * 100, vx: 0
+        hp: mh, maxHp: mh, type: 'swarm', speed: 110, color: '#7dff8f',
+        shootChance: 0.003, t: Math.random() * 100, vx: 0, aimTimer: 0, dashState: 'fall'
       });
     }
   }
@@ -1308,6 +1324,7 @@
   }
 
   function defeatBoss(){
+    if(!boss) return;
     sfx.bossDeath();
     explode(boss.x, boss.y, boss.color, 60);
     score += 400 + wave*60;
@@ -1316,6 +1333,9 @@
     firstBossDefeated = true;
     boss = null;
     bossActive = false;
+    // Leftover boss bullets / Hive Mother minions shouldn't follow you into the next wave.
+    enemyBullets = [];
+    enemies = [];
     document.getElementById('wrap').classList.remove('boss-alert');
     wave++;
     waveTimer = 0;
@@ -1594,6 +1614,9 @@
       updateBoss(dt, dtS);
     }
 
+    // shootChance is tuned per 60Hz frame; scale by real elapsed time so a
+    // 90/120Hz phone doesn't get double the enemy fire.
+    const fireScale = dt / 16.667;
     for(const e of enemies){
       e.t += dtS;
       if(e.burnUntil && frame < e.burnUntil && e.hp>0){
@@ -1632,27 +1655,36 @@
         } else if(e.type === 'swarm'){
           e.x += Math.cos(e.t * 5.0) * 40 * dtS;
         } else if(e.type === 'sniper'){
-          if(e.y > H * 0.15 && e.y < H * 0.5) {
-            e.speed = 15;
+          // Hover briefly to snipe, then move on. (Used to crawl at 15px/s
+          // for the rest of its life, permanently eating a spawn slot.)
+          if(!e.leaving && e.y > H * 0.15){
+            e.holdT = (e.holdT || 0) + dt;
+            if(e.holdT < 4000) e.speed = 15;
+            else { e.leaving = true; e.speed = 110; }
           }
         } else if(e.type === 'bomber'){
           e.x += Math.sin(e.t * 1.6) * 22 * dtS;
         } else if(e.type === 'turret'){
-          if(e.y > H * 0.24) e.speed = 5;
+          // Same idea: dig in for a while, then withdraw.
+          if(!e.leaving && e.y > H * 0.24){
+            e.holdT = (e.holdT || 0) + dt;
+            if(e.holdT < 6500) e.speed = 5;
+            else { e.leaving = true; e.speed = 90; }
+          }
         }
       }
 
       e.x = Math.max(e.r, Math.min(W-e.r, e.x));
 
       if(e.type === 'turret'){
-        if(Math.random() < e.shootChance){
+        if(Math.random() < e.shootChance * fireScale){
           const ang = Math.atan2(player.y-e.y, player.x-e.x);
           for(let i=-1;i<=1;i++){
             const a = ang + i*0.13;
             enemyBullets.push({ x:e.x, y:e.y, vx:Math.cos(a)*240, vy:Math.sin(a)*240, r:4 });
           }
         }
-      } else if(e.shootChance > 0 && Math.random() < e.shootChance){
+      } else if(e.shootChance > 0 && Math.random() < e.shootChance * fireScale){
         const ang = Math.atan2(player.y-e.y, player.x-e.x);
         const bSpeed = e.type === 'sniper' ? 360 : 220;
         enemyBullets.push({ x:e.x, y:e.y, vx:Math.cos(ang)*bSpeed, vy:Math.sin(ang)*bSpeed, r: e.type==='sniper'?5:4 });
@@ -1694,7 +1726,7 @@
     bullets = bullets.filter(b => !b.dead && b.y > -20 && b.x>-20 && b.x<W+20);
 
     for(const b of enemyBullets){ b.x += b.vx*dtS; b.y += b.vy*dtS; }
-    enemyBullets = enemyBullets.filter(b => b.y < H+20 && b.y>-20);
+    enemyBullets = enemyBullets.filter(b => b.y < H+20 && b.y>-20 && b.x>-40 && b.x<W+40);
 
     for(const u of upgrades){
       const d = Math.hypot(u.x-player.x, u.y-player.y);
@@ -1829,9 +1861,12 @@
           }
         }
       }
-      if(boss.hp<=0){
-        defeatBoss();
-      }
+    }
+    // Checked outside the collision block on purpose: Nova, Aegis, explosive
+    // and pinball damage can drop the boss to 0 HP without a bullet touching
+    // it, and the old check never ran again once hp was already <= 0.
+    if(boss && boss.hp<=0){
+      defeatBoss();
     }
     bullets = bullets.filter(b => !b.dead && b.y > -500);
 
