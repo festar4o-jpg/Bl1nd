@@ -117,6 +117,28 @@
     white-space:nowrap;
   }
   .perkBuyBtn:disabled{ background:#3a4152; color:#7a8298; cursor:default; }
+  /* Hangar can now be taller than the screen (skins list), so let it scroll. */
+  #hangarOverlay{
+    overflow-y:auto; justify-content:flex-start; touch-action:pan-y; -webkit-overflow-scrolling:touch;
+    padding-top:max(24px, env(safe-area-inset-top)); padding-bottom:max(24px, env(safe-area-inset-bottom));
+  }
+  #hangarOverlay > *{ flex-shrink:0; }
+  .sectionTitle{ color:var(--gold); font-size:13px; letter-spacing:3px; margin:14px 0 0; text-align:left; width:100%; font-weight:bold; }
+  .sectionHint{ color:var(--hull-dim); font-size:11px; text-align:left; width:100%; margin-top:-4px; }
+  .skinRow{
+    display:flex; align-items:center; gap:10px; width:100%; box-sizing:border-box;
+    background: rgba(53,227,255,0.06); border:1px solid rgba(53,227,255,0.25);
+    border-radius:8px; padding:8px 10px;
+  }
+  .skinRow.equipped{ border-color:var(--gold); box-shadow:0 0 14px rgba(255,207,74,0.25); }
+  .skinRow canvas{
+    width:96px; height:96px; flex:0 0 96px; border-radius:8px; cursor:pointer;
+    background: radial-gradient(circle at 50% 45%, rgba(255,255,255,0.07), rgba(0,0,0,0.3));
+  }
+  .skinInfo{ text-align:left; flex:1; min-width:0; }
+  .skinInfo .perkName{ font-weight:bold; color:var(--hull); font-size:14px; }
+  .skinInfo .perkDesc{ color:var(--hull-dim); font-size:11px; margin-top:3px; line-height:1.35; }
+  .skinTier{ color:var(--ion); font-size:11px; letter-spacing:1px; margin-top:2px; }
   .choiceBtn{
     display:flex; flex-direction:column; align-items:center; gap:4px;
     padding:14px; border-radius:10px; border:2px solid; cursor:pointer;
@@ -219,7 +241,7 @@
   <div class="overlay hidden" id="hangarOverlay">
     <h1 style="font-size:26px;">HANGAR</h1>
     <p style="color:var(--gold); font-size:14px;" id="hangarCoresLine">CORES: 0</p>
-    <p style="max-width:340px;">Spend Cores earned from runs on permanent bonuses that apply to every future run.</p>
+    <p style="max-width:340px;">Spend Cores earned from runs on permanent bonuses and new ship skins.</p>
     <div id="hangarList" style="display:flex; flex-direction:column; gap:10px; width:100%; max-width:360px; margin-top:8px;"></div>
     <button class="btn" id="hangarBackBtn">BACK</button>
   </div>
@@ -499,6 +521,248 @@
     const p = META_PERKS[key], lvl = metaPerks[key];
     return p.costBase + lvl*p.costStep;
   }
+
+  // ---------- Ship skins ----------
+  // A skin re-colours the hull, gives it its own silhouette, and adds "growth"
+  // effects that scale with the ship's tier (FORM SHIFT) and with the actual
+  // upgrades collected - so the ship keeps evolving throughout a run.
+  function hash01(n){ const x = Math.sin(n*127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+  function drawFlame(c, x, y, w, len, fr, seed, outer, inner){
+    const f = 1 + 0.16*Math.sin(fr*0.45 + seed*2.1) + 0.08*Math.sin(fr*0.9 + seed);
+    const Ln = len * f;
+    c.fillStyle = outer;
+    c.beginPath(); c.moveTo(x-w, y); c.quadraticCurveTo(x-w*0.5, y+Ln*0.55, x, y+Ln);
+    c.quadraticCurveTo(x+w*0.5, y+Ln*0.55, x+w, y); c.closePath(); c.fill();
+    c.fillStyle = inner;
+    c.beginPath(); c.moveTo(x-w*0.5, y); c.quadraticCurveTo(x-w*0.25, y+Ln*0.4, x, y+Ln*0.62);
+    c.quadraticCurveTo(x+w*0.25, y+Ln*0.4, x+w*0.5, y); c.closePath(); c.fill();
+  }
+  function drawSparkle(c, x, y, s){
+    c.beginPath(); c.moveTo(x-s, y); c.lineTo(x+s, y); c.moveTo(x, y-s); c.lineTo(x, y+s); c.stroke();
+  }
+
+  const SKINS = {
+    classic: {
+      name:'CLASSIC', desc:'The original fighter. Grows wings and armour as you upgrade.', cost:0,
+      shape:[[0,-1.12],[0.82,0.75],[0,0.42],[-0.82,0.75]],
+      pal:{ hull1:'#eef2ff', hull2:'#e4eaff', hull3:'#f4f7ff', glow:'#7df3ff', wing1:'#8fa8ff', wing2:'#aebcff', wing3:'#d7ddff',
+            trim:'#35e3ff', arc:'#c9d4ff', ring:'#72b7ff', crest:'#fff06a', halo:'#f0a0ff', engine:'#ff8fa8', bullet:'#7df3ff' }
+    },
+
+    ember: {
+      name:'EMBER', desc:'Forged in fire. Engine flames swell with speed and fire-rate upgrades, embers rise as you level.', cost:40,
+      forms:['SPARK','KINDLE','FLARE','BLAZE','CINDERWING','INFERNAL','PYRELORD','PHOENIX','SOLAR PHOENIX'],
+      shape:[[0,-1.2],[0.34,-0.45],[0.9,0.35],[0.7,0.85],[0,0.5],[-0.7,0.85],[-0.9,0.35],[-0.34,-0.45]],
+      pal:{ hull1:'#ffd9c9', hull2:'#ffc9a6', hull3:'#fff0d6', glow:'#ff7043', wing1:'#ff6a3d', wing2:'#ff9a4d', wing3:'#ffc36b',
+            trim:'#ffcf4a', arc:'#ffb27a', armor:'#ffb27a', ring:'#ff8a4d', crest:'#fff06a', halo:'#ff4d6a', engine:'#ffb347', bullet:'#ffb06b' },
+      back(c, r, t, L, fr){
+        const boost = (L.speed||0)*0.07 + (L.rapid||0)*0.05;
+        const len = Math.min(r*2.6, r*(0.7 + t*0.2 + boost));
+        c.shadowColor = '#ff6a3d'; c.shadowBlur = 12;
+        drawFlame(c, 0, r*0.9, r*0.3, len, fr, 0, 'rgba(255,106,61,.85)', 'rgba(255,232,150,.95)');
+        if(t >= 1) for(const s of [-1,1]) drawFlame(c, s*r*0.72, r*0.82, r*0.2, len*0.7, fr, s+2, 'rgba(255,140,60,.8)', 'rgba(255,240,180,.9)');
+      },
+      front(c, r, t, L, fr, pal){
+        const ga = c.globalAlpha;
+        const n = Math.min(12, 1 + t + (L.burn||0)*2);
+        c.shadowBlur = 0;
+        for(let i=0;i<n;i++){
+          const ph = ((fr*0.022) + hash01(i+1)) % 1;
+          c.globalAlpha = ga * Math.max(0, 1-ph) * 0.9;
+          c.fillStyle = i%2 ? '#ffcf4a' : '#ff7a3d';
+          c.beginPath(); c.arc((hash01(i*3.7+2)-0.5)*r*2.2, r*0.5 - ph*r*2.4, 1.2 + hash01(i)*1.2, 0, Math.PI*2); c.fill();
+        }
+        c.globalAlpha = ga;
+        if(t >= 6){
+          c.strokeStyle = 'rgba(255,140,60,.75)'; c.lineWidth = 2; c.setLineDash([6,6]); c.lineDashOffset = -fr*0.6;
+          c.beginPath(); c.arc(0, r*0.1, r*1.5, 0, Math.PI*2); c.stroke(); c.setLineDash([]);
+        }
+        if(t >= 8){
+          c.shadowColor = '#ffcf4a'; c.shadowBlur = 10;
+          for(const s of [-1,0,1]){
+            c.save(); c.translate(s*r*0.2, -r*1.2); c.scale(1,-1);
+            drawFlame(c, 0, 0, r*0.12, r*(s?0.5:0.7), fr, s+5, 'rgba(255,190,70,.9)', 'rgba(255,250,200,.95)');
+            c.restore();
+          }
+        }
+      }
+    },
+
+    glacier: {
+      name:'GLACIER', desc:'Living crystal. Ice shards sprout with every armour and barrier upgrade; a frost halo forms at high tiers.', cost:60,
+      forms:['FROST','RIME','SHARD','CRYSTAL','ICEBREAKER','GLACIAL','BLIZZARD','ABSOLUTE ZERO','AURORA'],
+      shape:[[0,-1.2],[0.5,-0.3],[0.85,0.4],[0.5,0.85],[0,0.45],[-0.5,0.85],[-0.85,0.4],[-0.5,-0.3]],
+      pal:{ hull1:'#e9f9ff', hull2:'#d6f3ff', hull3:'#ffffff', glow:'#8be9ff', wing1:'#6fd0ff', wing2:'#a9e6ff', wing3:'#d4f4ff',
+            trim:'#ffffff', arc:'#bfeaff', armor:'#d4f4ff', ring:'#8bd8ff', crest:'#ffffff', halo:'#c8b4ff', engine:'#9be7ff', bullet:'#bff4ff', edge:'#ffffff' },
+      back(c, r, t, L, fr, pal){
+        const n = Math.min(10, t + (L.armor||0) + (L.barrier||0));
+        c.shadowColor = '#9be7ff'; c.shadowBlur = 8;
+        for(let i=0;i<n;i++){
+          const side = i%2 ? 1 : -1, k = Math.floor(i/2);
+          const bx = side*r*(0.45 + k*0.16), by = r*(0.05 + k*0.16);
+          const tx = side*r*(1.15 + k*0.28), ty = r*(-0.15 + k*0.2 - (k%2)*0.15);
+          c.fillStyle = (k%2) ? pal.wing2 : pal.wing3;
+          c.beginPath(); c.moveTo(bx, by - r*0.14); c.lineTo(tx, ty); c.lineTo(bx, by + r*0.14); c.closePath(); c.fill();
+        }
+      },
+      front(c, r, t, L, fr){
+        const ga = c.globalAlpha;
+        if(t >= 4){
+          c.strokeStyle = 'rgba(220,248,255,.85)'; c.lineWidth = 1.4; c.shadowColor = '#bff4ff'; c.shadowBlur = 8;
+          const rot = fr*0.015;
+          for(let i=0;i<6;i++){
+            const a = rot + i*Math.PI/3, ca = Math.cos(a), sa = Math.sin(a);
+            c.beginPath(); c.moveTo(ca*r*1.35, sa*r*1.35); c.lineTo(ca*r*1.75, sa*r*1.75); c.stroke();
+            c.beginPath(); c.moveTo(ca*r*1.55 - sa*4, sa*r*1.55 + ca*4); c.lineTo(ca*r*1.55 + sa*4, sa*r*1.55 - ca*4); c.stroke();
+          }
+        }
+        if(t >= 7){
+          c.strokeStyle = '#ffffff'; c.lineWidth = 1.2; c.shadowBlur = 6;
+          for(let i=0;i<5;i++){
+            c.globalAlpha = ga * (0.5 + 0.5*Math.sin(fr*0.1 + i*2));
+            drawSparkle(c, (hash01(i+9)-0.5)*r*2.6, (hash01(i+21)-0.5)*r*2.6, 3 + hash01(i)*2);
+          }
+          c.globalAlpha = ga;
+        }
+      }
+    },
+
+    venom: {
+      name:'VENOM', desc:'Toxic bio-hull. Spines multiply with every damage upgrade; acid drips from the wings at higher tiers.', cost:80,
+      forms:['SPORE','STING','FANG','VIPER','BASILISK','HYDRA','PLAGUE','APEX TOXIN','LEVIATHAN'],
+      shape:[[0,-1.1],[0.3,-0.5],[0.95,-0.1],[0.75,0.85],[0.3,0.55],[0,0.75],[-0.3,0.55],[-0.75,0.85],[-0.95,-0.1],[-0.3,-0.5]],
+      pal:{ hull1:'#d8ffd2', hull2:'#c2f7b8', hull3:'#f0ffe0', glow:'#5dff7a', wing1:'#2fd868', wing2:'#7dff8f', wing3:'#b6ff3d',
+            trim:'#c6ff4a', arc:'#9dff8a', armor:'#9dff8a', ring:'#4dff9a', crest:'#e4ff4a', halo:'#b06bff', engine:'#b6ff3d', bullet:'#8dff7a' },
+      back(c, r, t, L, fr, pal){
+        const n = Math.min(8, 1 + t + (L.damage||0));
+        c.shadowColor = pal.glow; c.shadowBlur = 8;
+        for(let i=0;i<n;i++){
+          const side = i%2 ? 1 : -1, k = Math.floor(i/2);
+          const bx = side*r*(0.42 + k*0.12), by = r*(0.1 + k*0.14);
+          c.fillStyle = (k%2) ? pal.wing1 : pal.wing2;
+          c.beginPath(); c.moveTo(bx, by); c.lineTo(side*r*(1.0 + k*0.2), r*(0.85 + k*0.22)); c.lineTo(bx + side*r*0.18, by + r*0.22); c.closePath(); c.fill();
+        }
+      },
+      front(c, r, t, L, fr, pal){
+        const ga = c.globalAlpha;
+        const p = 0.5 + 0.5*Math.sin(fr*0.12);
+        c.fillStyle = pal.trim; c.shadowColor = pal.glow; c.shadowBlur = 10 + p*8;
+        c.beginPath(); c.arc(0, r*0.1, 2.5 + t*0.35 + p*1.2, 0, Math.PI*2); c.fill();
+        if(t >= 4){
+          c.shadowBlur = 0; c.fillStyle = pal.wing3;
+          for(const s of [-1,1]){
+            const ph = ((fr*0.02) + (s>0 ? 0.5 : 0)) % 1;
+            c.globalAlpha = ga * (1-ph);
+            c.beginPath(); c.arc(s*r*0.85, r*0.75 + ph*r*1.4, 2, 0, Math.PI*2); c.fill();
+          }
+          c.globalAlpha = ga;
+        }
+        if(t >= 5){
+          c.fillStyle = pal.trim; c.shadowColor = pal.glow; c.shadowBlur = 6;
+          for(const s of [-1,1]){
+            c.beginPath(); c.moveTo(s*r*0.12, -r*1.0); c.lineTo(s*r*0.32, -r*1.5); c.lineTo(s*r*0.02, -r*0.8); c.closePath(); c.fill();
+          }
+        }
+        if(t >= 8){
+          c.strokeStyle = 'rgba(176,107,255,.85)'; c.lineWidth = 2; c.shadowColor = '#b06bff'; c.shadowBlur = 10;
+          c.setLineDash([4,5]); c.lineDashOffset = fr*0.5;
+          c.beginPath(); c.arc(0, r*0.1, r*1.9, 0, Math.PI*2); c.stroke(); c.setLineDash([]);
+        }
+      }
+    },
+
+    phantom: {
+      name:'PHANTOM', desc:'A ship half in another dimension. Afterimages multiply with tier, Phase and Dash; a void ring opens at the top.', cost:110,
+      forms:['SHADE','WISP','SPECTER','WRAITH','REVENANT','NIGHTMARE','VOID WALKER','ECLIPSE','SINGULARITY'],
+      shape:[[0,-1.25],[0.5,-0.2],[0.75,0.9],[0.2,0.5],[0,0.85],[-0.2,0.5],[-0.75,0.9],[-0.5,-0.2]],
+      pal:{ hull1:'#3b2f66', hull2:'#4a3a85', hull3:'#5b47a8', glow:'#9b6bff', wing1:'#6a4bd6', wing2:'#8a6cff', wing3:'#b79cff',
+            trim:'#e0c8ff', arc:'#b79cff', armor:'#b79cff', ring:'#8a6cff', crest:'#ffffff', halo:'#ff6bd6', engine:'#b98cff', bullet:'#c9a8ff', edge:'#c9a8ff' },
+      back(c, r, t, L, fr, pal, hs, sk){
+        const g = Math.min(4, Math.floor((t+1)/2) + ((L.phase||0) ? 1 : 0) + ((L.dash||0) ? 1 : 0));
+        const ga = c.globalAlpha;
+        c.shadowBlur = 0; c.fillStyle = pal.wing2;
+        for(let k=g;k>=1;k--){
+          c.globalAlpha = ga * (0.3 / k);
+          const ox = Math.sin(fr*0.07 + k*1.3) * r*0.22*k, oy = r*0.3*k;
+          c.beginPath();
+          sk.shape.forEach((p, i) => { const x = ox + p[0]*r*hs, y = oy + p[1]*r*hs; if(i) c.lineTo(x,y); else c.moveTo(x,y); });
+          c.closePath(); c.fill();
+        }
+        c.globalAlpha = ga;
+      },
+      front(c, r, t, L, fr, pal){
+        if(t >= 2){
+          c.fillStyle = pal.trim; c.shadowColor = pal.halo; c.shadowBlur = 10;
+          c.beginPath(); c.ellipse(0, -r*0.25, r*0.09, r*0.26, 0, 0, Math.PI*2); c.fill();
+        }
+        if(t >= 5){
+          c.strokeStyle = pal.halo; c.lineWidth = 1.6; c.shadowColor = pal.halo; c.shadowBlur = 8;
+          for(const s of [-1,1]){ c.beginPath(); c.moveTo(s*r*0.72, r*0.85); c.lineTo(s*r*0.48, -r*0.15); c.stroke(); }
+        }
+        if(t >= 8){
+          c.strokeStyle = 'rgba(255,107,214,.85)'; c.lineWidth = 2.5; c.shadowColor = pal.halo; c.shadowBlur = 12;
+          c.setLineDash([10,8]); c.lineDashOffset = -fr*0.8;
+          c.beginPath(); c.arc(0, 0, r*1.85, 0, Math.PI*2); c.stroke(); c.setLineDash([]);
+        }
+      }
+    },
+
+    solar: {
+      name:'SOLAR', desc:'A star in a bottle. Corona rays multiply with weapon and reactor upgrades; the core ignites at high tiers.', cost:150,
+      forms:['GLINT','DAWN','RADIANT','HELIOS','SUNFORGED','CORONA','SUPERNOVA','ASTRAL','STAR SOVEREIGN'],
+      shape:[[0,-1.1],[0.5,-0.1],[1.0,0.7],[0,0.4],[-1.0,0.7],[-0.5,-0.1]],
+      pal:{ hull1:'#fff4c9', hull2:'#ffefb0', hull3:'#fffbe6', glow:'#ffd75e', wing1:'#ffbf2f', wing2:'#ffe07a', wing3:'#fff0b0',
+            trim:'#fff8dc', arc:'#ffe9a0', armor:'#ffe9a0', ring:'#ffd166', crest:'#ffffff', halo:'#ff9f43', engine:'#ffe066', bullet:'#ffe58a' },
+      back(c, r, t, L, fr, pal){
+        const n = Math.min(16, 4 + Math.floor(t*1.5) + (L.weapon||0) + (L.reactor||0));
+        const ga = c.globalAlpha, rot = fr*0.012;
+        c.shadowBlur = 0;
+        for(let i=0;i<n;i++){
+          const a = rot + i*Math.PI*2/n, len = r*(1.45 + (i%2)*0.5 + t*0.05);
+          c.globalAlpha = ga * 0.32;
+          c.fillStyle = (i%2) ? pal.wing1 : pal.wing2;
+          c.beginPath();
+          c.moveTo(Math.cos(a-0.09)*r*0.8, Math.sin(a-0.09)*r*0.8);
+          c.lineTo(Math.cos(a)*len, Math.sin(a)*len);
+          c.lineTo(Math.cos(a+0.09)*r*0.8, Math.sin(a+0.09)*r*0.8);
+          c.closePath(); c.fill();
+        }
+        c.globalAlpha = ga;
+      },
+      front(c, r, t, L, fr, pal){
+        if(t >= 3){
+          const g = c.createRadialGradient(0, r*0.05, 0, 0, r*0.05, r*0.55);
+          g.addColorStop(0, 'rgba(255,255,255,.95)'); g.addColorStop(1, 'rgba(255,208,80,0)');
+          c.shadowBlur = 0; c.fillStyle = g;
+          c.beginPath(); c.arc(0, r*0.05, r*0.55, 0, Math.PI*2); c.fill();
+        }
+        if(t >= 6){
+          c.fillStyle = pal.crest; c.shadowColor = pal.glow; c.shadowBlur = 8;
+          for(let i=0;i<3;i++){
+            const a = fr*0.05 + i*Math.PI*2/3;
+            c.beginPath(); c.arc(Math.cos(a)*r*1.3, Math.sin(a)*r*1.3, 2.2, 0, Math.PI*2); c.fill();
+          }
+        }
+        if(t >= 8){
+          c.strokeStyle = pal.crest; c.lineWidth = 2; c.shadowColor = pal.glow; c.shadowBlur = 16;
+          c.beginPath(); c.arc(0, 0, r*1.75 + Math.sin(fr*0.1)*1.5, 0, Math.PI*2); c.stroke();
+        }
+      }
+    }
+  };
+  const SKIN_ORDER = ['classic','ember','glacier','venom','phantom','solar'];
+
+  function loadSkins(){
+    try{
+      const raw = JSON.parse(localStorage.getItem('gd_skins') || '{}');
+      const owned = Array.isArray(raw.owned) ? raw.owned.filter(k => SKINS[k]) : [];
+      if(!owned.includes('classic')) owned.unshift('classic');
+      return { owned, selected: owned.includes(raw.selected) ? raw.selected : 'classic' };
+    }catch(e){ return { owned:['classic'], selected:'classic' }; }
+  }
+  function saveSkins(s){ try{ localStorage.setItem('gd_skins', JSON.stringify(s)); }catch(e){} }
+  let skinState = loadSkins();
+  function activeSkin(){ return SKINS[skinState.selected] || SKINS.classic; }
 
   // A random run-start Blessing adds variety between attempts, roguelite-style.
   const BLESSINGS = [
@@ -918,7 +1182,8 @@
       if(newTier > player.shipTier){
         player.shipTier = newTier;
         sfx.classReward();
-        spawnPopup(player.x, player.y-50, 'FORM SHIFT // TIER '+newTier, '#7df3ff');
+        const sk = activeSkin();
+        spawnPopup(player.x, player.y-50, 'FORM SHIFT // ' + (sk.forms ? sk.forms[newTier] : 'TIER '+newTier), sk.pal.glow);
         explode(player.x, player.y, '#7df3ff', 34);
       }
       announceNewBuilds(buildsBefore);
@@ -1980,7 +2245,194 @@
     triggerAegisShockwave();
     updateHUD();
   }
+  // ---------- Ship rendering (shared by the game and the Hangar previews) ----------
+  // Draws around (0,0). st = { shield, invuln, droneAngle }.
+  function drawShipModel(c, sk, tier, L, r, fr, st){
+    const pal = sk.pal;
+    const hs = 1 + tier*.045;
+    const hull = tier>=6 ? pal.hull3 : tier>=3 ? pal.hull2 : pal.hull1;
+
+    // Skin growth effects that sit behind the hull.
+    if(sk.back){ c.save(); sk.back(c, r, tier, L, fr, pal, hs, sk); c.restore(); }
+
+    // Outer phase/shield field.
+    if(st.shield || L.phase){
+      const phased = L.phase && st.invuln;
+      c.strokeStyle = phased ? '#a78bff' : '#35e3ff';
+      c.lineWidth = phased ? 3 : 2;
+      c.shadowColor = c.strokeStyle; c.shadowBlur = 18;
+      c.beginPath(); c.arc(0,0,r+9+Math.sin(fr*.1)*1.5,0,Math.PI*2); c.stroke();
+    }
+
+    // Tier-based silhouette: each tier adds a new physical form.
+    if(tier>=1){
+      c.fillStyle=pal.wing1; c.shadowColor=pal.wing1; c.shadowBlur=10;
+      for(const side of [-1,1]){
+        c.beginPath(); c.moveTo(side*r*.45,r*.05); c.lineTo(side*r*1.8,r*.9);
+        c.lineTo(side*r*.72,r*.85); c.closePath(); c.fill();
+      }
+    }
+    if(tier>=2){
+      c.fillStyle=pal.wing2;
+      for(const side of [-1,1]){
+        c.beginPath(); c.moveTo(side*r*.4,-r*.25); c.lineTo(side*r*1.35,-r*.65);
+        c.lineTo(side*r*.7,r*.15); c.closePath(); c.fill();
+      }
+    }
+    if(tier>=3){
+      c.strokeStyle=pal.trim; c.lineWidth=2; c.shadowBlur=0;
+      c.beginPath(); c.moveTo(-r*1.9,r*.65); c.lineTo(-r*.55,r*.25);
+      c.moveTo(r*1.9,r*.65); c.lineTo(r*.55,r*.25); c.stroke();
+    }
+    if(tier>=4){
+      c.strokeStyle=pal.arc; c.lineWidth=1.5; c.shadowColor=pal.arc; c.shadowBlur=7;
+      c.beginPath(); c.arc(0,0,r*1.35,Math.PI*.15,Math.PI*.85); c.stroke();
+    }
+    if(tier>=5){
+      c.fillStyle=pal.wing3;
+      c.beginPath(); c.moveTo(-r*.45,r*.3); c.lineTo(-r*1.65,r*1.15); c.lineTo(-r*.55,r*.85); c.closePath(); c.fill();
+      c.beginPath(); c.moveTo(r*.45,r*.3); c.lineTo(r*1.65,r*1.15); c.lineTo(r*.55,r*.85); c.closePath(); c.fill();
+    }
+    if(tier>=6){
+      c.strokeStyle=pal.ring; c.lineWidth=2; c.shadowColor=pal.ring; c.shadowBlur=12;
+      c.beginPath(); c.arc(0,r*.2,r*1.65,0,Math.PI*2); c.stroke();
+    }
+    if(tier>=7){
+      c.fillStyle=pal.crest; c.shadowColor=pal.crest; c.shadowBlur=14;
+      c.beginPath(); c.moveTo(0,-r*1.65); c.lineTo(r*.28,-r*.55); c.lineTo(-r*.28,-r*.55); c.closePath(); c.fill();
+    }
+    if(tier>=8){
+      c.strokeStyle=pal.halo; c.lineWidth=2.5; c.shadowColor=pal.halo; c.shadowBlur=18;
+      c.beginPath(); c.arc(0,0,r*1.9,0,Math.PI*2); c.stroke();
+    }
+
+    // Main hull (silhouette depends on the skin).
+    c.fillStyle=hull; c.shadowColor=pal.glow; c.shadowBlur=14+tier*2;
+    c.beginPath();
+    sk.shape.forEach((p,i)=>{ const x=p[0]*r*hs, y=p[1]*r*hs; if(i) c.lineTo(x,y); else c.moveTo(x,y); });
+    c.closePath(); c.fill();
+    if(pal.edge){ c.strokeStyle=pal.edge; c.lineWidth=1.5; c.shadowBlur=6; c.stroke(); }
+
+    // Weapon module visibly grows with weapon level.
+    if(L.weapon){
+      c.fillStyle='#ffcf4a'; c.shadowColor='#ffcf4a'; c.shadowBlur=10;
+      const n=Math.min(4,1+Math.floor(L.weapon/2));
+      for(let i=0;i<n;i++){
+        const x=(i-(n-1)/2)*r*.34;
+        c.fillRect(x-2,-r*1.28,4,Math.min(10,4+L.weapon));
+      }
+    }
+    if(L.sideguns){
+      c.fillStyle='#ffd36e'; c.shadowColor='#ffd36e'; c.shadowBlur=12;
+      for(const side of [-1,1]){
+        c.beginPath(); c.rect(side*r*.78-r*.12,-r*.05,r*.24,r*.95); c.fill();
+        c.fillStyle='#fff3a0'; c.fillRect(side*r*.78-2,-r*.35,4,8);
+      }
+    }
+    if(L.orbitals){
+      c.strokeStyle=pal.ring; c.lineWidth=2; c.shadowColor=pal.ring; c.shadowBlur=10;
+      c.beginPath(); c.arc(0,0,r*(1.65+L.orbitals*.08),0,Math.PI*2); c.stroke();
+      for(let i=0;i<L.orbitals;i++){
+        const a=st.droneAngle+i*Math.PI*2/L.orbitals;
+        c.fillStyle=pal.ring; c.beginPath(); c.arc(Math.cos(a)*r*1.65,Math.sin(a)*r*1.65,4,0,Math.PI*2); c.fill();
+      }
+    }
+    if(L.missiles){
+      c.fillStyle='#ff8b4a'; c.shadowColor='#ff8b4a'; c.shadowBlur=10;
+      for(const side of [-1,1]){
+        c.beginPath(); c.moveTo(side*r*.52,r*.45); c.lineTo(side*r*.78,r*.9); c.lineTo(side*r*.35,r*.72); c.closePath(); c.fill();
+      }
+    }
+    if(L.prism){
+      c.fillStyle='#f0a0ff'; c.shadowColor='#f0a0ff'; c.shadowBlur=15;
+      c.beginPath(); c.moveTo(0,-r*.35); c.lineTo(r*.22,0); c.lineTo(0,r*.28); c.lineTo(-r*.22,0); c.closePath(); c.fill();
+    }
+    if(L.bossbane){
+      c.strokeStyle='#ff3b3b'; c.lineWidth=2; c.shadowColor='#ff3b3b'; c.shadowBlur=10;
+      c.beginPath(); c.moveTo(-r*.55,r*.18); c.lineTo(0,r*.48); c.lineTo(r*.55,r*.18); c.stroke();
+    }
+    if(L.armor){
+      c.strokeStyle=pal.armor||'#b8c6ff'; c.lineWidth=2; c.shadowColor=c.strokeStyle; c.shadowBlur=7;
+      c.beginPath(); c.arc(0,.1*r,r*.92,-.85,Math.PI+.85); c.stroke();
+    }
+    if(L.gravity){
+      c.strokeStyle='#55e0b0'; c.lineWidth=1.5; c.shadowColor='#55e0b0'; c.shadowBlur=8;
+      c.beginPath(); c.arc(0,0,r*(1.05+L.gravity*.08),0,Math.PI*2); c.stroke();
+    }
+    if(L.reactor){
+      c.fillStyle='#63faff'; c.shadowColor='#63faff'; c.shadowBlur=18;
+      c.beginPath(); c.arc(0,r*.28,5+L.reactor,0,Math.PI*2); c.fill();
+    }
+
+    // Engines.
+    c.fillStyle=pal.engine; c.shadowColor=pal.engine; c.shadowBlur=10;
+    c.beginPath(); c.arc(0,r*.9*hs,5+Math.random()*2,0,Math.PI*2); c.fill();
+    if(tier>=1 || L.speed>=2){
+      for(const side of [-1,1]){
+        c.beginPath(); c.arc(side*r*.72,r*.82*hs,3.5+Math.random()*1.5,0,Math.PI*2); c.fill();
+      }
+    }
+    if(L.dash){
+      c.fillStyle='#7dffb5'; c.shadowColor='#7dffb5'; c.shadowBlur=16;
+      c.beginPath(); c.moveTo(-r*.25,r*.95); c.lineTo(0,r*(1.6+L.dash*.1)); c.lineTo(r*.25,r*.95); c.closePath(); c.fill();
+    }
+
+    // Skin growth effects that sit in front of the hull.
+    if(sk.front){ c.save(); sk.front(c, r, tier, L, fr, pal, hs, sk); c.restore(); }
+
+    // Signature weapon visuals (these used to be drawn at the top-left corner
+    // of the screen because they ran after the ship's translate was undone).
+    c.save();
+    if(L.missiles>=3){
+      c.strokeStyle='#ff8b4a'; c.lineWidth=2; c.shadowColor='#ff8b4a'; c.shadowBlur=10;
+      c.beginPath(); c.moveTo(-r*.8,r*.55); c.lineTo(-r*1.15,r*.95); c.moveTo(r*.8,r*.55); c.lineTo(r*1.15,r*.95); c.stroke();
+    }
+    if(L.critical>=3 && L.capacitor>=2){
+      c.strokeStyle='#ffe06a'; c.lineWidth=3; c.shadowColor='#ffe06a'; c.shadowBlur=16;
+      c.beginPath(); c.moveTo(0,-r*1.45); c.lineTo(0,-r*2.05); c.stroke();
+    }
+    if(L.sideguns>=3){
+      c.fillStyle='#ffd36e'; c.shadowColor='#ffd36e'; c.shadowBlur=12;
+      for(const side of [-1,1]){ c.fillRect(side*r*1.02-3,-r*.15,6,r*.95); c.fillRect(side*r*1.28-2,r*.2,4,r*.7); }
+    }
+    if(L.orbitals>=3){
+      c.strokeStyle=pal.ring; c.lineWidth=1.5; c.shadowColor=pal.ring; c.shadowBlur=12;
+      c.beginPath(); c.arc(0,0,r*2.0+Math.sin(fr*.08)*2,0,Math.PI*2); c.stroke();
+    }
+    if(L.armor>=2 && L.barrier>=1){
+      c.strokeStyle=pal.armor||'#b8c6ff'; c.lineWidth=2.5; c.shadowColor=c.strokeStyle; c.shadowBlur=15;
+      c.beginPath(); c.arc(0,0,r*2.15,Math.PI*.18,Math.PI*.82); c.stroke();
+    }
+    c.restore();
+  }
+
+  // A representative build for each ship tier, used by the Hangar previews so
+  // you can watch a skin evolve as upgrades are collected.
+  function previewLevels(t){
+    const L = {}; for(const k in player.levels) L[k] = 0;
+    L.weapon = Math.min(5, Math.floor(t*0.7)); L.rapid = Math.floor(t/2); L.speed = Math.floor(t/2);
+    if(t>=2){ L.sideguns = 1; L.damage = 1; }
+    if(t>=3){ L.missiles = 1; L.burn = 1; }
+    if(t>=4){ L.armor = 1; L.damage = 2; }
+    if(t>=5){ L.orbitals = 1; }
+    if(t>=6){ L.armor = 2; L.barrier = 1; L.prism = 1; L.damage = 3; }
+    if(t>=7){ L.orbitals = 3; L.missiles = 3; L.reactor = 1; }
+    if(t>=8){ L.phase = 1; L.dash = 1; L.gravity = 1; }
+    return L;
+  }
+  function drawSkinPreview(cv, skinId, tier, fr){
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const c = cv.getContext('2d');
+    c.setTransform(dpr,0,0,dpr,0,0);
+    c.clearRect(0,0,96,96);
+    c.save(); c.translate(48,44);
+    drawShipModel(c, SKINS[skinId] || SKINS.classic, tier, previewLevels(tier), 16, fr,
+      { shield:false, invuln:false, droneAngle: fr*0.05 });
+    c.restore();
+  }
+
   function draw(){
+    const curSkin = activeSkin();
     for(const e of enemies){
       ctx.save();
       ctx.translate(e.x, e.y);
@@ -2143,7 +2595,7 @@
 
     // Bullets
     for(const b of bullets){
-      const bc=b.charged?'#fff06a':b.mirror?'#9ee7ff':b.missile?'#ff8b4a':(player.levels.prism?'#f0a0ff':'#7df3ff');
+      const bc=b.charged?'#fff06a':b.mirror?'#9ee7ff':b.missile?'#ff8b4a':(player.levels.prism?'#f0a0ff':curSkin.pal.bullet);
       ctx.fillStyle=bc; ctx.shadowColor=bc; ctx.shadowBlur=b.charged?16:8;
       ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,7); ctx.fill();
     }
@@ -2230,161 +2682,15 @@
     }
     ctx.globalAlpha = 1;
 
-    // Player Ship — the fighter is now a physical record of the build.
+    // Player Ship - the fighter is a physical record of the build, dressed in the equipped skin.
     if(player.alive){
       ctx.save();
       ctx.translate(player.x,player.y);
       if(player.invuln>0 && Math.floor(frame/4)%2===0) ctx.globalAlpha=0.35;
-
-      const L=player.levels, tier=player.shipTier, r=player.r;
-      const reactorColor = L.reactor ? '#63faff' : '#ff8fa8';
-      const hull = tier>=6 ? '#f4f7ff' : tier>=3 ? '#e4eaff' : '#eef2ff';
-
-      // Outer phase/shield field.
-      if(player.shieldCharges>0 || L.phase){
-        ctx.strokeStyle=L.phase && player.invuln>0 ? '#a78bff' : '#35e3ff';
-        ctx.lineWidth=L.phase&&player.invuln>0?3:2;
-        ctx.shadowColor=ctx.strokeStyle; ctx.shadowBlur=18;
-        ctx.beginPath(); ctx.arc(0,0,r+9+Math.sin(frame*.1)*1.5,0,Math.PI*2); ctx.stroke();
-      }
-
-      // Tier-based silhouette: each tier adds a new physical form.
-      if(tier>=1){
-        ctx.fillStyle='#8fa8ff'; ctx.shadowColor='#8fa8ff'; ctx.shadowBlur=10;
-        for(const side of [-1,1]){
-          ctx.beginPath(); ctx.moveTo(side*r*.45,r*.05); ctx.lineTo(side*r*1.8,r*.9);
-          ctx.lineTo(side*r*.72,r*.85); ctx.closePath(); ctx.fill();
-        }
-      }
-      if(tier>=2){
-        ctx.fillStyle='#aebcff';
-        for(const side of [-1,1]){
-          ctx.beginPath(); ctx.moveTo(side*r*.4,-r*.25); ctx.lineTo(side*r*1.35,-r*.65);
-          ctx.lineTo(side*r*.7,r*.15); ctx.closePath(); ctx.fill();
-        }
-      }
-      if(tier>=3){
-        ctx.strokeStyle='#35e3ff'; ctx.lineWidth=2; ctx.shadowBlur=0;
-        ctx.beginPath(); ctx.moveTo(-r*1.9,r*.65); ctx.lineTo(-r*.55,r*.25);
-        ctx.moveTo(r*1.9,r*.65); ctx.lineTo(r*.55,r*.25); ctx.stroke();
-      }
-      if(tier>=4){
-        ctx.strokeStyle='#c9d4ff'; ctx.lineWidth=1.5; ctx.shadowColor='#c9d4ff'; ctx.shadowBlur=7;
-        ctx.beginPath(); ctx.arc(0,0,r*1.35,Math.PI*.15,Math.PI*.85); ctx.stroke();
-      }
-      if(tier>=5){
-        ctx.fillStyle='#d7ddff';
-        ctx.beginPath(); ctx.moveTo(-r*.45,r*.3); ctx.lineTo(-r*1.65,r*1.15); ctx.lineTo(-r*.55,r*.85); ctx.closePath(); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(r*.45,r*.3); ctx.lineTo(r*1.65,r*1.15); ctx.lineTo(r*.55,r*.85); ctx.closePath(); ctx.fill();
-      }
-      if(tier>=6){
-        ctx.strokeStyle='#72b7ff'; ctx.lineWidth=2; ctx.shadowColor='#72b7ff'; ctx.shadowBlur=12;
-        ctx.beginPath(); ctx.arc(0,r*.2,r*1.65,0,Math.PI*2); ctx.stroke();
-      }
-      if(tier>=7){
-        ctx.fillStyle='#fff06a'; ctx.shadowColor='#fff06a'; ctx.shadowBlur=14;
-        ctx.beginPath(); ctx.moveTo(0,-r*1.65); ctx.lineTo(r*.28,-r*.55); ctx.lineTo(-r*.28,-r*.55); ctx.closePath(); ctx.fill();
-      }
-      if(tier>=8){
-        ctx.strokeStyle='#f0a0ff'; ctx.lineWidth=2.5; ctx.shadowColor='#f0a0ff'; ctx.shadowBlur=18;
-        ctx.beginPath(); ctx.arc(0,0,r*1.9,0,Math.PI*2); ctx.stroke();
-      }
-
-      // Main hull.
-      const hs=1+tier*.045;
-      ctx.fillStyle=hull; ctx.shadowColor='#7df3ff'; ctx.shadowBlur=14+tier*2;
-      ctx.beginPath();
-      ctx.moveTo(0,-r*hs*1.12); ctx.lineTo(r*.82*hs,r*.75*hs);
-      ctx.lineTo(0,r*.42*hs); ctx.lineTo(-r*.82*hs,r*.75*hs); ctx.closePath(); ctx.fill();
-
-      // Weapon module visibly grows with weapon level.
-      if(L.weapon){
-        ctx.fillStyle='#ffcf4a'; ctx.shadowColor='#ffcf4a'; ctx.shadowBlur=10;
-        const n=Math.min(4,1+Math.floor(L.weapon/2));
-        for(let i=0;i<n;i++){
-          const x=(i-(n-1)/2)*r*.34;
-          ctx.fillRect(x-2,-r*1.28,4,Math.min(10,4+L.weapon));
-        }
-      }
-      if(L.sideguns){
-        ctx.fillStyle='#ffd36e'; ctx.shadowColor='#ffd36e'; ctx.shadowBlur=12;
-        for(const side of [-1,1]){
-          ctx.beginPath(); ctx.rect(side*r*.78-r*.12,-r*.05,r*.24,r*.95); ctx.fill();
-          ctx.fillStyle='#fff3a0'; ctx.fillRect(side*r*.78-2,-r*.35,4,8);
-        }
-      }
-      if(L.orbitals){
-        ctx.strokeStyle='#72b7ff'; ctx.lineWidth=2; ctx.shadowColor='#72b7ff'; ctx.shadowBlur=10;
-        ctx.beginPath(); ctx.arc(0,0,r*(1.65+L.orbitals*.08),0,Math.PI*2); ctx.stroke();
-        for(let i=0;i<L.orbitals;i++){
-          const a=player.droneAngle+i*Math.PI*2/L.orbitals;
-          ctx.fillStyle='#72b7ff'; ctx.beginPath(); ctx.arc(Math.cos(a)*r*1.65,Math.sin(a)*r*1.65,4,0,Math.PI*2); ctx.fill();
-        }
-      }
-      if(L.missiles){
-        ctx.fillStyle='#ff8b4a'; ctx.shadowColor='#ff8b4a'; ctx.shadowBlur=10;
-        for(const side of [-1,1]){
-          ctx.beginPath(); ctx.moveTo(side*r*.52,r*.45); ctx.lineTo(side*r*.78,r*.9); ctx.lineTo(side*r*.35,r*.72); ctx.closePath(); ctx.fill();
-        }
-      }
-      if(L.prism){
-        ctx.fillStyle='#f0a0ff'; ctx.shadowColor='#f0a0ff'; ctx.shadowBlur=15;
-        ctx.beginPath(); ctx.moveTo(0,-r*.35); ctx.lineTo(r*.22,0); ctx.lineTo(0,r*.28); ctx.lineTo(-r*.22,0); ctx.closePath(); ctx.fill();
-      }
-      if(L.bossbane){
-        ctx.strokeStyle='#ff3b3b'; ctx.lineWidth=2; ctx.shadowColor='#ff3b3b'; ctx.shadowBlur=10;
-        ctx.beginPath(); ctx.moveTo(-r*.55,r*.18); ctx.lineTo(0,r*.48); ctx.lineTo(r*.55,r*.18); ctx.stroke();
-      }
-      if(L.armor){
-        ctx.strokeStyle='#b8c6ff'; ctx.lineWidth=2; ctx.shadowColor='#b8c6ff'; ctx.shadowBlur=7;
-        ctx.beginPath(); ctx.arc(0,.1*r,r*.92,-.85,Math.PI+.85); ctx.stroke();
-      }
-      if(L.gravity){
-        ctx.strokeStyle='#55e0b0'; ctx.lineWidth=1.5; ctx.shadowColor='#55e0b0'; ctx.shadowBlur=8;
-        ctx.beginPath(); ctx.arc(0,0,r*(1.05+L.gravity*.08),0,Math.PI*2); ctx.stroke();
-      }
-      if(L.reactor){
-        ctx.fillStyle=reactorColor; ctx.shadowColor=reactorColor; ctx.shadowBlur=18;
-        ctx.beginPath(); ctx.arc(0,r*.28,5+L.reactor,0,Math.PI*2); ctx.fill();
-      }
-
-      // Engines.
-      ctx.fillStyle='#ff8fa8'; ctx.shadowColor='#ff8fa8'; ctx.shadowBlur=10;
-      ctx.beginPath(); ctx.arc(0,r*.9*hs,5+Math.random()*2,0,Math.PI*2); ctx.fill();
-      if(tier>=1 || L.speed>=2){
-        for(const side of [-1,1]){
-          ctx.beginPath(); ctx.arc(side*r*.72,r*.82*hs,3.5+Math.random()*1.5,0,Math.PI*2); ctx.fill();
-        }
-      }
-      if(L.dash){
-        ctx.fillStyle='#7dffb5'; ctx.shadowColor='#7dffb5'; ctx.shadowBlur=16;
-        ctx.beginPath(); ctx.moveTo(-r*.25,r*.95); ctx.lineTo(0,r*(1.6+L.dash*.1)); ctx.lineTo(r*.25,r*.95); ctx.closePath(); ctx.fill();
-      }
-
+      drawShipModel(ctx, curSkin, player.shipTier, player.levels, player.r, frame,
+        { shield: player.shieldCharges>0, invuln: player.invuln>0, droneAngle: player.droneAngle });
       ctx.restore();
       ctx.globalAlpha=1;
-
-      // Signature weapon visuals.
-      if(L.missiles>=3){
-        ctx.strokeStyle='#ff8b4a'; ctx.lineWidth=2; ctx.shadowColor='#ff8b4a'; ctx.shadowBlur=10;
-        ctx.beginPath(); ctx.moveTo(-r*.8,r*.55); ctx.lineTo(-r*1.15,r*.95); ctx.moveTo(r*.8,r*.55); ctx.lineTo(r*1.15,r*.95); ctx.stroke();
-      }
-      if(L.critical>=3 && L.capacitor>=2){
-        ctx.strokeStyle='#ffe06a'; ctx.lineWidth=3; ctx.shadowColor='#ffe06a'; ctx.shadowBlur=16;
-        ctx.beginPath(); ctx.moveTo(0,-r*1.45); ctx.lineTo(0,-r*2.05); ctx.stroke();
-      }
-      if(L.sideguns>=3){
-        ctx.fillStyle='#ffd36e'; ctx.shadowColor='#ffd36e'; ctx.shadowBlur=12;
-        for(const side of [-1,1]){ ctx.fillRect(side*r*1.02-3,-r*.15,6,r*.95); ctx.fillRect(side*r*1.28-2,r*.2,4,r*.7); }
-      }
-      if(L.orbitals>=3){
-        ctx.strokeStyle='#72b7ff'; ctx.lineWidth=1.5; ctx.shadowColor='#72b7ff'; ctx.shadowBlur=12;
-        ctx.beginPath(); ctx.arc(0,0,r*2.0+Math.sin(frame*.08)*2,0,Math.PI*2); ctx.stroke();
-      }
-      if(L.armor>=2 && L.barrier>=1){
-        ctx.strokeStyle='#b8c6ff'; ctx.lineWidth=2.5; ctx.shadowColor='#b8c6ff'; ctx.shadowBlur=15;
-        ctx.beginPath(); ctx.arc(0,0,r*2.15,Math.PI*.18,Math.PI*.82); ctx.stroke();
-      }
 
       // Drone relics / engineer drones.
       if(player.classes.drone){
@@ -2466,6 +2772,72 @@
       row.appendChild(btn);
       list.appendChild(row);
     }
+    renderSkinShop(list);
+  }
+
+  // ---------- Hangar: ship skins ----------
+  let hangarPreviews = [], hangarTimer = null, hangarFrame = 0;
+  function tickHangar(){
+    hangarFrame += 2;
+    const now = Date.now();
+    for(const p of hangarPreviews){
+      if(now >= p.nextAt){ p.tier = (p.tier+1) % 9; p.nextAt = now + 1500; p.setLabel(); }
+      drawSkinPreview(p.cv, p.id, p.tier, hangarFrame);
+    }
+  }
+  function startHangarAnim(){ stopHangarAnim(); tickHangar(); hangarTimer = setInterval(tickHangar, 60); }
+  function stopHangarAnim(){ if(hangarTimer){ clearInterval(hangarTimer); hangarTimer = null; } }
+
+  function renderSkinShop(list){
+    const title = document.createElement('div');
+    title.className = 'sectionTitle'; title.textContent = 'SHIP SKINS';
+    list.appendChild(title);
+    const hint = document.createElement('div');
+    hint.className = 'sectionHint';
+    hint.textContent = 'Skins evolve as you collect upgrades. Tap a ship to jump to its next form.';
+    list.appendChild(hint);
+
+    hangarPreviews = [];
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    for(const id of SKIN_ORDER){
+      const sk = SKINS[id];
+      const owned = skinState.owned.includes(id);
+      const equipped = skinState.selected === id;
+
+      const row = document.createElement('div');
+      row.className = 'skinRow' + (equipped ? ' equipped' : '');
+      const cv = document.createElement('canvas');
+      cv.width = 96*dpr; cv.height = 96*dpr;
+      const info = document.createElement('div'); info.className = 'skinInfo';
+      const nm = document.createElement('div'); nm.className = 'perkName'; nm.textContent = sk.name;
+      const tl = document.createElement('div'); tl.className = 'skinTier';
+      const ds = document.createElement('div'); ds.className = 'perkDesc'; ds.textContent = sk.desc;
+      const btn = document.createElement('button'); btn.className = 'perkBuyBtn'; btn.style.marginTop = '8px';
+      if(equipped){ btn.textContent = 'EQUIPPED'; btn.disabled = true; }
+      else if(owned){ btn.textContent = 'EQUIP'; }
+      else { btn.textContent = 'BUY: '+sk.cost; btn.disabled = cores < sk.cost; }
+      btn.addEventListener('click', ()=>{
+        if(!skinState.owned.includes(id)){
+          if(cores < sk.cost) return;
+          cores -= sk.cost; saveCores(cores);
+          skinState.owned.push(id);
+        }
+        skinState.selected = id; saveSkins(skinState);
+        renderHangar();
+        refreshStartScreenHighScore();
+      });
+
+      const prev = { cv, id, tier:0, nextAt: Date.now()+1500 };
+      prev.setLabel = ()=>{ tl.textContent = 'TIER '+prev.tier + (sk.forms ? ' \u00B7 '+sk.forms[prev.tier] : ''); };
+      prev.setLabel();
+      cv.addEventListener('click', ()=>{ prev.tier = (prev.tier+1) % 9; prev.nextAt = Date.now()+2500; prev.setLabel(); });
+      hangarPreviews.push(prev);
+
+      info.appendChild(nm); info.appendChild(tl); info.appendChild(ds); info.appendChild(btn);
+      row.appendChild(cv); row.appendChild(info);
+      list.appendChild(row);
+    }
+    startHangarAnim();
   }
   document.getElementById('hangarBtn').addEventListener('click', ()=>{
     renderHangar();
@@ -2473,6 +2845,7 @@
     document.getElementById('hangarOverlay').classList.remove('hidden');
   });
   document.getElementById('hangarBackBtn').addEventListener('click', ()=>{
+    stopHangarAnim();
     document.getElementById('hangarOverlay').classList.add('hidden');
     document.getElementById('startScreen').classList.remove('hidden');
   });
