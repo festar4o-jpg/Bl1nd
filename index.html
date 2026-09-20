@@ -194,7 +194,7 @@
     <p id="highScoreLine"></p>
     <p id="coresLine" style="color:var(--gold); font-size:13px;"></p>
     <p>Touch anywhere along the bottom control strip — left or right — and drag to move your ship. Your ship fires automatically.</p>
-    <p>Collect upgrades to permanently stack power. Every 3rd wave you'll choose a new upgrade directly. Elites can drop guaranteed caches, and each run starts with a random Blessing. Every 5th wave, one of three BOSS types locks down the field — defeat it for a class core AND a choice of unique rewards. Stack related upgrades to unlock signature builds like MIRV, ARC STORM, RAILGUN and AEGIS.</p>
+    <p>Collect upgrades to permanently stack power. Every 3rd wave you'll choose a new upgrade directly. Elites can drop guaranteed caches, and each run starts with a random Blessing. Every 5th wave, one of three BOSS types locks down the field — defeat it for a class core and a choice of three upgrade rewards. Stack related upgrades to unlock signature builds like MIRV, ARC STORM, RAILGUN, AEGIS, INFERNO, GHOST WALKER, KALEIDOSCOPE and PINBALL.</p>
     <div id="legend">
       <div class="legend-item"><div class="swatch" style="background:#ffcf4a"></div>WEAPON</div>
       <div class="legend-item"><div class="swatch" style="background:#ff3d6e"></div>DAMAGE</div>
@@ -225,7 +225,7 @@
   </div>
 
   <div class="overlay hidden" id="choiceOverlay">
-    <h1 style="font-size:24px;">CHOOSE AN UPGRADE</h1>
+    <h1 style="font-size:24px;" id="choiceTitle">CHOOSE AN UPGRADE</h1>
     <div id="choiceList" style="display:flex; flex-direction:column; gap:12px; width:100%; max-width:340px; margin-top:10px;"></div>
   </div>
 
@@ -383,7 +383,7 @@
     armor:'#b8c6ff', repair:'#69ff9d', barrier:'#42d9ff', dash:'#7dffb5',
     phase:'#a78bff', overdrive:'#fff06a', prism:'#f0a0ff', gravity:'#55e0b0',
     execution:'#ff5577', pulse:'#ff9f43', mirror:'#9ee7ff', capacitor:'#ffe06a',
-    reactor:'#63faff', salvage:'#b5ff6a'
+    reactor:'#63faff', salvage:'#b5ff6a', vampire:'#ff4d8d'
   };
 
   const UPGRADE_LABELS = {
@@ -401,11 +401,11 @@
 
   const UPGRADE_ICONS = {
     weapon:'W', damage:'D', rapid:'R', speed:'S', pierce:'P', magnet:'M',
-    shield:'B', life:'+', explosive:'X', homing:'H',
-    sideguns:'G', orbitals:'O', missiles:'V', critical:'C', chain:'A',
-    burn:'F', ricochet:'Q', bossbane:'K', armor:'A', repair:'R', barrier:'B',
+    shield:'Z', life:'+', explosive:'X', homing:'H',
+    sideguns:'5', orbitals:'O', missiles:'V', critical:'C', chain:'I',
+    burn:'F', ricochet:'Q', bossbane:'K', armor:'A', repair:'L', barrier:'B',
     dash:'>', phase:'Φ', overdrive:'!', prism:'Y', gravity:'G', execution:'E',
-    pulse:'U', mirror:'2', capacitor:'C', reactor:'N', salvage:'$'
+    pulse:'U', mirror:'2', capacitor:'T', reactor:'N', salvage:'$'
   };
 
   const UPGRADE_WEIGHTS = {
@@ -420,7 +420,7 @@
     weapon:7, damage:10, rapid:10, speed:10, pierce:5, magnet:6, explosive:5, homing:5,
     sideguns:3, orbitals:3, missiles:4, critical:5, chain:5, burn:5, ricochet:4, bossbane:5,
     armor:5, repair:4, barrier:3, dash:4, phase:3, overdrive:5, prism:4, gravity:4,
-    execution:4, pulse:4, mirror:4, capacitor:5, reactor:5, salvage:3
+    execution:4, pulse:4, mirror:4, capacitor:5, reactor:5, salvage:3, vampire:3
   };
 
   const UPGRADE_DESC = {
@@ -543,7 +543,7 @@
       weapon:0, damage:0, rapid:0, speed:0, pierce:0, magnet:0, explosive:0, homing:0,
       sideguns:0, orbitals:0, missiles:0, critical:0, chain:0, burn:0, ricochet:0,
       bossbane:0, armor:0, repair:0, barrier:0, dash:0, phase:0, overdrive:0, prism:0,
-      gravity:0, execution:0, pulse:0, mirror:0, capacitor:0, reactor:0, salvage:0
+      gravity:0, execution:0, pulse:0, mirror:0, capacitor:0, reactor:0, salvage:0, vampire:0
     },
     classes: { drone:false, nova:false, regen:false },
     droneAngle:0, droneTimer:0, novaTimer:0, regenTimer:0,
@@ -568,6 +568,10 @@
     player.armorInvulnBonus = L.armor * 120;
     player.shieldMax = 3 + L.barrier*2;
     player.shieldCharges = Math.min(player.shieldCharges, player.shieldMax);
+    // Capstone reward for fully investing in the missile rack: a rear-facing
+    // gun that catches enemies which slip behind the ship (advertised in the
+    // on-screen legend but previously never actually granted to anyone).
+    player.backshotLevel = L.missiles >= UPGRADE_MAX.missiles ? 1 : 0;
   }
 
   function resetGame(){
@@ -579,7 +583,7 @@
       weapon:0,damage:0,rapid:0,speed:0,pierce:0,magnet:0,explosive:0,homing:0,
       sideguns:0,orbitals:0,missiles:0,critical:0,chain:0,burn:0,ricochet:0,bossbane:0,
       armor:0,repair:0,barrier:0,dash:0,phase:0,overdrive:0,prism:0,gravity:0,execution:0,
-      pulse:0,mirror:0,capacitor:0,reactor:0,salvage:0
+      pulse:0,mirror:0,capacitor:0,reactor:0,salvage:0,vampire:0
     };
     player.classes={drone:false,nova:false,regen:false}; player.relics={};
     player.upgradeCount=0; player.shipTier=0; player.signatures={};
@@ -623,8 +627,15 @@
     if(k==='arrowdown'||k==='s') keys.down=false;
   });
 
+  // Tracks the physical touch identifier independently of joy.id, so this
+  // keeps working even if some future code path calls joyEnd() early (e.g.
+  // to reset movement the instant a screen pops up) — that exact pattern
+  // once broke this fix in another branch of this game.
+  let capturedTouchId = null;
+
   function joyStart(x,y,id){
     joy.active = true; joy.id = id;
+    capturedTouchId = id;
     // The point where the player first touches becomes the invisible joystick center.
     // This makes the entire bottom strip usable from either hand/side.
     joy.baseX = x;
@@ -666,10 +677,26 @@
   joyZone.addEventListener('touchend', e=>{
     e.preventDefault();
     for(const t of e.changedTouches){
-      if(t.identifier === joy.id) joyEnd();
+      if(t.identifier === capturedTouchId){
+        // A screen (upgrade choice, boss reward, game over...) can appear
+        // while this exact touch is still down. Once a touch starts on an
+        // element, the browser locks touchmove/touchend for that touch to
+        // that *original* element for its whole lifetime, no matter what's
+        // rendered on top afterward — so touchend still fires here on the
+        // joystick even though the finger is now resting on a button.
+        // elementFromPoint tells us what's actually under the finger at
+        // release, and .click() dispatches a real click on it directly,
+        // which isn't subject to touch capture. This one fix covers every
+        // overlay that can pop up mid-drag, not just the choice screen.
+        const el = document.elementFromPoint(t.clientX, t.clientY);
+        const btn = el && el.closest('button');
+        if(btn && !btn.disabled && !joyZone.contains(btn)) btn.click();
+        capturedTouchId = null;
+        joyEnd();
+      }
     }
   }, {passive:false});
-  joyZone.addEventListener('touchcancel', joyEnd);
+  joyZone.addEventListener('touchcancel', ()=>{ capturedTouchId=null; joyEnd(); });
 
   let mouseJoyDown = false;
   joyZone.addEventListener('mousedown', e=>{ mouseJoyDown=true; joyStart(e.clientX,e.clientY,'mouse'); });
@@ -790,8 +817,22 @@
       bullets.push({
         x: player.x, y: player.y - player.r,
         vx: Math.cos(a)*560, vy: Math.sin(a)*560,
-        r:4, dmg: player.bulletDmg, pierce: player.pierce, dead:false
+        r:4, dmg: player.bulletDmg, pierce: player.pierce, dead:false, ricochet: player.levels.ricochet
       });
+    }
+    // Mirror: a chance for the whole volley to be echoed by a weaker spectral copy.
+    if(player.levels.mirror>0 && Math.random() < Math.min(0.55, player.levels.mirror*0.13)){
+      const kaleido = player.levels.mirror>=3 && player.levels.prism>=2;
+      const mirrorMult = kaleido ? 1.0 : 0.6;
+      for(let i=0;i<count;i++){
+        const a = -Math.PI/2 + startAngle + i*angleStep;
+        bullets.push({
+          x: player.x, y: player.y - player.r,
+          vx: Math.cos(a)*560, vy: Math.sin(a)*560,
+          r:3.5, dmg: player.bulletDmg*mirrorMult, pierce: player.pierce, dead:false,
+          ricochet: player.levels.ricochet, mirror:true
+        });
+      }
     }
     if(player.levels.sideguns>=3){
       for(const a of [-0.48,-0.24,0.24,0.48]){
@@ -864,7 +905,6 @@
         spawnPopup(player.x, player.y-50, 'FORM SHIFT // TIER '+newTier, '#7df3ff');
         explode(player.x, player.y, '#7df3ff', 34);
       }
-      showUpgradeToast(type);
       announceNewBuilds(buildsBefore);
     }
   }
@@ -877,7 +917,11 @@
     { key:'nova', name:'NOVA RING', short:'NOVA RING', color:'#72b7ff', req:{orbitals:3}, desc:'Orbitals periodically sweep the space around you.' },
     { key:'aegis', name:'AEGIS', short:'AEGIS', color:'#b8c6ff', req:{armor:2,barrier:1}, desc:'Taking a hit releases a defensive shockwave.' },
     { key:'rail', name:'RAILGUN', short:'RAILGUN', color:'#ffe06a', req:{critical:3,capacitor:2}, desc:'Charged shots become piercing rail slugs.' },
-    { key:'broadside', name:'BROADSIDER', short:'BROADSIDER', color:'#ffd36e', req:{sideguns:3}, desc:'Side guns evolve into a five-lane volley.' }
+    { key:'broadside', name:'BROADSIDER', short:'BROADSIDER', color:'#ffd36e', req:{sideguns:3}, desc:'Side guns evolve into a five-lane volley.' },
+    { key:'inferno', name:'INFERNO', short:'INFERNO', color:'#ff7043', req:{burn:3,execution:2}, desc:'Burning kills ignite everything nearby.' },
+    { key:'ghost', name:'GHOST WALKER', short:'GHOST', color:'#a78bff', req:{phase:2,dash:2}, desc:'Dashing refreshes your phase window instantly.' },
+    { key:'kaleidoscope', name:'KALEIDOSCOPE', short:'KALEIDO', color:'#9ee7ff', req:{mirror:3,prism:2}, desc:'Mirror shots inherit the prism\u2019s full power.' },
+    { key:'pinball', name:'PINBALL', short:'PINBALL', color:'#d7ff4a', req:{ricochet:3,pierce:2}, desc:'Every wall bounce detonates on nearby enemies.' }
   ];
 
   function getActiveBuilds(){
@@ -914,7 +958,8 @@
       {key:'siege',name:'SIEGE CANNONS',desc:'Twin heavy side cannons join your fighter.',color:'#ffcf4a'},
       {key:'overdrive',name:'WAR OVERDRIVE',desc:'Kill streaks push your weapon into overdrive.',color:'#fff06a'},
       {key:'bossbane',name:'ARMOR BREAKER',desc:'Your weapons tear through bosses harder.',color:'#ff3b3b'},
-      {key:'reactor',name:'WAR REACTOR',desc:'A reinforced reactor boosts core systems.',color:'#63faff'}
+      {key:'reactor',name:'WAR REACTOR',desc:'A reinforced reactor boosts core systems.',color:'#63faff'},
+      {key:'nova',name:'NOVA CORE',desc:'Unlocks the Vanguard\'s periodic Nova Pulse.',color:CLASS_DEFS.nova.color}
     ],
     hivemother:[
       {key:'drone',name:'DRONE NEST',desc:'Twin combat drones orbit and fire with you.',color:'#4dd8ff'},
@@ -926,73 +971,71 @@
       {key:'phase',name:'PHASE DRIVE',desc:'Periodic phase windows make you untouchable.',color:'#a78bff'},
       {key:'mirror',name:'SHADOW SPLIT',desc:'Chance to fire a spectral duplicate shot.',color:'#9ee7ff'},
       {key:'orbitals',name:'REAPER ORBITALS',desc:'Orbiting cannons fire independently.',color:'#72b7ff'},
-      {key:'prism',name:'PRISM HEART',desc:'A spectral prism strengthens your weapons.',color:'#f0a0ff'}
+      {key:'prism',name:'PRISM HEART',desc:'A spectral prism strengthens your weapons.',color:'#f0a0ff'},
+      {key:'regen',name:'ADAPTIVE CORE',desc:'Unlocks the Berserker\'s Adaptive Regen.',color:CLASS_DEFS.regen.color}
     ]
   };
 
-  function spawnClassCore(x,y){
-    const missing = CLASS_KEYS.filter(k=>!player.classes[k]);
-    const kind = missing.length ? missing[Math.floor(Math.random()*missing.length)] : null;
-    classCores.push({ x, y, r:18, vy:55, kind });
-  }
-
-  function applyClassReward(kind){
+  function applyClassReward(relic){
     sfx.classReward();
-    if(!kind){
-      score += 250;
-      spawnUpgradeForced(player.x-20, player.y-40);
-      spawnUpgradeForced(player.x+20, player.y-40);
-      spawnPopup(player.x, player.y-34, 'CORE OVERFLOW +250', '#ffcf4a');
-      updateHUD();
-      return;
+    if(CLASS_KEYS.includes(relic.key)){
+      player.classes[relic.key] = true;
+      if(relic.key === 'nova') player.novaTimer = 3000;
+      if(relic.key === 'regen') player.regenTimer = 15000;
+    } else {
+      const statKey = relic.key==='siege' ? 'sideguns' : relic.key;
+      player.levels[statKey] = Math.min(UPGRADE_MAX[statKey]||5, (player.levels[statKey]||0)+2);
+      recomputeStats();
     }
-    player.classes[kind] = true;
-    if(kind === 'nova') player.novaTimer = 3000;
-    if(kind === 'regen') player.regenTimer = 15000;
-    spawnPopup(player.x, player.y-34, CLASS_DEFS[kind].name+' UNLOCKED', CLASS_DEFS[kind].color);
-    spawnPopup(player.x, player.y-18, CLASS_DEFS[kind].desc, CLASS_DEFS[kind].color);
+    spawnPopup(player.x, player.y-34, relic.name+' ACQUIRED', relic.color);
+    spawnPopup(player.x, player.y-18, relic.desc, relic.color);
     updateHUD();
   }
 
   // ---------- Boss Reward Choice ----------
-  // A special "pick one" drop that only appears after a boss dies —
-  // distinct from regular pickups, always a real choice between upgrades.
-  function pickDistinctUpgradeTypes(n){
-    const pool = UPGRADE_TYPES.slice();
-    const result = [];
-    while(result.length < n && pool.length){
-      const idx = Math.floor(Math.random()*pool.length);
-      result.push(pool[idx]);
-      pool.splice(idx,1);
-    }
-    return result;
-  }
-
-  function spawnBossRewardChoice(x,y){
-    const types = pickDistinctUpgradeTypes(3);
-    types.forEach((type, i) => {
-      const ang = -Math.PI/2 + (i-1)*0.55;
-      bossRewardOrbs.push({
-        x: x, y: y - 10,
-        vx: Math.cos(ang)*70,
-        vy: 40 + i*4,
-        r: 20,
-        type,
-        t: 0,
-        claimed: false,
-        fadeT: 0
-      });
+  // Boss kills pause the action and offer a real, visible choice: relics
+  // tied to the boss you just fought, backfilled with normal upgrades if
+  // you've already claimed everything that boss can offer.
+  function triggerBossRewardChoice(bossKind){
+    paused = true;
+    const relicPool = (BOSS_RELICS[bossKind]||[]).filter(r=>{
+      if(CLASS_KEYS.includes(r.key)) return !player.classes[r.key];
+      const statKey = r.key==='siege' ? 'sideguns' : r.key;
+      return (player.levels[statKey]||0) < (UPGRADE_MAX[statKey]||5);
     });
-  }
-
-  function claimBossReward(orb){
-    applyUpgrade(orb.type);
-    spawnPopup(player.x, player.y-46, 'BOSS REWARD!', '#ffd66a');
-    explode(orb.x, orb.y, UPGRADE_COLORS[orb.type], 30);
-    sfx.classReward();
-    orb.claimed = true; orb.fadeT = 0;
-    // The unclaimed choices fade away rather than lingering
-    for(const other of bossRewardOrbs){ if(other !== orb){ other.claimed = true; other.fadeT = 0; } }
+    for(let i=relicPool.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      const tmp=relicPool[i]; relicPool[i]=relicPool[j]; relicPool[j]=tmp;
+    }
+    const picks = relicPool.slice(0,3);
+    while(picks.length<3){
+      const type = UPGRADE_TYPES[Math.floor(Math.random()*UPGRADE_TYPES.length)];
+      picks.push({ key:type, generic:true, name:UPGRADE_LABELS[type],
+        desc:(UPGRADE_DESC[type]||'SYSTEM UPGRADE'), color:UPGRADE_COLORS[type] });
+    }
+    document.getElementById('choiceTitle').textContent = 'BOSS DEFEATED \u2014 CHOOSE YOUR REWARD';
+    const list=document.getElementById('choiceList');
+    list.innerHTML='';
+    for(const pick of picks){
+      const btn=document.createElement('button');
+      btn.className='choiceBtn';
+      btn.style.borderColor=pick.color;
+      btn.style.boxShadow='0 0 18px '+pick.color+'44';
+      btn.innerHTML='<div class="choiceName" style="color:'+pick.color+'">'+pick.name+'</div>'+
+        '<div class="choiceDesc">'+pick.desc+'</div>';
+      const choose = ()=>{
+        list.querySelectorAll('.choiceBtn').forEach(b=>b.disabled=true);
+        if(pick.generic) applyUpgrade(pick.key);
+        else applyClassReward(pick);
+        document.getElementById('choiceOverlay').classList.add('hidden');
+        document.getElementById('choiceTitle').textContent = 'CHOOSE AN UPGRADE';
+        paused=false;
+      };
+      btn.addEventListener('click', choose);
+      btn.addEventListener('touchend', choose, {passive:true});
+      list.appendChild(btn);
+    }
+    document.getElementById('choiceOverlay').classList.remove('hidden');
   }
 
   function triggerNova(){
@@ -1269,8 +1312,7 @@
     explode(boss.x, boss.y, boss.color, 60);
     score += 400 + wave*60;
     spawnPopup(boss.x, boss.y-20, boss.name+' DEFEATED!', '#ffcf4a');
-    spawnClassCore(boss.x, boss.y);
-    spawnBossRewardChoice(boss.x, boss.y+40);
+    triggerBossRewardChoice(boss.kind);
     firstBossDefeated = true;
     boss = null;
     bossActive = false;
@@ -1397,11 +1439,13 @@
         player.dashTimer -= dt;
         if(player.dashTimer<=0){
           player.dashTimer = Math.max(2200,4800-player.levels.dash*550);
-          player.invuln = Math.max(player.invuln, 260);
+          const ghostBuild = player.levels.phase>=2 && player.levels.dash>=2;
+          player.invuln = Math.max(player.invuln, ghostBuild ? 900 : 260);
+          if(ghostBuild) player.phaseTimer = Math.min(player.phaseTimer, 500);
           player.x += mx*80; player.y += my*80;
           player.x=Math.max(player.r,Math.min(W-player.r,player.x));
           player.y=Math.max(TOP_MARGIN+player.r,Math.min(bottomLimit()-player.r,player.y));
-          explode(player.x,player.y,'#7dffb5',8);
+          explode(player.x,player.y, ghostBuild?'#a78bff':'#7dffb5', ghostBuild?14:8);
         }
       }
       if(player.levels.repair){
@@ -1456,19 +1500,11 @@
             const a=player.droneAngle+i*(Math.PI*2/n);
             const dx=player.x+Math.cos(a)*(42+player.levels.orbitals*5);
             const dy=player.y+Math.sin(a)*(42+player.levels.orbitals*5);
-            makePlayerBullet(dx,dy,-Math.PI/2,0.55+player.levels.orbitals*0.08);
-          }
-        }
-      }
-      if(player.levels.missiles){
-        player.missileTimer=(player.missileTimer||0)-dt;
-        if(player.missileTimer<=0){
-          player.missileTimer=Math.max(1100,2600-player.levels.missiles*320);
-          const n=player.levels.missiles>=3?2:1;
-          for(let i=0;i<n;i++){
-            bullets.push({x:player.x+(i?8:-8),y:player.y-8,vx:(i?25:-25),vy:-260,r:5,
-              dmg:player.bulletDmg*(0.8+player.levels.missiles*0.18),pierce:0,dead:false,
-              missile:true,ricochet:0,burn:player.levels.burn});
+            const speed = 500;
+            bullets.push({
+              x:dx, y:dy, vx:Math.cos(-Math.PI/2)*speed, vy:Math.sin(-Math.PI/2)*speed,
+              r:3.5, dmg: player.bulletDmg*(0.55+player.levels.orbitals*0.08), pierce:0, dead:false
+            });
           }
         }
       }
@@ -1650,6 +1686,10 @@
         }
       }
       b.x += b.vx*dtS; b.y += b.vy*dtS;
+      if(b.ricochet>0){
+        if(b.x < b.r){ b.x = b.r; b.vx = Math.abs(b.vx); b.ricochet--; explode(b.x,b.y,'#d7ff4a',5); pinballBounce(b.x,b.y); }
+        else if(b.x > W-b.r){ b.x = W-b.r; b.vx = -Math.abs(b.vx); b.ricochet--; explode(b.x,b.y,'#d7ff4a',5); pinballBounce(b.x,b.y); }
+      }
     }
     bullets = bullets.filter(b => !b.dead && b.y > -20 && b.x>-20 && b.x<W+20);
 
@@ -1682,6 +1722,8 @@
 
     for(const np of novaPulses){ np.t += dt; }
     novaPulses = novaPulses.filter(np => np.t < np.life);
+    for(const cz of chainZaps){ cz.t += dt; }
+    chainZaps = chainZaps.filter(cz => cz.t < cz.life);
 
     for(const p of particles){
       p.t += dt; p.x += p.vx*dtS; p.y += p.vy*dtS; p.vx*=0.94; p.vy*=0.94;
@@ -1716,6 +1758,11 @@
             player.combo = Math.min(20, player.combo + 1);
             player.comboTimer = 2200;
             player.overdriveTimer = Math.max(player.overdriveTimer, 1800);
+            if(player.levels.vampire && player.hp < player.maxHp && Math.random() < 0.05*player.levels.vampire){
+              player.hp = Math.min(player.maxHp, player.hp+1);
+              spawnPopup(player.x, player.y-30, '+1 HP', UPGRADE_COLORS.vampire);
+              updateHUD();
+            }
             const comboMult = 1 + Math.min(2.5, Math.floor(player.combo/4)*0.5);
             // Chain reaction: one kill can arc into a nearby enemy.
             if(player.levels.chain){
@@ -1727,6 +1774,18 @@
                 other.hp -= (player.levels.chain>=3?1.0:0.7)*player.levels.chain;
                 chainZaps.push({x1:e.x,y1:e.y,x2:other.x,y2:other.y,t:0,life:150});
                 explode(other.x,other.y,'#55f2ff',5);
+              }
+            }
+            // INFERNO signature: a kill that dies while still burning spreads the fire.
+            if(player.levels.burn>=3 && player.levels.execution>=2 && e.burnUntil && frame < e.burnUntil){
+              const iR = 85;
+              for(const other of enemies){
+                if(other===e || other.hp<=0) continue;
+                if(Math.hypot(other.x-e.x, other.y-e.y) < iR){
+                  other.burnUntil = Math.max(other.burnUntil||0, frame + 35*player.levels.burn);
+                  other.burnDmg = Math.max(other.burnDmg||0, 0.10*player.levels.burn);
+                  explode(other.x,other.y,'#ff7043',4);
+                }
               }
             }
             const baseScore = (e.type==='tank'?35: e.type==='splitter'?25: e.type==='turret'?26: e.type==='sniper'?20: e.type==='bomber'?22: e.type==='dasher'?16: 10);
@@ -1812,20 +1871,58 @@
     }
     upgrades = upgrades.filter(u => u.y < 9000);
 
-    for(const c of classCores){
-      const d = Math.hypot(c.x-player.x, c.y-player.y);
-      if(d < c.r + player.r){
-        c.y = 99999;
-        applyClassReward(c.kind);
-      }
-    }
-    classCores = classCores.filter(c => c.y < 9000);
-
     if(player.hp <= 0 && player.alive){
       player.alive = false;
       explode(player.x, player.y, '#35e3ff', 30);
       setTimeout(()=> gameOver(), 500);
     }
+  }
+
+  function pinballBounce(x,y){
+    if(!(player.levels.ricochet>=3 && player.levels.pierce>=2)) return;
+    const R = 48, dmg = player.bulletDmg*0.5;
+    for(const e of enemies){
+      if(e.hp<=0) continue;
+      if(Math.hypot(e.x-x, e.y-y) < R){
+        e.hp -= dmg;
+        if(e.hp<=0){
+          score += 8;
+          explode(e.x,e.y,e.color,10);
+          if(e.type==='splitter') spawnMiniDrones(e.x,e.y);
+          if(e.type==='bomber') bomberBurst(e.x,e.y);
+          spawnUpgrade(e.x,e.y);
+        }
+      }
+    }
+    enemies = enemies.filter(e => e.hp>0);
+    if(boss && boss.hp>0 && Math.hypot(boss.x-x, boss.y-y) < R) boss.hp -= dmg;
+  }
+
+  function triggerAegisShockwave(){
+    if(!(player.levels.armor>=2 && player.levels.barrier>=1)) return;
+    const R = 130 + player.levels.barrier*16;
+    const dmg = 2 + player.levels.armor*0.7 + player.levels.barrier*0.9;
+    for(const e of enemies){
+      if(e.hp<=0) continue;
+      if(Math.hypot(e.x-player.x, e.y-player.y) < R){
+        e.hp -= dmg;
+        if(e.hp<=0){
+          score += 8;
+          explode(e.x,e.y,e.color,14);
+          if(e.type==='splitter') spawnMiniDrones(e.x,e.y);
+          if(e.type==='bomber') bomberBurst(e.x,e.y);
+          spawnUpgrade(e.x,e.y);
+        } else {
+          explode(e.x,e.y,'#b8c6ff',5);
+        }
+      }
+    }
+    enemies = enemies.filter(e => e.hp>0);
+    if(boss && boss.hp>0 && Math.hypot(boss.x-player.x, boss.y-player.y) < R){
+      boss.hp -= dmg;
+    }
+    novaPulses.push({ x:player.x, y:player.y, r:10, life:420, t:0, color:'#b8c6ff' });
+    updateHUD();
   }
 
   function hitPlayer(){
@@ -1835,6 +1932,7 @@
       player.combo=0; player.comboTimer=0;
       sfx.shieldBlock();
       spawnPopup(player.x,player.y-30,'SHIELD -1','#35e3ff');
+      triggerAegisShockwave();
       updateHUD();
       return;
     }
@@ -1844,6 +1942,7 @@
     player.invuln=1000+player.armorInvulnBonus;
     sfx.playerHit();
     explode(player.x,player.y,'#ff3d6e',14);
+    triggerAegisShockwave();
     updateHUD();
   }
   function draw(){
@@ -2009,7 +2108,7 @@
 
     // Bullets
     for(const b of bullets){
-      const bc=b.charged?'#fff06a':b.missile?'#ff8b4a':(player.levels.prism?'#f0a0ff':'#7df3ff');
+      const bc=b.charged?'#fff06a':b.mirror?'#9ee7ff':b.missile?'#ff8b4a':(player.levels.prism?'#f0a0ff':'#7df3ff');
       ctx.fillStyle=bc; ctx.shadowColor=bc; ctx.shadowBlur=b.charged?16:8;
       ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,7); ctx.fill();
     }
@@ -2069,6 +2168,22 @@
       ctx.lineWidth = 3;
       ctx.shadowColor = CLASS_DEFS.nova.color; ctx.shadowBlur = 14;
       ctx.beginPath(); ctx.arc(np.x, np.y, np.r + p*190, 0, 7); ctx.stroke();
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    }
+    // Chain lightning arcs
+    for(const cz of chainZaps){
+      const p = cz.t/cz.life;
+      ctx.globalAlpha = Math.max(0, 1-p);
+      ctx.strokeStyle = '#55f2ff';
+      ctx.lineWidth = 2;
+      ctx.shadowColor = '#55f2ff'; ctx.shadowBlur = 10;
+      const mx = (cz.x1+cz.x2)/2 + (Math.random()-0.5)*10;
+      const my = (cz.y1+cz.y2)/2 + (Math.random()-0.5)*10;
+      ctx.beginPath();
+      ctx.moveTo(cz.x1, cz.y1);
+      ctx.lineTo(mx, my);
+      ctx.lineTo(cz.x2, cz.y2);
+      ctx.stroke();
       ctx.globalAlpha = 1; ctx.shadowBlur = 0;
     }
 
