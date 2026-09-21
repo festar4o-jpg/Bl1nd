@@ -147,6 +147,13 @@
   .choiceBtn .choiceName{ font-weight:bold; font-size:15px; letter-spacing:1px; }
   .choiceBtn .choiceDesc{ font-size:12px; color:var(--hull-dim); }
   .choiceBtn:active{ transform:scale(0.97); }
+  /* Choice screens can hold 4 cards (opening pick / boss power) - let them scroll on small phones. */
+  #choiceOverlay{ overflow-y:auto; justify-content:flex-start; touch-action:pan-y; -webkit-overflow-scrolling:touch;
+    padding-top:max(20px, env(safe-area-inset-top)); padding-bottom:max(20px, env(safe-area-inset-bottom)); }
+  #choiceOverlay > *{ flex-shrink:0; }
+  #choiceOverlay > *:first-child{ margin-top:auto; }
+  #choiceOverlay > *:last-child{ margin-bottom:auto; }
+  #choiceSub{ font-size:12px; color:var(--hull-dim); max-width:320px; margin:0 0 4px; line-height:1.45; }
   #legend{ display:flex; gap:14px; margin-top:18px; flex-wrap:wrap; justify-content:center; max-width:360px; }
   .legend-item{ display:flex; flex-direction:column; align-items:center; font-size:9.5px; color:var(--hull-dim); gap:4px; width:52px; }
   .swatch{ width:16px; height:16px; border-radius:4px; }
@@ -216,7 +223,8 @@
     <p id="highScoreLine"></p>
     <p id="coresLine" style="color:var(--gold); font-size:13px;"></p>
     <p>Touch anywhere along the bottom control strip — left or right — and drag to move your ship. Your ship fires automatically.</p>
-    <p>Collect upgrades to permanently stack power. Every 3rd wave you'll choose a new upgrade directly. Elites can drop guaranteed caches, and each run starts with a random Blessing. Every 5th wave, one of three BOSS types locks down the field — defeat it for a class core and a choice of three upgrade rewards. Stack related upgrades to unlock signature builds like MIRV, ARC STORM, RAILGUN, AEGIS, INFERNO, GHOST WALKER, KALEIDOSCOPE and PINBALL.</p>
+    <p>Build your own route. Pick an opening upgrade, then choose a new upgrade every 3rd wave. Enemies only drop simple stat boosts (damage, fire rate, speed, shields...).</p>
+    <p>Every 5th wave a BOSS locks down the field. The first boss drops a build-defining POWER — MIRV, ARC STORM, NOVA RING, AEGIS, RAILGUN, BROADSIDER, INFERNO, GHOST WALKER, KALEIDOSCOPE or PINBALL. Every later boss drops a small but impactful upgrade to the power you chose.</p>
     <div id="legend">
       <div class="legend-item"><div class="swatch" style="background:#ffcf4a"></div>WEAPON</div>
       <div class="legend-item"><div class="swatch" style="background:#ff3d6e"></div>DAMAGE</div>
@@ -248,6 +256,7 @@
 
   <div class="overlay hidden" id="choiceOverlay">
     <h1 style="font-size:24px;" id="choiceTitle">CHOOSE AN UPGRADE</h1>
+    <p id="choiceSub"></p>
     <div id="choiceList" style="display:flex; flex-direction:column; gap:12px; width:100%; max-width:340px; margin-top:10px;"></div>
   </div>
 
@@ -794,18 +803,18 @@
     { name:'SWIFT', desc:'+3 Speed Level', apply:(L)=>{ L.speed = Math.min(UPGRADE_MAX.speed, L.speed+3); } },
     { name:'FORTIFIED', desc:'+2 Max HP', apply:(L,p)=>{ p.maxHp += 2; p.hp += 2; } },
     { name:'VAMPIRIC PACT', desc:'+1 Vampire Level (kills can heal you)', apply:(L)=>{ L.vampire = Math.min(UPGRADE_MAX.vampire, L.vampire+1); } },
-    { name:'STATIC FIELD', desc:'+2 Chain Arc', apply:(L)=>{ L.chain = Math.min(UPGRADE_MAX.chain, L.chain+2); } },
-    { name:'EMBER ROUNDS', desc:'+2 Incendiary', apply:(L)=>{ L.burn = Math.min(UPGRADE_MAX.burn, L.burn+2); } },
-    { name:'SIDEWINDER', desc:'+1 Side Guns, +1 Rapid', apply:(L)=>{ L.sideguns = Math.min(UPGRADE_MAX.sideguns, L.sideguns+1); L.rapid = Math.min(UPGRADE_MAX.rapid, L.rapid+1); } },
-    { name:'HUNTER PACK', desc:'+2 Missile Rack, +1 Homing', apply:(L)=>{ L.missiles = Math.min(UPGRADE_MAX.missiles, L.missiles+2); L.homing = Math.min(UPGRADE_MAX.homing, L.homing+1); } },
-    { name:'BULWARK', desc:'+2 Armor, +2 Shield charges', apply:(L,p)=>{ L.armor = Math.min(UPGRADE_MAX.armor, L.armor+2); p.shieldCharges = 2; } },
-    { name:'PHANTOM STEP', desc:'+1 Phase Drive, +1 Afterburn Dash', apply:(L)=>{ L.phase = Math.min(UPGRADE_MAX.phase, L.phase+1); L.dash = Math.min(UPGRADE_MAX.dash, L.dash+1); } },
-    { name:'LUCKY STAR', desc:'+2 Crit Core, +1 Capacitor', apply:(L)=>{ L.critical = Math.min(UPGRADE_MAX.critical, L.critical+2); L.capacitor = Math.min(UPGRADE_MAX.capacitor, L.capacitor+1); } },
-    { name:'ORBITAL WATCH', desc:'+2 Orbital Cannons', apply:(L)=>{ L.orbitals = Math.min(UPGRADE_MAX.orbitals, L.orbitals+2); } },
-    { name:'PRISMATIC LENS', desc:'+1 Prism Core, +2 Shadow Split', apply:(L)=>{ L.prism = Math.min(UPGRADE_MAX.prism, L.prism+1); L.mirror = Math.min(UPGRADE_MAX.mirror, L.mirror+2); } },
-    { name:'BOUNCE HOUSE', desc:'+2 Ricochet, +1 Pierce', apply:(L)=>{ L.ricochet = Math.min(UPGRADE_MAX.ricochet, L.ricochet+2); L.pierce = Math.min(UPGRADE_MAX.pierce, L.pierce+1); } },
-    { name:'DEEP WELL', desc:'+2 Gravity Well, +1 Pulse Engine', apply:(L)=>{ L.gravity = Math.min(UPGRADE_MAX.gravity, L.gravity+2); L.pulse = Math.min(UPGRADE_MAX.pulse, L.pulse+1); } },
-    { name:'DEMOLITION', desc:'+2 Blast, +1 Executioner', apply:(L)=>{ L.explosive = Math.min(UPGRADE_MAX.explosive, L.explosive+2); L.execution = Math.min(UPGRADE_MAX.execution, L.execution+1); } }
+    { name:'STATIC FIELD', route:'arc', desc:'+2 Chain Arc', apply:(L)=>{ L.chain = Math.min(UPGRADE_MAX.chain, L.chain+2); } },
+    { name:'EMBER ROUNDS', route:'inferno', desc:'+2 Incendiary', apply:(L)=>{ L.burn = Math.min(UPGRADE_MAX.burn, L.burn+2); } },
+    { name:'SIDEWINDER', route:'broadside', desc:'+1 Side Guns, +1 Rapid', apply:(L)=>{ L.sideguns = Math.min(UPGRADE_MAX.sideguns, L.sideguns+1); L.rapid = Math.min(UPGRADE_MAX.rapid, L.rapid+1); } },
+    { name:'HUNTER PACK', route:'missile', desc:'+2 Missile Rack, +1 Homing', apply:(L)=>{ L.missiles = Math.min(UPGRADE_MAX.missiles, L.missiles+2); L.homing = Math.min(UPGRADE_MAX.homing, L.homing+1); } },
+    { name:'BULWARK', route:'aegis', desc:'+2 Armor, +2 Shield charges', apply:(L,p)=>{ L.armor = Math.min(UPGRADE_MAX.armor, L.armor+2); p.shieldCharges = 2; } },
+    { name:'PHANTOM STEP', route:'ghost', desc:'+1 Phase Drive, +1 Afterburn Dash', apply:(L)=>{ L.phase = Math.min(UPGRADE_MAX.phase, L.phase+1); L.dash = Math.min(UPGRADE_MAX.dash, L.dash+1); } },
+    { name:'LUCKY STAR', route:'rail', desc:'+2 Crit Core, +1 Capacitor', apply:(L)=>{ L.critical = Math.min(UPGRADE_MAX.critical, L.critical+2); L.capacitor = Math.min(UPGRADE_MAX.capacitor, L.capacitor+1); } },
+    { name:'ORBITAL WATCH', route:'nova', desc:'+2 Orbital Cannons', apply:(L)=>{ L.orbitals = Math.min(UPGRADE_MAX.orbitals, L.orbitals+2); } },
+    { name:'PRISMATIC LENS', route:'kaleido', desc:'+1 Prism Core, +2 Shadow Split', apply:(L)=>{ L.prism = Math.min(UPGRADE_MAX.prism, L.prism+1); L.mirror = Math.min(UPGRADE_MAX.mirror, L.mirror+2); } },
+    { name:'BOUNCE HOUSE', route:'pinball', desc:'+2 Ricochet, +1 Pierce', apply:(L)=>{ L.ricochet = Math.min(UPGRADE_MAX.ricochet, L.ricochet+2); L.pierce = Math.min(UPGRADE_MAX.pierce, L.pierce+1); } },
+    { name:'DEEP WELL', route:'nova', desc:'+2 Gravity Well, +1 Pulse Engine', apply:(L)=>{ L.gravity = Math.min(UPGRADE_MAX.gravity, L.gravity+2); L.pulse = Math.min(UPGRADE_MAX.pulse, L.pulse+1); } },
+    { name:'DEMOLITION', route:'inferno', desc:'+2 Blast, +1 Executioner', apply:(L)=>{ L.explosive = Math.min(UPGRADE_MAX.explosive, L.explosive+2); L.execution = Math.min(UPGRADE_MAX.execution, L.execution+1); } }
   ];
 
   // ---------- Run variety ----------
@@ -865,7 +874,7 @@
     neutralRun();
     runAnomaly = ANOMALIES[Math.floor(Math.random()*ANOMALIES.length)];
     Object.assign(RUN, runAnomaly.mods);
-    runFeatured = shuffleInPlace(FEATURE_POOL.slice()).slice(0,4);
+    runFeatured = [];
     bossBag = []; lastBossKey = null; lastThemeKey = null;
   }
   let currentBlessing = null;
@@ -907,7 +916,8 @@
     classes: { drone:false, nova:false, regen:false },
     droneAngle:0, droneTimer:0, novaTimer:0, regenTimer:0,
     repairTimer:0, pulseTimer:0, dashTimer:0, phaseTimer:0, overdriveTimer:0,
-    capacitorShots:0, upgradeCount:0, shipTier:0, relics:{}, signatures:{}
+    capacitorShots:0, upgradeCount:0, shipTier:0, relics:{}, signatures:{},
+    power:null, pmods:{a:0,b:0,c:0}, powerTier:0, aegisTimer:0
   };
 
   const SHIP_TIER_UPGRADES = 2;
@@ -949,6 +959,7 @@
     };
     player.classes={drone:false,nova:false,regen:false}; player.relics={};
     player.upgradeCount=0; player.shipTier=0; player.signatures={};
+    player.power=null; player.pmods={a:0,b:0,c:0}; player.powerTier=0; player.aegisTimer=0;
     player.droneAngle=0; player.droneTimer=0; player.novaTimer=0; player.regenTimer=0;
     player.repairTimer=0; player.pulseTimer=0; player.dashTimer=0; player.phaseTimer=0;
     player.overdriveTimer=0; player.ghostBoost=0; player.odOn=false; player.capacitorShots=0; player.missileTimer=0; player.signatureTimer=0; player.railTimer=0; player.shotsFired=0; player.kills=0; player.killStreak=0;
@@ -967,34 +978,48 @@
     updateHUD();
   }
 
-  // Start-of-run: pick 1 of 3 random blessings, then the sector briefing appears.
+  // Start-of-run: choose 1 opening upgrade. Most of them point at a build route,
+  // so the player starts steering the run from second one.
   function triggerBlessingChoice(){
     paused = true;
-    const opts = shuffleInPlace(BLESSINGS.slice()).slice(0,3);
+    const withRoute = shuffleInPlace(BLESSINGS.filter(b=>b.route));
+    const flexible  = shuffleInPlace(BLESSINGS.filter(b=>!b.route));
+    // 3 different route seeds (never two for the same route) + 1 flexible pick.
+    const opts = []; const seen = new Set();
+    for(const b of withRoute){ if(opts.length>=3) break; if(POWER_ROUTE_GROUP[b.route] && seen.has(POWER_ROUTE_GROUP[b.route])) continue; seen.add(POWER_ROUTE_GROUP[b.route]); opts.push(b); }
+    opts.push(flexible[0]);
     const list = document.getElementById('choiceList');
     list.innerHTML = '';
-    document.getElementById('choiceTitle').textContent = 'CHOOSE YOUR BLESSING';
+    document.getElementById('choiceTitle').textContent = 'CHOOSE YOUR OPENING UPGRADE';
+    document.getElementById('choiceSub').textContent = 'This starts your build route. Every 3rd wave you choose again.';
     for(const bl of opts){
+      const pw = bl.route ? POWERS.find(p=>p.key===bl.route) : null;
+      const tagTxt = pw ? 'ROUTE: '+pw.name : 'FLEXIBLE - FITS ANY ROUTE';
+      const tagCol = pw ? pw.color : '#ffd66a';
       const btn = document.createElement('button');
       btn.className = 'choiceBtn';
       btn.style.borderColor = '#ffd66a'; btn.style.boxShadow = '0 0 18px #ffd66a44';
-      btn.innerHTML = '<div class="choiceName" style="color:#ffd66a">'+bl.name+'</div><div class="choiceDesc">'+bl.desc+'</div>';
+      btn.innerHTML = '<div class="choiceName" style="color:#ffd66a">'+bl.name+'</div><div class="choiceDesc">'+bl.desc+'</div>'+
+        '<div class="choiceSynergy" style="color:'+tagCol+'">'+tagTxt+'</div>';
       let done = false;
       btn.addEventListener('click', ()=>{
         if(done) return; done = true;
         currentBlessing = bl;
         bl.apply(player.levels, player);
         recomputeStats(); updateHUD();
-        document.getElementById('choiceOverlay').classList.add('hidden');
-        document.getElementById('choiceTitle').textContent = 'CHOOSE AN UPGRADE';
-        paused = false;
+        closeChoice();
         spawnBanner(bl.name, bl.desc, '#ffd66a');
         if(runAnomaly) spawnBanner(runAnomaly.name, runAnomaly.desc, runAnomaly.color);
-        { const f = runFeatured.map(k=>UPGRADE_LABELS[k]); spawnBanner('SUPPLY LINES', f.slice(0,2).join('  \u00B7  ')+'\n'+f.slice(2).join('  \u00B7  '), '#7df3ff'); }
       });
       list.appendChild(btn);
     }
     document.getElementById('choiceOverlay').classList.remove('hidden');
+  }
+  function closeChoice(){
+    document.getElementById('choiceOverlay').classList.add('hidden');
+    document.getElementById('choiceTitle').textContent = 'CHOOSE AN UPGRADE';
+    document.getElementById('choiceSub').textContent = '';
+    paused = false;
   }
   // ---------- Controls ----------
   const joy = { active:false, id:null, baseX:0, baseY:0, dx:0, dy:0 };
@@ -1239,7 +1264,7 @@
     const startAngle = -((count-1)/2)*angleStep;
 
     // Capacitor: every few volleys is a charged heavy volley.
-    const capEvery = L.capacitor ? Math.max(3, BAL.capEveryBase - L.capacitor) : 0;
+    const capEvery = L.capacitor ? Math.max(pOn('rail')?2:3, BAL.capEveryBase - L.capacitor - pm('rail','b')) : 0;
     const charged = capEvery>0 && (player.shotsFired % capEvery === 0);
     const chargeMult = charged ? (BAL.capMultBase + BAL.capMultPerLevel*L.capacitor) : 1;
 
@@ -1249,27 +1274,27 @@
       bullets.push({
         x: player.x, y: player.y - player.r,
         vx: Math.cos(a)*560, vy: Math.sin(a)*560,
-        r: charged?5:4, dmg: player.bulletDmg * (crit?BAL.critMult:1) * chargeMult * ((player.ghostBoost>0)?(1+BAL.ghostBoost):1),
-        pierce: player.pierce + (charged?1:0), dead:false, ricochet: L.ricochet,
+        r: charged?5:4, dmg: player.bulletDmg * (crit?BAL.critMult:1) * chargeMult * ((player.ghostBoost>0)?(1+ghostDmg()):1),
+        pierce: player.pierce + (charged?1:0), dead:false, ricochet: L.ricochet + pm('pinball','c'),
         burn: L.burn, crit, charged
       });
     }
     // RAILGUN signature: charged volleys also fire a piercing rail slug.
     if(charged && L.critical>=3 && L.capacitor>=2){
-      bullets.push({x:player.x,y:player.y-12,vx:0,vy:-760,r:7,dmg:player.bulletDmg*BAL.railMult,pierce:4,dead:false,rail:true,burn:L.burn});
+      bullets.push({x:player.x,y:player.y-12,vx:0,vy:-760,r:7,dmg:player.bulletDmg*BAL.railMult*pB('rail')*(1+0.3*pm('rail','a')),pierce:4+3*pm('rail','c'),dead:false,rail:true,burn:L.burn});
       spawnPopup(player.x,player.y-42,'RAIL CHARGED','#ffe06a');
     }
     // Mirror: a chance for the whole volley to be echoed by a weaker spectral copy.
-    if(L.mirror>0 && Math.random() < Math.min(0.55, L.mirror*0.13)){
+    if(L.mirror>0 && Math.random() < Math.min(pOn('kaleidoscope')?0.85:0.55, L.mirror*0.13 + 0.08*pm('kaleidoscope','b'))){
       const kaleido = L.mirror>=3 && L.prism>=2;
-      const mirrorMult = kaleido ? BAL.kaleidoMult : BAL.mirrorMult;
+      const mirrorMult = (kaleido ? BAL.kaleidoMult : BAL.mirrorMult)*pB('kaleidoscope')*(1+0.2*pm('kaleidoscope','a'));
       for(let i=0;i<count;i++){
         const a = -Math.PI/2 + startAngle + i*angleStep;
         bullets.push({
           x: player.x, y: player.y - player.r,
           vx: Math.cos(a)*560, vy: Math.sin(a)*560,
-          r:3.5, dmg: player.bulletDmg*mirrorMult, pierce: player.pierce, dead:false,
-          ricochet: L.ricochet, burn: L.burn, mirror:true
+          r:3.5, dmg: player.bulletDmg*mirrorMult, pierce: player.pierce + pm('kaleidoscope','c'), dead:false,
+          ricochet: L.ricochet + pm('pinball','c'), burn: L.burn, mirror:true
         });
       }
     }
@@ -1277,9 +1302,10 @@
     if(L.sideguns>0){
       const sa = BAL.sideAngle;
       const angs = (L.sideguns>=3 ? [-0.72,-0.48,-0.24,0.24,0.48,0.72] : L.sideguns===2 ? [-0.48,-0.24,0.24,0.48] : [-0.24,0.24]).map(a=>a*sa);
-      const sd = BAL.sidegunDmg[Math.min(3,L.sideguns)];
+      for(let i=0;i<pm('broadside','c');i++){ const o=(0.96+0.24*i)*sa; angs.push(-o,o); }   // OUTRIDERS: extra outer lanes
+      const sd = BAL.sidegunDmg[Math.min(3,L.sideguns)]*pB('broadside')*(1+0.3*pm('broadside','a'));
       for(const a of angs){
-        bullets.push({x:player.x,y:player.y-player.r,vx:Math.sin(a)*600,vy:-Math.cos(a)*600,r:3.5,dmg:player.bulletDmg*sd,pierce:player.pierce,dead:false,burn:L.burn,signature:L.sideguns>=3});
+        bullets.push({x:player.x,y:player.y-player.r,vx:Math.sin(a)*600,vy:-Math.cos(a)*600,r:3.5,dmg:player.bulletDmg*sd,pierce:player.pierce+pm('broadside','b'),dead:false,burn:L.burn,signature:L.sideguns>=3});
       }
     }
     // Rear gun: fires downward, catches enemies that get behind the ship
@@ -1299,24 +1325,31 @@
   }
 
   function upgradeMaxed(t){ return UPGRADE_MAX[t]!==undefined && player.levels[t] >= UPGRADE_MAX[t]; }
+  // Enemy drops are deliberately plain: raw stats only. Build-shaping upgrades
+  // come from the opening pick, the wave shrines and the bosses.
+  const STAT_DROPS   = ['damage','rapid','speed','weapon','magnet','shield','life'];
+  const STAT_WEIGHTS = { damage:12, rapid:11, speed:8, weapon:4, magnet:5, shield:7, life:3 };
+  function canTake(t){
+    if(t==='shield') return player.shieldCharges < player.shieldMax;
+    if(t==='life')   return player.maxHp < 12;
+    return (player.levels[t]||0) < (UPGRADE_MAX[t]||1);
+  }
   function pickUpgradeType(){
-    // Maxed upgrades no longer drop - every pickup is progress.
-    const pool = UPGRADE_TYPES.filter(t => !upgradeMaxed(t));
-    // This run's featured Supply lines drop ~2.6x as often.
-    const wt = t => UPGRADE_WEIGHTS[t] * (runFeatured.includes(t) ? 2.6 : 1);
-    const total = pool.reduce((s,t)=>s+wt(t),0);
+    const pool = STAT_DROPS.filter(canTake);
+    if(!pool.length) return 'shield';
+    const total = pool.reduce((s,t)=>s+STAT_WEIGHTS[t],0);
     let r = Math.random()*total;
     for(const t of pool){
-      r -= wt(t);
+      r -= STAT_WEIGHTS[t];
       if(r<=0) return t;
     }
-    return pool[0] || 'shield';
+    return pool[0];
   }
 
   function spawnUpgrade(x,y){
-    // Drops are halved once the first boss is down — by then the player
-    // has a real build going, so pickups should feel a bit more earned.
-    const dropChance = (firstBossDefeated ? 0.07 : 0.14) * RUN.drop;
+    // Stat drops only. A little rarer once the first boss is down: by then the
+    // player has a build-defining power on top of the stats.
+    const dropChance = (firstBossDefeated ? 0.10 : 0.15) * RUN.drop;
     if(Math.random() > dropChance) return;
     upgrades.push({ x, y, r:12, type:pickUpgradeType(), vy:70 });
   }
@@ -1401,88 +1434,148 @@
     return score;
   }
 
-  // ---------- Boss relics ----------
-  const BOSS_RELICS = {
-    warbringer:[
-      {key:'siege',name:'SIEGE CANNONS',desc:'Twin heavy side cannons join your fighter.',color:'#ffcf4a'},
-      {key:'overdrive',name:'WAR OVERDRIVE',desc:'Kill streaks push your weapon into overdrive.',color:'#fff06a'},
-      {key:'bossbane',name:'ARMOR BREAKER',desc:'Your weapons tear through bosses harder.',color:'#ff3b3b'},
-      {key:'reactor',name:'WAR REACTOR',desc:'A reinforced reactor boosts core systems.',color:'#63faff'},
-      {key:'nova',name:'NOVA CORE',desc:'Unlocks the Vanguard\'s periodic Nova Pulse.',color:CLASS_DEFS.nova.color}
-    ],
-    hivemother:[
-      {key:'drone',name:'DRONE NEST',desc:'Twin combat drones orbit and fire with you.',color:'#4dd8ff'},
-      {key:'repair',name:'LEECH REACTOR',desc:'Periodic repairs restore hull integrity.',color:'#69ff9d'},
-      {key:'gravity',name:'GRAVITY WELL',desc:'Nearby enemies are slowed by your field.',color:'#55e0b0'},
-      {key:'pulse',name:'SWARM PULSE',desc:'Periodic energy pulses damage nearby enemies.',color:'#ff9f43'}
-    ],
-    twinreaper:[
-      {key:'phase',name:'PHASE DRIVE',desc:'Periodic phase windows make you untouchable.',color:'#a78bff'},
-      {key:'mirror',name:'SHADOW SPLIT',desc:'Chance to fire a spectral duplicate shot.',color:'#9ee7ff'},
-      {key:'orbitals',name:'REAPER ORBITALS',desc:'Orbiting cannons fire independently.',color:'#72b7ff'},
-      {key:'prism',name:'PRISM HEART',desc:'A spectral prism strengthens your weapons.',color:'#f0a0ff'},
-      {key:'regen',name:'ADAPTIVE CORE',desc:'Unlocks the Berserker\'s Adaptive Regen.',color:CLASS_DEFS.regen.color}
-    ]
-  };
+  // ---------- Boss powers (build-defining) ----------
+  // The FIRST boss lets you claim one of these. Every later boss upgrades the
+  // power you chose (3 possible upgrades, pick 1, each can stack up to 3 times).
+  // A chosen power also hits ~25% harder than the same signature reached by
+  // stacking upgrades, so the boss power is always the strongest thing you own.
+  const POWER_BOOST = 1.25, POWER_MOD_MAX = 3;
+  const POWERS = [
+    { key:'missile', name:'MIRV BARRAGE', color:'#ff8b4a', desc:'Missiles split into a wide, homing salvo.',
+      grant:{missiles:3}, bonus:{homing:1}, feeds:['missiles','homing','explosive','critical','burn'],
+      mods:[{k:'a',name:'HIGH-YIELD WARHEADS',desc:'+30% missile damage'},{k:'b',name:'AUTOLOADER',desc:'Missiles reload 15% faster'},{k:'c',name:'CLUSTER BAY',desc:'+1 warhead in every salvo'}] },
+    { key:'arc', name:'ARC STORM', color:'#55f2ff', desc:'Kills arc lightning across whole clusters.',
+      grant:{chain:3}, bonus:{pierce:1}, feeds:['chain','pierce','explosive','overdrive','critical'],
+      mods:[{k:'a',name:'HIGH VOLTAGE',desc:'+30% arc damage'},{k:'b',name:'WIDE CONDUCTION',desc:'+25% arc reach'},{k:'c',name:'FORKED LIGHTNING',desc:'Each kill arcs to 2 more targets'}] },
+    { key:'nova', name:'NOVA RING', color:'#72b7ff', desc:'Orbital cannons sweep the space around you.',
+      grant:{orbitals:3}, bonus:{pulse:1}, feeds:['orbitals','pulse','gravity','overdrive','reactor'],
+      mods:[{k:'a',name:'SHOCK RING',desc:'+30% ring damage'},{k:'b',name:'QUICK CYCLE',desc:'Ring pulses 15% faster'},{k:'c',name:'WIDE HORIZON',desc:'+20% ring radius'}] },
+    { key:'aegis', name:'AEGIS', color:'#b8c6ff', desc:'Shield hits release a defensive shockwave.',
+      grant:{armor:2,barrier:1}, bonus:{repair:1}, feeds:['armor','barrier','repair','phase','gravity'],
+      mods:[{k:'a',name:'SHOCK PLATES',desc:'+30% shockwave damage'},{k:'b',name:'WIDE FIELD',desc:'+20% shockwave radius'},{k:'c',name:'SHIELD FORGE',desc:'Slowly regrows shield charges'}] },
+    { key:'rail', name:'RAILGUN', color:'#ffe06a', desc:'Charged volleys fire piercing rail slugs.',
+      grant:{critical:3,capacitor:2}, bonus:{pierce:1}, feeds:['critical','capacitor','pierce','overdrive','prism'],
+      mods:[{k:'a',name:'HEAVY SLUG',desc:'+30% rail damage'},{k:'b',name:'FAST CHARGE',desc:'Charged volleys 1 shot sooner'},{k:'c',name:'DEEP PIERCE',desc:'Rail slugs pierce 3 more targets'}] },
+    { key:'broadside', name:'BROADSIDER', color:'#ffd36e', desc:'Side guns become a wide multi-lane volley.',
+      grant:{sideguns:3}, bonus:{rapid:1}, feeds:['sideguns','pierce','ricochet','critical','explosive'],
+      mods:[{k:'a',name:'HEAVY BROADSIDE',desc:'+30% side gun damage'},{k:'b',name:'PIERCING ROUNDS',desc:'Side shots pierce +1 enemy'},{k:'c',name:'OUTRIDERS',desc:'+2 outer side-gun lanes'}] },
+    { key:'inferno', name:'INFERNO', color:'#ff7043', desc:'Burning kills ignite everything nearby.',
+      grant:{burn:3,execution:2}, bonus:{explosive:1}, feeds:['burn','execution','explosive','pierce','gravity'],
+      mods:[{k:'a',name:'HOTTER FLAMES',desc:'+30% burn damage'},{k:'b',name:'FIRESTORM',desc:'+25% fire-spread radius'},{k:'c',name:'SLOW BURN',desc:'+30% burn duration'}] },
+    { key:'ghost', name:'GHOST WALKER', color:'#a78bff', desc:'Dashing refreshes your phase window.',
+      grant:{phase:2,dash:2}, bonus:{overdrive:1}, feeds:['phase','dash','overdrive','critical','mirror'],
+      mods:[{k:'a',name:'SPECTRAL RAGE',desc:'+40% ghost damage bonus'},{k:'b',name:'LONG PHASE',desc:'+0.25s untouchable per phase'},{k:'c',name:'LINGERING HAUNT',desc:'Ghost bonus lasts 0.8s longer'}] },
+    { key:'kaleidoscope', name:'KALEIDOSCOPE', color:'#9ee7ff', desc:'Mirror shots inherit the prism\u2019s full power.',
+      grant:{mirror:3,prism:2}, bonus:{critical:1}, feeds:['mirror','prism','critical','pierce','homing'],
+      mods:[{k:'a',name:'BRIGHT ECHO',desc:'+20% echo damage'},{k:'b',name:'RESONANCE',desc:'+8% echo chance'},{k:'c',name:'PIERCING ECHO',desc:'Echo shots pierce +1 enemy'}] },
+    { key:'pinball', name:'PINBALL', color:'#d7ff4a', desc:'Every wall bounce detonates on nearby enemies.',
+      grant:{ricochet:3,pierce:2}, bonus:{explosive:1}, feeds:['ricochet','pierce','explosive','homing','critical'],
+      mods:[{k:'a',name:'HEAVY BUMPERS',desc:'+35% bounce damage'},{k:'b',name:'WIDE BLAST',desc:'+25% bounce blast radius'},{k:'c',name:'EXTRA BOUNCES',desc:'+1 wall bounce per shot'}] }
+  ];
+  // Two opening upgrades that lead to the same family never appear together.
+  const POWER_ROUTE_GROUP = { missile:'m', arc:'a', nova:'n', aegis:'d', rail:'r', broadside:'b', inferno:'i', ghost:'g', kaleidoscope:'k', pinball:'p' };
+  const ROMAN = ['','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+  function currentPower(){ return player.power ? POWERS.find(p=>p.key===player.power) : null; }
+  function pOn(k){ return player.power===k; }
+  function pm(k,m){ return player.power===k ? (player.pmods[m]||0) : 0; }   // stacks of a power upgrade
+  function pB(k){ return player.power===k ? POWER_BOOST : 1; }               // chosen-power damage boost
+  function burnDpsMul(){ return pB('inferno')*(1+0.3*pm('inferno','a')); }
+  function burnDurMul(){ return 1+0.3*pm('inferno','c'); }
+  function ghostDmg(){ return BAL.ghostBoost*pB('ghost')*(1+0.4*pm('ghost','a')); }
+  function ghostMs(){ return BAL.ghostBoostMs + 800*pm('ghost','c'); }
+  function powerFit(p){ return p.feeds.reduce((sum,f)=>sum+(player.levels[f]||0),0); }
 
-  function applyClassReward(relic){
+  function applyPower(p){
+    const L = player.levels, before = getActiveBuilds();
+    for(const [k,v] of Object.entries(p.grant)) L[k] = Math.min(UPGRADE_MAX[k], Math.max(L[k]||0, v));
+    for(const [k,v] of Object.entries(p.bonus||{})) L[k] = Math.min(UPGRADE_MAX[k], (L[k]||0)+v);
+    player.power = p.key; player.powerTier = 1; player.pmods = {a:0,b:0,c:0};
+    recomputeStats();
+    if(p.key==='aegis') player.shieldCharges = Math.min(player.shieldMax, player.shieldCharges+2);
+    growShip(2);
     sfx.classReward();
-    if(CLASS_KEYS.includes(relic.key)){
-      player.classes[relic.key] = true;
-      if(relic.key === 'nova') player.novaTimer = 3000;
-      if(relic.key === 'regen') player.regenTimer = 15000;
-    } else {
-      const statKey = relic.key==='siege' ? 'sideguns' : relic.key;
-      player.levels[statKey] = Math.min(UPGRADE_MAX[statKey]||5, (player.levels[statKey]||0)+2);
-      recomputeStats();
-    }
-    spawnPopup(player.x, player.y-34, relic.name+' ACQUIRED', relic.color);
-    spawnPopup(player.x, player.y-18, relic.desc, relic.color);
+    explode(player.x, player.y, p.color, 40);
+    spawnPopup(player.x, player.y-34, 'POWER: '+p.name, p.color);
+    spawnPopup(player.x, player.y-18, p.desc, p.color);
+    announceNewBuilds(before);
     updateHUD();
   }
+  function applyPowerMod(p, m){
+    player.pmods[m.k] = Math.min(POWER_MOD_MAX, (player.pmods[m.k]||0)+1);
+    player.powerTier++;
+    growShip(1);
+    sfx.classReward();
+    explode(player.x, player.y, p.color, 24);
+    spawnPopup(player.x, player.y-34, m.name+' '+ROMAN[player.pmods[m.k]], p.color);
+    spawnPopup(player.x, player.y-18, m.desc, p.color);
+    updateHUD();
+  }
+  function growShip(n){
+    player.upgradeCount += n;
+    const newTier = Math.min(SHIP_TIER_MAX, Math.floor(player.upgradeCount / SHIP_TIER_UPGRADES));
+    if(newTier > player.shipTier){
+      player.shipTier = newTier;
+      const sk = activeSkin();
+      spawnPopup(player.x, player.y-50, 'FORM SHIFT // ' + (sk.forms ? sk.forms[newTier] : 'TIER '+newTier), sk.pal.glow);
+    }
+  }
 
-  // ---------- Boss Reward Choice ----------
-  // Boss kills pause the action and offer a real, visible choice: relics
-  // tied to the boss you just fought, backfilled with normal upgrades if
-  // you've already claimed everything that boss can offer.
+  // ---------- Boss reward ----------
+  // 1st boss: choose your build-defining POWER. Later bosses: upgrade that power.
+  function bossChoiceButton(list, color, name, lines, tag, onPick){
+    const btn = document.createElement('button');
+    btn.className = 'choiceBtn';
+    btn.style.borderColor = color;
+    btn.style.boxShadow = '0 0 18px '+color+'44';
+    btn.innerHTML = '<div class="choiceName" style="color:'+color+'">'+name+'</div>'+
+      lines.map(l=>'<div class="choiceDesc">'+l+'</div>').join('')+
+      (tag ? '<div class="choiceSynergy" style="color:'+color+'">'+tag+'</div>' : '');
+    let done = false;
+    btn.addEventListener('click', ()=>{
+      if(done) return; done = true;
+      list.querySelectorAll('.choiceBtn').forEach(b=>b.disabled=true);
+      onPick();
+      closeChoice();
+      // The wave that follows a boss can also be a shrine wave (e.g. wave 6).
+      if(state==='playing' && wave % 3 === 0 && wave % RUN.bossEvery !== 0) triggerUpgradeChoice();
+    });
+    list.appendChild(btn);
+  }
   function triggerBossRewardChoice(bossKind){
     paused = true;
-    const relicPool = (BOSS_RELICS[bossKind]||[]).filter(r=>{
-      if(CLASS_KEYS.includes(r.key)) return !player.classes[r.key];
-      const statKey = r.key==='siege' ? 'sideguns' : r.key;
-      return (player.levels[statKey]||0) < (UPGRADE_MAX[statKey]||5);
-    });
-    for(let i=relicPool.length-1;i>0;i--){
-      const j=Math.floor(Math.random()*(i+1));
-      const tmp=relicPool[i]; relicPool[i]=relicPool[j]; relicPool[j]=tmp;
-    }
-    const picks = relicPool.slice(0,3);
-    while(picks.length<3){
-      const type = UPGRADE_TYPES[Math.floor(Math.random()*UPGRADE_TYPES.length)];
-      picks.push({ key:type, generic:true, name:UPGRADE_LABELS[type],
-        desc:(UPGRADE_DESC[type]||'SYSTEM UPGRADE'), color:UPGRADE_COLORS[type] });
-    }
-    document.getElementById('choiceTitle').textContent = 'BOSS DEFEATED \u2014 CHOOSE YOUR REWARD';
-    const list=document.getElementById('choiceList');
-    list.innerHTML='';
-    for(const pick of picks){
-      const btn=document.createElement('button');
-      btn.className='choiceBtn';
-      btn.style.borderColor=pick.color;
-      btn.style.boxShadow='0 0 18px '+pick.color+'44';
-      btn.innerHTML='<div class="choiceName" style="color:'+pick.color+'">'+pick.name+'</div>'+
-        '<div class="choiceDesc">'+pick.desc+'</div>';
-      const choose = ()=>{
-        list.querySelectorAll('.choiceBtn').forEach(b=>b.disabled=true);
-        if(pick.generic) applyUpgrade(pick.key);
-        else applyClassReward(pick);
-        document.getElementById('choiceOverlay').classList.add('hidden');
-        document.getElementById('choiceTitle').textContent = 'CHOOSE AN UPGRADE';
-        paused=false;
-      };
-      btn.addEventListener('click', choose);
-      btn.addEventListener('touchend', choose, {passive:true});
-      list.appendChild(btn);
+    const list = document.getElementById('choiceList');
+    list.innerHTML = '';
+    const title = document.getElementById('choiceTitle'), sub = document.getElementById('choiceSub');
+    const pw = currentPower();
+    if(!pw){
+      title.textContent = 'BOSS DEFEATED \u2014 CLAIM A POWER';
+      sub.textContent = 'This defines your build. Later bosses will upgrade it.';
+      // Show the powers closest to what you already own, plus a couple of wildcards.
+      const ranked = POWERS.map(p=>{
+        const a = BUILD_ARCHETYPES.find(x=>x.key===p.key);
+        return { p, prog: buildProgress(a), score: buildProgress(a)*10 + powerFit(p) + Math.random()*1.5 };
+      }).sort((x,y)=>y.score-x.score);
+      const top = ranked.slice(0,2), rest = shuffleInPlace(ranked.slice(2)).slice(0,2);
+      for(const r of top.concat(rest)){
+        const tag = r.prog>0 ? 'MATCHES YOUR BUILD '+Math.round(r.prog*100)+'%' : '';
+        bossChoiceButton(list, r.p.color, r.p.name, [r.p.desc], tag, ()=>applyPower(r.p));
+      }
+    } else {
+      title.textContent = 'BOSS DEFEATED \u2014 UPGRADE '+pw.name;
+      sub.textContent = 'Power level '+ROMAN[player.powerTier]+' \u2192 '+ROMAN[player.powerTier+1];
+      const avail = pw.mods.filter(m=>(player.pmods[m.k]||0) < POWER_MOD_MAX);
+      if(avail.length){
+        for(const m of avail){
+          const cur = player.pmods[m.k]||0;
+          bossChoiceButton(list, pw.color, m.name, [m.desc], 'Lv '+cur+' \u2192 '+(cur+1)+' / '+POWER_MOD_MAX, ()=>applyPowerMod(pw, m));
+        }
+      } else {
+        // Power fully upgraded: bosses restore the ship instead.
+        bossChoiceButton(list, pw.color, 'CORE OVERHAUL', ['Your power is fully upgraded. Fully repairs the hull and adds a shield charge.'], '', ()=>{
+          player.hp = player.maxHp; player.shieldCharges = Math.min(player.shieldMax, player.shieldCharges+1);
+          spawnPopup(player.x, player.y-34, 'CORE OVERHAUL', pw.color); updateHUD();
+        });
+      }
     }
     document.getElementById('choiceOverlay').classList.remove('hidden');
   }
@@ -1512,12 +1605,13 @@
     const comboMult = 1 + Math.min(2.5, Math.floor(player.combo/4)*0.5);
     // Chain reaction: one kill can arc into nearby enemies.
     if(player.levels.chain){
-      const R=(player.levels.chain>=3?72:42)+player.levels.chain*8;
+      const R=((player.levels.chain>=3?72:42)+player.levels.chain*8)*(1+0.25*pm('arc','b'));
+      const arcMul=pB('arc')*(1+0.3*pm('arc','a'));
       const targets=enemies.filter(other=>other!==e && other.hp>0 && Math.hypot(other.x-e.x,other.y-e.y)<R)
         .sort((a,b)=>Math.hypot(a.x-e.x,a.y-e.y)-Math.hypot(b.x-e.x,b.y-e.y))
-        .slice(0,player.levels.chain>=3?3:99);
+        .slice(0,player.levels.chain>=3?3+2*pm('arc','c'):99);
       for(const other of targets){
-        other.hp -= (player.levels.chain>=3?BAL.chainDmg:0.7)*player.levels.chain;
+        other.hp -= (player.levels.chain>=3?BAL.chainDmg:0.7)*player.levels.chain*arcMul;
         chainZaps.push({x1:e.x,y1:e.y,x2:other.x,y2:other.y,t:0,life:150});
         explode(other.x,other.y,'#55f2ff',5);
       }
@@ -1526,9 +1620,9 @@
     if(player.levels.burn>=3 && player.levels.execution>=2 && e.burnUntil && gameTime < e.burnUntil){
       for(const other of enemies){
         if(other===e || other.hp<=0) continue;
-        if(Math.hypot(other.x-e.x, other.y-e.y) < 85){
-          other.burnUntil = Math.max(other.burnUntil||0, gameTime + BAL.burnSec*1000*player.levels.burn);
-          other.burnDmg = Math.max(other.burnDmg||0, BAL.burnDps*player.levels.burn);
+        if(Math.hypot(other.x-e.x, other.y-e.y) < 85*(1+0.25*pm('inferno','b'))){
+          other.burnUntil = Math.max(other.burnUntil||0, gameTime + BAL.burnSec*1000*player.levels.burn*burnDurMul());
+          other.burnDmg = Math.max(other.burnDmg||0, BAL.burnDps*player.levels.burn*burnDpsMul());
           explode(other.x,other.y,'#ff7043',4);
         }
       }
@@ -1837,7 +1931,10 @@
     document.getElementById('waveVal').textContent = bossActive ? 'BOSS' : wave;
     document.getElementById('weaponVal').textContent = player.weaponLevel;
     const comboEl=document.getElementById('comboVal'); if(comboEl) comboEl.textContent=player.combo>0 ? ('x'+(1+Math.min(2.5,Math.floor(player.combo/4)*0.5)).toFixed(1)+' ['+player.combo+']') : '0';
-    const buildEl=document.getElementById('buildRow'); if(buildEl){ buildEl.innerHTML=getActiveBuilds().map(a=>'<span class="buildTag" style="color:'+a.color+'">'+a.short+'</span>').join(''); }
+    const buildEl=document.getElementById('buildRow'); if(buildEl){
+      const pw=currentPower();
+      buildEl.innerHTML=(pw?'<span class="buildTag" style="color:'+pw.color+'">\u2605 '+pw.name+' '+ROMAN[player.powerTier]+'</span>':'')+
+        getActiveBuilds().filter(a=>!pw||a.key!==pw.key).map(a=>'<span class="buildTag" style="color:'+a.color+'">'+a.short+'</span>').join(''); }
 
     const livesDiv = document.getElementById('lives');
     livesDiv.innerHTML = '';
@@ -1939,8 +2036,8 @@
         player.phaseTimer -= dt;
         if(player.phaseTimer <= 0){
           player.phaseTimer = Math.max(6500, 10500-player.levels.phase*1000);
-          player.invuln = Math.max(player.invuln, 900);
-          if(player.levels.phase>=2 && player.levels.dash>=2) player.ghostBoost = BAL.ghostBoostMs;
+          player.invuln = Math.max(player.invuln, 900 + 250*pm('ghost','b'));
+          if(player.levels.phase>=2 && player.levels.dash>=2) player.ghostBoost = ghostMs();
           spawnPopup(player.x,player.y-35,'PHASED','#a78bff');
         }
       }
@@ -1949,8 +2046,8 @@
         if(player.dashTimer<=0){
           player.dashTimer = Math.max(2200,4800-player.levels.dash*550);
           const ghostBuild = player.levels.phase>=2 && player.levels.dash>=2;
-          player.invuln = Math.max(player.invuln, ghostBuild ? 900 : 260);
-          if(ghostBuild){ player.phaseTimer = Math.min(player.phaseTimer, 500); player.ghostBoost = BAL.ghostBoostMs; }
+          player.invuln = Math.max(player.invuln, ghostBuild ? 900 + 250*pm('ghost','b') : 260);
+          if(ghostBuild){ player.phaseTimer = Math.min(player.phaseTimer, 500); player.ghostBoost = ghostMs(); }
           player.x += mx*80; player.y += my*80;
           player.x=Math.max(player.r,Math.min(W-player.r,player.x));
           player.y=Math.max(TOP_MARGIN+player.r,Math.min(bottomLimit()-player.r,player.y));
@@ -1962,6 +2059,13 @@
         if(player.repairTimer<=0){
           player.repairTimer = Math.max(6500,12000-player.levels.repair*1300);
           if(player.hp<player.maxHp){ player.hp++; spawnPopup(player.x,player.y-30,'AUTO REPAIR','#69ff9d'); updateHUD(); }
+        }
+      }
+      if(pm('aegis','c')>0){
+        player.aegisTimer -= dt;
+        if(player.aegisTimer<=0){
+          player.aegisTimer = Math.max(6000, 17000 - pm('aegis','c')*3000);
+          if(player.shieldCharges<player.shieldMax){ player.shieldCharges++; spawnPopup(player.x,player.y-30,'SHIELD FORGE','#b8c6ff'); updateHUD(); }
         }
       }
       if(player.levels.pulse){
@@ -2020,13 +2124,14 @@
       if(player.levels.missiles){
         player.missileTimer=(player.missileTimer||0)-dt;
         if(player.missileTimer<=0){
-          player.missileTimer=Math.max(1100,2600-player.levels.missiles*320);
+          player.missileTimer=Math.max(700,(2600-player.levels.missiles*320)*(1-0.15*pm('missile','b')));
           const mirv = player.levels.missiles>=3;
-          const n=mirv?3:1;
+          const n=mirv?3+pm('missile','c'):1;
+          const mMul = pB('missile')*(1+0.3*pm('missile','a'));
           for(let i=0;i<n;i++){
-            const spread = mirv ? (i-1)*55 : 0;
-            bullets.push({x:player.x+(i?spread*.15:0),y:player.y-8,vx:spread,vy:-260,r:5,
-              dmg:player.bulletDmg*(BAL.missileDmg+player.levels.missiles*BAL.missileDmgPerLevel)*(mirv?1.08:1),pierce:0,dead:false,
+            const spread = mirv ? (i-(n-1)/2)*55 : 0;
+            bullets.push({x:player.x+spread*.15,y:player.y-8,vx:spread,vy:-260,r:5,
+              dmg:player.bulletDmg*(BAL.missileDmg+player.levels.missiles*BAL.missileDmgPerLevel)*(mirv?1.08:1)*mMul,pierce:0,dead:false,
               missile:true,ricochet:0,burn:player.levels.burn,signature:mirv});
           }
         }
@@ -2035,8 +2140,8 @@
       if(player.levels.orbitals>=3){
         player.signatureTimer=(player.signatureTimer||0)-dt;
         if(player.signatureTimer<=0){
-          player.signatureTimer=1650;
-          const R=105+player.levels.orbitals*14, dmg=0.8+player.levels.orbitals*BAL.novaRingDmg;
+          player.signatureTimer=1650*(1-0.15*pm('nova','b'));
+          const R=(105+player.levels.orbitals*14)*(1+0.2*pm('nova','c')), dmg=(0.8+player.levels.orbitals*BAL.novaRingDmg)*pB('nova')*(1+0.3*pm('nova','a'));
           for(const e of enemies) if(e.hp>0 && Math.hypot(e.x-player.x,e.y-player.y)<R) e.hp-=dmg;
           if(boss && Math.hypot(boss.x-player.x,boss.y-player.y)<R+boss.r) hurtBoss(dmg);
           novaPulses.push({x:player.x,y:player.y,r:18,life:360,t:0,color:'#72b7ff'});
@@ -2282,8 +2387,8 @@
           if(player.levels.gravity && e.slowMul<1) hitDmg*=1+player.levels.gravity*BAL.gravityVuln;
           e.hp -= hitDmg;
           if(b.burn){
-            e.burnUntil = Math.max(e.burnUntil||0, gameTime + BAL.burnSec*1000*b.burn);
-            e.burnDmg = Math.max(e.burnDmg||0, BAL.burnDps*b.burn);
+            e.burnUntil = Math.max(e.burnUntil||0, gameTime + BAL.burnSec*1000*b.burn*burnDurMul());
+            e.burnDmg = Math.max(e.burnDmg||0, BAL.burnDps*b.burn*burnDpsMul());
           }
           explode(b.x,b.y,e.color,4);
           if(b.pierce>0){ b.pierce--; } else {
@@ -2308,8 +2413,8 @@
           } else {
             let bd = b.dmg;
             if(b.burn){
-              boss.burnUntil = Math.max(boss.burnUntil||0, gameTime + BAL.burnSec*1000*b.burn);
-              boss.burnDmg = Math.max(boss.burnDmg||0, BAL.burnDps*b.burn);
+              boss.burnUntil = Math.max(boss.burnUntil||0, gameTime + BAL.burnSec*1000*b.burn*burnDurMul());
+              boss.burnDmg = Math.max(boss.burnDmg||0, BAL.burnDps*b.burn*burnDpsMul());
             }
             hurtBoss(bd);
             if(frame % 6 === 0) sfx.bossHit();
@@ -2376,7 +2481,7 @@
 
   function pinballBounce(x,y){
     if(!(player.levels.ricochet>=3 && player.levels.pierce>=2)) return;
-    const R = 48, dmg = player.bulletDmg*BAL.pinballDmg;
+    const R = 48*(1+0.25*pm('pinball','b')), dmg = player.bulletDmg*BAL.pinballDmg*pB('pinball')*(1+0.35*pm('pinball','a'));
     for(const e of enemies){
       if(e.hp<=0) continue;
       if(Math.hypot(e.x-x, e.y-y) < R){
@@ -2388,8 +2493,8 @@
 
   function triggerAegisShockwave(){
     if(!(player.levels.armor>=2 && player.levels.barrier>=1)) return;
-    const R = 130 + player.levels.barrier*16;
-    const dmg = BAL.aegisBase + player.levels.armor*BAL.aegisArmor + player.levels.barrier*BAL.aegisBarrier;
+    const R = (130 + player.levels.barrier*16)*(1+0.2*pm('aegis','b'));
+    const dmg = (BAL.aegisBase + player.levels.armor*BAL.aegisArmor + player.levels.barrier*BAL.aegisBarrier)*pB('aegis')*(1+0.3*pm('aegis','a'));
     for(const e of enemies){
       if(e.hp<=0) continue;
       if(Math.hypot(e.x-player.x, e.y-player.y) < R){
@@ -3054,20 +3159,20 @@
     document.getElementById('startScreen').classList.remove('hidden');
   });
 
-  // ---------- Upgrade Choice Shrine (every 3rd non-boss wave) ----------
+  // ---------- Upgrade Choice Shrine (every 3rd wave) ----------
+  // Offers build-shaping upgrades (plain stats come from enemy drops). Once a boss
+  // power is chosen, the shrine leans hard toward upgrades that feed it.
   function triggerUpgradeChoice(){
     paused=true;
-    let pool=UPGRADE_TYPES.filter(type=>{
-      if(type==='shield') return player.shieldCharges < player.shieldMax;
-      if(type==='life') return player.maxHp < 12;
-      return (player.levels[type]||0) < (UPGRADE_MAX[type]||1);
-    });
-    if(pool.length<3) pool=UPGRADE_TYPES.slice();
+    const pw = currentPower();
+    let pool = UPGRADE_TYPES.filter(t=>!STAT_DROPS.includes(t) && canTake(t));
+    if(pool.length<3) pool = pool.concat(UPGRADE_TYPES.filter(t=>STAT_DROPS.includes(t) && canTake(t)));
+    if(pool.length<3) pool = UPGRADE_TYPES.slice();
     const types=[];
     while(types.length<3 && pool.length){
       let total=0;
       const weights=pool.map(type=>{
-        const w=1+upgradeSynergyScore(type)*0.9;
+        const w=1+upgradeSynergyScore(type)*0.9 + (pw && pw.feeds.includes(type) ? 5 : 0);
         total+=w; return w;
       });
       let roll=Math.random()*total, idx=0;
@@ -3075,24 +3180,37 @@
       if(idx>=pool.length) idx=pool.length-1;
       types.push(pool.splice(idx,1)[0]);
     }
+    // Guarantee at least one card that feeds your power.
+    if(pw && !types.some(t=>pw.feeds.includes(t))){
+      const feed = pw.feeds.filter(t=>canTake(t) && !types.includes(t));
+      if(feed.length) types[types.length-1] = feed[Math.floor(Math.random()*feed.length)];
+    }
+    document.getElementById('choiceTitle').textContent = 'WAVE '+wave+' \u2014 CHOOSE AN UPGRADE';
+    document.getElementById('choiceSub').textContent = pw ? 'Cards marked \u2605 feed your '+pw.name+' power.' : 'Shape your build route.';
     const list=document.getElementById('choiceList');
     list.innerHTML='';
     for(const type of types){
       let curLvl=type==='shield'?player.shieldCharges:(type==='life'?Math.max(0,player.maxHp-3):(player.levels[type]||0));
-      const near = BUILD_ARCHETYPES.filter(a=>a.req[type]!==undefined && buildProgress(a)<1)
-        .sort((a,b)=>buildProgress(a)-buildProgress(b))[0];
-      const tag = near ? '<div class="choiceSynergy" style="color:'+near.color+'">'+near.short+' '+Math.round(buildProgress(near)*100)+'%</div>' : '';
+      let tag='';
+      if(pw && pw.feeds.includes(type)){
+        tag='<div class="choiceSynergy" style="color:'+pw.color+'">\u2605 FEEDS '+pw.name+'</div>';
+      } else {
+        const near = BUILD_ARCHETYPES.filter(a=>a.req[type]!==undefined && buildProgress(a)<1)
+          .sort((a,b)=>buildProgress(a)-buildProgress(b))[0];
+        if(near) tag='<div class="choiceSynergy" style="color:'+near.color+'">'+near.short+' '+Math.round(buildProgress(near)*100)+'%</div>';
+      }
       const btn=document.createElement('button');
       btn.className='choiceBtn';
       btn.style.borderColor=UPGRADE_COLORS[type];
       btn.style.boxShadow='0 0 18px '+UPGRADE_COLORS[type]+'44';
       btn.innerHTML='<div class="choiceName" style="color:'+UPGRADE_COLORS[type]+'">'+UPGRADE_LABELS[type]+'</div>'+
-        '<div class="choiceDesc">Lv '+curLvl+' → '+(curLvl+1)+'</div>'+
+        '<div class="choiceDesc">Lv '+curLvl+' \u2192 '+(curLvl+1)+'</div>'+
         '<div class="choiceDesc">'+(UPGRADE_DESC[type]||'SYSTEM UPGRADE')+'</div>'+tag;
+      let done=false;
       btn.addEventListener('click',()=>{
+        if(done) return; done=true;
         applyUpgrade(type);
-        document.getElementById('choiceOverlay').classList.add('hidden');
-        paused=false;
+        closeChoice();
       });
       list.appendChild(btn);
     }
