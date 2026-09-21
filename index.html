@@ -123,6 +123,18 @@
     padding-top:max(24px, env(safe-area-inset-top)); padding-bottom:max(24px, env(safe-area-inset-bottom));
   }
   #hangarOverlay > *{ flex-shrink:0; }
+  #settingsOverlay{
+    background:radial-gradient(circle at 50% 20%, #140a28, #03030c); z-index:25;
+    overflow-y:auto; justify-content:flex-start; touch-action:pan-y; -webkit-overflow-scrolling:touch;
+    padding-top:max(24px, env(safe-area-inset-top)); padding-bottom:max(24px, env(safe-area-inset-bottom));
+  }
+  #settingsOverlay > *{ flex-shrink:0; }
+  .setRow{ display:flex; flex-direction:column; gap:8px; background:rgba(53,227,255,0.06); border:1px solid rgba(53,227,255,0.25);
+    border-radius:8px; padding:10px 14px; width:100%; box-sizing:border-box; }
+  .setRow .top{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .setRow input[type=range]{ width:100%; accent-color:var(--ion); touch-action:pan-x; }
+  .setRow .val{ color:var(--ion); font-size:12px; font-weight:bold; }
+  .dangerBtn{ background:linear-gradient(135deg,#ff6a7a,#a02a44) !important; color:#fff !important; }
   .sectionTitle{ color:var(--gold); font-size:13px; letter-spacing:3px; margin:14px 0 0; text-align:left; width:100%; font-weight:bold; }
   .sectionHint{ color:var(--hull-dim); font-size:11px; text-align:left; width:100%; margin-top:-4px; }
   .skinRow{
@@ -183,6 +195,23 @@
     animation: bosspulse 1.6s ease-in-out infinite;
   }
   @keyframes bosspulse{ 0%,100%{ opacity:.45 } 50%{ opacity:1 } }
+
+  /* ---- Language support: longer words must never break the layout ---- */
+  .overlay p, .perkName, .perkDesc, .choiceName, .choiceDesc, #choiceSub, .sectionHint, .skinTier{ overflow-wrap:anywhere; }
+  .perkRow{ gap:10px; }
+  .perkInfo{ flex:1; min-width:0; }
+  #startScreen, #overScreen{
+    overflow-y:auto; justify-content:flex-start; touch-action:pan-y; -webkit-overflow-scrolling:touch;
+    padding-top:max(24px, env(safe-area-inset-top)); padding-bottom:max(24px, env(safe-area-inset-bottom));
+  }
+  #startScreen > *, #overScreen > *{ flex-shrink:0; }
+  #startScreen > *:first-child, #overScreen > *:first-child{ margin-top:auto; }
+  #startScreen > *:last-child, #overScreen > *:last-child{ margin-bottom:auto; }
+  #legend{ gap:10px; }
+  .legend-item{ width:70px; text-align:center; overflow-wrap:anywhere; }
+  .langBtns{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .langBtn{ background:rgba(255,255,255,0.08); color:var(--hull); padding:10px 8px; }
+  .langBtn.active{ background:linear-gradient(135deg, var(--ion), #1c7fa0); color:#03131a; }
 </style>
 </head>
 <body>
@@ -191,14 +220,14 @@
 
   <div id="hud">
     <div class="hud-block">
-      SCORE<br><b id="scoreVal">0</b>
+      <span data-i18n="SCORE">SCORE</span><br><b id="scoreVal">0</b>
       <div id="lives"></div>
     </div>
     <div class="hud-block" id="weaponBadge">
-      WAVE <b id="waveVal">1</b><br>
-      LVL <b id="weaponVal">1</b>
+      <span data-i18n="WAVE">WAVE</span> <b id="waveVal">1</b><br>
+      <span data-i18n="LVL">LVL</span> <b id="weaponVal">1</b>
       <div id="upgradeRow"></div>
-      <div id="comboRow">FLOW <b id="comboVal">0</b></div>
+      <div id="comboRow"><span data-i18n="FLOW">FLOW</span> <b id="comboVal">0</b></div>
       <div id="buildRow"></div>
     </div>
   </div>
@@ -209,49 +238,58 @@
 
   <div id="topBtns">
     <button class="iconBtn" id="muteBtn">🔊</button>
+    <button class="iconBtn" id="settingsGearBtn">⚙</button>
     <button class="iconBtn" id="pauseBtn">⏸</button>
   </div>
 
   <div class="overlay" id="pauseOverlay">
-    <h1 style="font-size:28px;">PAUSED</h1>
-    <button class="btn" id="resumeBtn">RESUME</button>
-    <button class="btn" id="quitBtn">QUIT TO MENU</button>
+    <h1 style="font-size:28px;" data-i18n="PAUSED">PAUSED</h1>
+    <button class="btn" id="resumeBtn" data-i18n="RESUME">RESUME</button>
+    <button class="btn" id="pauseSettingsBtn" style="background:linear-gradient(135deg,#8a93b8,#4a5170);" data-i18n="SETTINGS">SETTINGS</button>
+    <button class="btn" id="quitBtn" data-i18n="QUIT TO MENU">QUIT TO MENU</button>
   </div>
 
   <div class="overlay" id="startScreen">
     <h1>GALACTIC DEFENDER</h1>
     <p id="highScoreLine"></p>
     <p id="coresLine" style="color:var(--gold); font-size:13px;"></p>
-    <p>Touch anywhere along the bottom control strip — left or right — and drag to move your ship. Your ship fires automatically.</p>
-    <p>Build your own route. Pick an opening upgrade, then choose a new upgrade every 3rd wave. Enemies only drop simple stat boosts (damage, fire rate, speed, shields...).</p>
-    <p>Every 5th wave a BOSS locks down the field. The first boss drops a build-defining POWER — MIRV, ARC STORM, NOVA RING, AEGIS, RAILGUN, BROADSIDER, INFERNO, GHOST WALKER, KALEIDOSCOPE or PINBALL. Every later boss drops a small but impactful upgrade to the power you chose.</p>
+    <p data-i18n="Touch anywhere along the bottom control strip — left or right — and drag to move your ship. Your ship fires automatically.">Touch anywhere along the bottom control strip — left or right — and drag to move your ship. Your ship fires automatically.</p>
+    <p data-i18n="Build your own route. Pick an opening upgrade, then choose a new upgrade every 3rd wave. Enemies only drop simple stat boosts (damage, fire rate, speed, shields...).">Build your own route. Pick an opening upgrade, then choose a new upgrade every 3rd wave. Enemies only drop simple stat boosts (damage, fire rate, speed, shields...).</p>
+    <p data-i18n="Every 5th wave a BOSS locks down the field. The first boss drops a build-defining POWER — MIRV, ARC STORM, NOVA RING, AEGIS, RAILGUN, BROADSIDER, INFERNO, GHOST WALKER, KALEIDOSCOPE or PINBALL. Every later boss drops a small but impactful upgrade to the power you chose.">Every 5th wave a BOSS locks down the field. The first boss drops a build-defining POWER — MIRV, ARC STORM, NOVA RING, AEGIS, RAILGUN, BROADSIDER, INFERNO, GHOST WALKER, KALEIDOSCOPE or PINBALL. Every later boss drops a small but impactful upgrade to the power you chose.</p>
     <div id="legend">
-      <div class="legend-item"><div class="swatch" style="background:#ffcf4a"></div>WEAPON</div>
-      <div class="legend-item"><div class="swatch" style="background:#ff3d6e"></div>DAMAGE</div>
-      <div class="legend-item"><div class="swatch" style="background:#c17dff"></div>RAPID</div>
-      <div class="legend-item"><div class="swatch" style="background:#7dff8f"></div>SPEED</div>
-      <div class="legend-item"><div class="swatch" style="background:#35e3ff"></div>SHIELD</div>
-      <div class="legend-item"><div class="swatch" style="background:#ff6b6b"></div>+LIFE</div>
-      <div class="legend-item"><div class="swatch" style="background:#ffa64a"></div>PIERCE</div>
-      <div class="legend-item"><div class="swatch" style="background:#4affd0"></div>MAGNET</div>
-      <div class="legend-item"><div class="swatch" style="background:#ff6a2b"></div>BLAST</div>
-      <div class="legend-item"><div class="swatch" style="background:#c9ff4a"></div>HOMING</div>
-      <div class="legend-item"><div class="swatch" style="background:#ff2b4d"></div>CRIT</div>
-      <div class="legend-item"><div class="swatch" style="background:#9db4ff"></div>ARMOR</div>
-      <div class="legend-item"><div class="swatch" style="background:#ff4d8d"></div>VAMPIRE</div>
-      <div class="legend-item"><div class="swatch" style="background:#4de3ff"></div>CHAIN</div>
-      <div class="legend-item"><div class="swatch" style="background:#ffb347"></div>REAR GUN</div>
+      <div class="legend-item"><div class="swatch" style="background:#ffcf4a"></div><span data-i18n="WEAPON">WEAPON</span></div>
+      <div class="legend-item"><div class="swatch" style="background:#ff3d6e"></div><span data-i18n="DAMAGE">DAMAGE</span></div>
+      <div class="legend-item"><div class="swatch" style="background:#c17dff"></div><span data-i18n="RAPID">RAPID</span></div>
+      <div class="legend-item"><div class="swatch" style="background:#7dff8f"></div><span data-i18n="SPEED">SPEED</span></div>
+      <div class="legend-item"><div class="swatch" style="background:#35e3ff"></div><span data-i18n="SHIELD">SHIELD</span></div>
+      <div class="legend-item"><div class="swatch" style="background:#ff6b6b"></div><span data-i18n="+LIFE">+LIFE</span></div>
+      <div class="legend-item"><div class="swatch" style="background:#ffa64a"></div><span data-i18n="PIERCE">PIERCE</span></div>
+      <div class="legend-item"><div class="swatch" style="background:#4affd0"></div><span data-i18n="MAGNET">MAGNET</span></div>
+      <div class="legend-item"><div class="swatch" style="background:#ff6a2b"></div><span data-i18n="BLAST">BLAST</span></div>
+      <div class="legend-item"><div class="swatch" style="background:#c9ff4a"></div><span data-i18n="HOMING">HOMING</span></div>
+      <div class="legend-item"><div class="swatch" style="background:#ff2b4d"></div><span data-i18n="CRIT">CRIT</span></div>
+      <div class="legend-item"><div class="swatch" style="background:#9db4ff"></div><span data-i18n="ARMOR">ARMOR</span></div>
+      <div class="legend-item"><div class="swatch" style="background:#ff4d8d"></div><span data-i18n="VAMPIRE">VAMPIRE</span></div>
+      <div class="legend-item"><div class="swatch" style="background:#4de3ff"></div><span data-i18n="CHAIN">CHAIN</span></div>
+      <div class="legend-item"><div class="swatch" style="background:#ffb347"></div><span data-i18n="REAR GUN">REAR GUN</span></div>
     </div>
-    <button class="btn" id="startBtn">START MISSION</button>
+    <button class="btn" id="startBtn" data-i18n="START MISSION">START MISSION</button>
     <button class="btn" id="hangarBtn" style="background:linear-gradient(135deg,#9db4ff,#4a5a9a); margin-top:12px;">HANGAR</button>
+    <button class="btn" id="settingsBtn" style="background:linear-gradient(135deg,#8a93b8,#4a5170); margin-top:12px;" data-i18n="SETTINGS">SETTINGS</button>
   </div>
 
   <div class="overlay hidden" id="hangarOverlay">
     <h1 style="font-size:26px;">HANGAR</h1>
     <p style="color:var(--gold); font-size:14px;" id="hangarCoresLine">CORES: 0</p>
-    <p style="max-width:340px;">Spend Cores earned from runs on permanent bonuses and new ship skins.</p>
+    <p style="max-width:340px;" data-i18n="Spend Cores earned from runs on permanent bonuses and new ship skins.">Spend Cores earned from runs on permanent bonuses and new ship skins.</p>
     <div id="hangarList" style="display:flex; flex-direction:column; gap:10px; width:100%; max-width:360px; margin-top:8px;"></div>
-    <button class="btn" id="hangarBackBtn">BACK</button>
+    <button class="btn" id="hangarBackBtn" data-i18n="BACK">BACK</button>
+  </div>
+
+  <div class="overlay hidden" id="settingsOverlay">
+    <h1 style="font-size:26px;" data-i18n="SETTINGS">SETTINGS</h1>
+    <div id="settingsList" style="display:flex; flex-direction:column; gap:10px; width:100%; max-width:360px; margin-top:10px;"></div>
+    <button class="btn" id="settingsBackBtn" data-i18n="BACK">BACK</button>
   </div>
 
   <div class="overlay hidden" id="choiceOverlay">
@@ -261,15 +299,2828 @@
   </div>
 
   <div class="overlay hidden" id="overScreen">
-    <h1>MISSION OVER</h1>
+    <h1 data-i18n="MISSION OVER">MISSION OVER</h1>
     <h2 id="finalScore">SCORE: 0</h2>
     <p id="waveReached">Reached wave 1</p>
     <p id="bestScoreLine" style="color:var(--gold); font-size:13px;"></p>
     <p id="coresEarnedLine" style="color:var(--gold); font-size:14px;"></p>
-    <button class="btn" id="retryBtn">RETRY</button>
+    <button class="btn" id="retryBtn" data-i18n="RETRY">RETRY</button>
   </div>
 </div>
 
+<script>
+// Translations: [English text (also the lookup key), Deutsch, Français, Italiano]
+window.GD_I18N_ROWS = [
+[
+"WARBRINGER",
+"KRIEGSBRINGER",
+"BRINGUEUR DE GUERRE",
+"ARALDO DI GUERRA"
+],
+[
+"HIVE MOTHER",
+"BRUTKÖNIGIN",
+"MÈRE DE LA RUCHE",
+"MADRE DELL'ALVEARE"
+],
+[
+"TWIN REAPER",
+"ZWILLINGSSCHNITTER",
+"FAUCHEUR JUMEAU",
+"MIETITORE GEMELLO"
+],
+[
+"FIELD REPAIRS",
+"FELDREPARATUR",
+"RÉPARATIONS DE TERRAIN",
+"RIPARAZIONI SUL CAMPO"
+],
+[
+"Every boss you defeat restores +1 HP per level",
+"Jeder besiegte Boss stellt pro Stufe +1 LP wieder her",
+"Chaque boss vaincu restaure +1 PV par niveau",
+"Ogni boss sconfitto ripristina +1 PS per livello"
+],
+[
+"AFTERBURNERS",
+"NACHBRENNER",
+"POST-COMBUSTION",
+"POSTBRUCIATORI"
+],
+[
+"+1 Speed Level at run start",
+"+1 Geschwindigkeitsstufe zu Rundenbeginn",
+"+1 niveau de Vitesse au début de la partie",
+"+1 livello di Velocità a inizio partita"
+],
+[
+"TRACTOR BEAM",
+"TRAKTORSTRAHL",
+"RAYON TRACTEUR",
+"RAGGIO TRATTORE"
+],
+[
+"+1 Magnet Level at run start (pickups fly to you)",
+"+1 Magnetstufe zu Rundenbeginn (Items fliegen zu dir)",
+"+1 niveau d'Aimant au début de la partie (les bonus volent vers vous)",
+"+1 livello Magnete a inizio partita (gli oggetti volano verso di te)"
+],
+[
+"SHIELD CAPACITOR",
+"SCHILDSPEICHER",
+"CAPACITEUR DE BOUCLIER",
+"CONDENSATORE SCUDO"
+],
+[
+"+1 max Shield charge (carry more shields)",
+"+1 max. Schildladung (mehr Schilde tragen)",
+"+1 charge de Bouclier max (portez plus de boucliers)",
+"+1 carica Scudo max (porta più scudi)"
+],
+[
+"SUPPLY DRONE",
+"VERSORGUNGSDROHNE",
+"DRONE DE RAVITAILLEMENT",
+"DRONE DI RIFORNIMENTO"
+],
+[
+"+15% enemy drop rate per level",
+"+15 % Gegner-Dropchance pro Stufe",
+"+15 % de butin ennemi par niveau",
+"+15% probabilità di drop dai nemici per livello"
+],
+[
+"SALVAGE DRIVE",
+"BERGUNGSANTRIEB",
+"MOTEUR DE RÉCUPÉRATION",
+"PROPULSORE DI RECUPERO"
+],
+[
+"+10% Cores earned per run",
+"+10 % verdiente Kerne pro Runde",
+"+10 % de Noyaux gagnés par partie",
+"+10% Nuclei guadagnati per partita"
+],
+[
+"TARGETING COMPUTER",
+"ZIELCOMPUTER",
+"ORDINATEUR DE VISÉE",
+"COMPUTER DI MIRA"
+],
+[
+"+1 Damage Level at run start",
+"+1 Schadensstufe zu Rundenbeginn",
+"+1 niveau de Dégâts au début de la partie",
+"+1 livello di Danno a inizio partita"
+],
+[
+"OVERCHARGED REACTOR",
+"ÜBERLADENER REAKTOR",
+"RÉACTEUR SURCHARGÉ",
+"REATTORE SOVRACCARICO"
+],
+[
+"+1 Weapon Level at run start",
+"+1 Waffenstufe zu Rundenbeginn",
+"+1 niveau d'Arme au début de la partie",
+"+1 livello Arma a inizio partita"
+],
+[
+"SECOND OPINION",
+"ZWEITMEINUNG",
+"DEUXIÈME AVIS",
+"SECONDA OPINIONE"
+],
+[
+"Reroll your shrine choices once per level, each run",
+"Würfle deine Schrein-Auswahl pro Stufe einmal neu, in jeder Runde",
+"Relancez vos choix de sanctuaire une fois par niveau, à chaque partie",
+"Rilancia le scelte del santuario una volta per livello, a ogni partita"
+],
+[
+"PATHFINDER",
+"PFADFINDER",
+"ÉCLAIREUR",
+"ESPLORATORE"
+],
+[
+"Wave shrines offer 4 upgrades instead of 3",
+"Wellen-Schreine bieten 4 statt 3 Upgrades",
+"Les sanctuaires de vague offrent 4 améliorations au lieu de 3",
+"I santuari delle ondate offrono 4 potenziamenti invece di 3"
+],
+[
+"CLASSIC",
+"KLASSISCH",
+"CLASSIQUE",
+"CLASSICO"
+],
+[
+"The original fighter. Grows wings and armour as you upgrade.",
+"Der originale Jäger. Bekommt Flügel und Panzerung, wenn du aufrüstest.",
+"Le chasseur d'origine. Gagne des ailes et un blindage à chaque amélioration.",
+"Il caccia originale. Sviluppa ali e armatura man mano che potenzi."
+],
+[
+"EMBER",
+"GLUT",
+"BRAISE",
+"BRACE"
+],
+[
+"Forged in fire. Engine flames swell with speed and fire-rate upgrades, embers rise as you level.",
+"Im Feuer geschmiedet. Die Triebwerksflammen wachsen mit Tempo- und Feuerraten-Upgrades, Glut steigt mit jeder Stufe auf.",
+"Forgé dans le feu. Les flammes du moteur grandissent avec les améliorations de vitesse et de cadence, des braises s'élèvent à chaque niveau.",
+"Forgiata nel fuoco. Le fiamme dei motori crescono con i potenziamenti di velocità e cadenza, le braci salgono a ogni livello."
+],
+[
+"GLACIER",
+"GLETSCHER",
+"GLACIER",
+"GHIACCIAIO"
+],
+[
+"Living crystal. Ice shards sprout with every armour and barrier upgrade; a frost halo forms at high tiers.",
+"Lebendiger Kristall. Eissplitter wachsen mit jedem Panzerungs- und Barriere-Upgrade; auf hohen Stufen bildet sich ein Frosthalo.",
+"Cristal vivant. Des éclats de glace poussent à chaque amélioration de blindage et de barrière ; un halo de givre se forme aux hauts paliers.",
+"Cristallo vivente. Schegge di ghiaccio spuntano a ogni potenziamento di armatura e barriera; agli alti livelli si forma un alone di brina."
+],
+[
+"VENOM",
+"GIFT",
+"VENIN",
+"VELENO"
+],
+[
+"Toxic bio-hull. Spines multiply with every damage upgrade; acid drips from the wings at higher tiers.",
+"Toxische Bio-Hülle. Stacheln vermehren sich mit jedem Schadens-Upgrade; auf höheren Stufen tropft Säure von den Flügeln.",
+"Bio-coque toxique. Les épines se multiplient à chaque amélioration de dégâts ; de l'acide goutte des ailes aux paliers supérieurs.",
+"Bio-scafo tossico. Le spine si moltiplicano a ogni potenziamento del danno; agli alti livelli l'acido gocciola dalle ali."
+],
+[
+"PHANTOM",
+"PHANTOM",
+"FANTÔME",
+"FANTASMA"
+],
+[
+"A ship half in another dimension. Afterimages multiply with tier, Phase and Dash; a void ring opens at the top.",
+"Ein Schiff halb in einer anderen Dimension. Nachbilder vermehren sich mit Stufe, Phase und Dash; an der Spitze öffnet sich ein Leerering.",
+"Un vaisseau à moitié dans une autre dimension. Les images rémanentes se multiplient avec le palier, la Phase et le Dash ; un anneau du vide s'ouvre au sommet.",
+"Una nave a metà in un'altra dimensione. Le immagini residue si moltiplicano con livello, Fase e Scatto; in cima si apre un anello del vuoto."
+],
+[
+"SOLAR",
+"SOLAR",
+"SOLAIRE",
+"SOLARE"
+],
+[
+"A star in a bottle. Corona rays multiply with weapon and reactor upgrades; the core ignites at high tiers.",
+"Ein Stern in der Flasche. Koronastrahlen vermehren sich mit Waffen- und Reaktor-Upgrades; auf hohen Stufen entzündet sich der Kern.",
+"Une étoile en bouteille. Les rayons de la couronne se multiplient avec les améliorations d'arme et de réacteur ; le noyau s'embrase aux hauts paliers.",
+"Una stella in bottiglia. I raggi della corona si moltiplicano con i potenziamenti di arma e reattore; agli alti livelli il nucleo si accende."
+],
+[
+"TEMPEST",
+"STURM",
+"TEMPÊTE",
+"TEMPESTA"
+],
+[
+"Storm-forged. Lightning crawls over the wings and grows with every chain and critical upgrade.",
+"Im Sturm geschmiedet. Blitze kriechen über die Flügel und wachsen mit jedem Ketten- und Krit-Upgrade.",
+"Forgé dans la tempête. Des éclairs rampent sur les ailes et grandissent à chaque amélioration de chaîne et de critique.",
+"Forgiata nella tempesta. I fulmini strisciano sulle ali e crescono con ogni potenziamento di catena e critico."
+],
+[
+"REAPER",
+"SCHNITTER",
+"FAUCHEUR",
+"MIETITORE"
+],
+[
+"A crimson blade-ship. Scythe wings multiply with tier and damage; its eye opens as you grow.",
+"Ein purpurrotes Klingenschiff. Sensenflügel vermehren sich mit Stufe und Schaden; sein Auge öffnet sich, während du wächst.",
+"Un vaisseau-lame écarlate. Les ailes-faux se multiplient avec le palier et les dégâts ; son œil s'ouvre à mesure que vous progressez.",
+"Una nave-lama cremisi. Le ali a falce si moltiplicano con livello e danno; il suo occhio si apre man mano che cresci."
+],
+[
+"GAIA",
+"GAIA",
+"GAÏA",
+"GAIA"
+],
+[
+"Living wood and light. Leaves unfurl with every armour and repair upgrade; a bloom halo opens at high tiers.",
+"Lebendiges Holz und Licht. Blätter entfalten sich mit jedem Panzerungs- und Reparatur-Upgrade; auf hohen Stufen öffnet sich ein Blütenhalo.",
+"Bois vivant et lumière. Les feuilles se déploient à chaque amélioration de blindage et de réparation ; un halo de fleurs s'ouvre aux hauts paliers.",
+"Legno vivo e luce. Le foglie si dispiegano a ogni potenziamento di armatura e riparazione; agli alti livelli si apre un alone di fiori."
+],
+[
+"AURUM",
+"AURUM",
+"AURUM",
+"AURUM"
+],
+[
+"Black and gold royalty. Golden plates orbit the hull, one more for every orbital cannon you own.",
+"Schwarz-goldene Königswürde. Goldene Platten umkreisen den Rumpf, eine mehr für jede Orbitalkanone, die du besitzt.",
+"Royauté noir et or. Des plaques dorées orbitent autour de la coque, une de plus pour chaque canon orbital que vous possédez.",
+"Regalità nera e oro. Placche dorate orbitano attorno allo scafo, una in più per ogni cannone orbitale che possiedi."
+],
+[
+"SKIN DEFAULT",
+"SCHIFF-STANDARD",
+"PAR DÉFAUT",
+"PREDEFINITO"
+],
+[
+"Your ship’s own shot colour.",
+"Die eigene Schussfarbe deines Schiffs.",
+"La couleur de tir propre à votre vaisseau.",
+"Il colore di sparo originale della tua nave."
+],
+[
+"PLASMA GREEN",
+"PLASMAGRÜN",
+"VERT PLASMA",
+"VERDE PLASMA"
+],
+[
+"Bright acid-green bolts.",
+"Leuchtend säuregrüne Geschosse.",
+"Des tirs d'un vert acide éclatant.",
+"Colpi di un verde acido brillante."
+],
+[
+"RUBY",
+"RUBIN",
+"RUBIS",
+"RUBINO"
+],
+[
+"Deep red laser fire.",
+"Tiefroter Laserbeschuss.",
+"Un tir laser rouge profond.",
+"Fuoco laser rosso intenso."
+],
+[
+"ICE",
+"EIS",
+"GLACE",
+"GHIACCIO"
+],
+[
+"Pale frost-blue shots.",
+"Blassblaue Frostschüsse.",
+"Des tirs bleu givré pâle.",
+"Colpi azzurro gelido."
+],
+[
+"VOID VIOLET",
+"LEERENVIOLETT",
+"VIOLET DU VIDE",
+"VIOLA DEL VUOTO"
+],
+[
+"Shots from another dimension.",
+"Schüsse aus einer anderen Dimension.",
+"Des tirs venus d'une autre dimension.",
+"Colpi da un'altra dimensione."
+],
+[
+"GOLD",
+"GOLD",
+"OR",
+"ORO"
+],
+[
+"Shots that look expensive.",
+"Schüsse, die teuer aussehen.",
+"Des tirs qui ont l'air chers.",
+"Colpi che sembrano costosi."
+],
+[
+"RAINBOW",
+"REGENBOGEN",
+"ARC-EN-CIEL",
+"ARCOBALENO"
+],
+[
+"Every bullet cycles through colours.",
+"Jede Kugel wechselt durch die Farben.",
+"Chaque balle change de couleur en boucle.",
+"Ogni proiettile cambia colore in ciclo."
+],
+[
+"OVERCHARGED START",
+"ÜBERLADENER START",
+"DÉPART SURCHARGÉ",
+"PARTENZA SOVRACCARICA"
+],
+[
+"+1 Weapon Level",
+"+1 Waffenstufe",
+"+1 niveau d'Arme",
+"+1 livello Arma"
+],
+[
+"GLASS CANNON",
+"GLASKANONE",
+"CANON DE VERRE",
+"CANNONE DI VETRO"
+],
+[
+"+2 Damage, -1 Max HP",
+"+2 Schaden, -1 Max. LP",
+"+2 Dégâts, -1 PV max",
+"+2 Danno, -1 PS max"
+],
+[
+"SWIFT",
+"FLINK",
+"AGILE",
+"VELOCE"
+],
+[
+"+2 Speed Level",
+"+2 Geschwindigkeitsstufen",
+"+2 niveaux de Vitesse",
+"+2 livelli di Velocità"
+],
+[
+"FORTIFIED",
+"VERSTÄRKT",
+"FORTIFIÉ",
+"FORTIFICATO"
+],
+[
+"+1 Armor, +1 Barrier",
+"+1 Panzerung, +1 Barriere",
+"+1 Blindage, +1 Barrière",
+"+1 Armatura, +1 Barriera"
+],
+[
+"VAMPIRIC PACT",
+"VAMPIRPAKT",
+"PACTE VAMPIRIQUE",
+"PATTO VAMPIRICO"
+],
+[
+"+1 Vampire Level (kills can heal you)",
+"+1 Vampirstufe (Abschüsse können dich heilen)",
+"+1 niveau de Vampire (les éliminations peuvent vous soigner)",
+"+1 livello Vampiro (le uccisioni possono curarti)"
+],
+[
+"STATIC FIELD",
+"STATISCHES FELD",
+"CHAMP STATIQUE",
+"CAMPO STATICO"
+],
+[
+"+1 Chain Arc",
+"+1 Kettenblitz",
+"+1 Arc en chaîne",
+"+1 Arco a catena"
+],
+[
+"EMBER ROUNDS",
+"GLUTGESCHOSSE",
+"BALLES ARDENTES",
+"PROIETTILI ARDENTI"
+],
+[
+"+1 Incendiary",
+"+1 Brandmunition",
+"+1 Incendiaire",
+"+1 Incendiario"
+],
+[
+"SIDEWINDER",
+"SIDEWINDER",
+"SIDEWINDER",
+"SIDEWINDER"
+],
+[
+"+1 Side Guns",
+"+1 Seitenkanonen",
+"+1 Canons latéraux",
+"+1 Cannoni laterali"
+],
+[
+"HUNTER PACK",
+"JÄGERPAKET",
+"MEUTE DE CHASSEURS",
+"BRANCO DI CACCIATORI"
+],
+[
+"+1 Missile Rack",
+"+1 Raketenwerfer",
+"+1 Lanceur de missiles",
+"+1 Rampa missili"
+],
+[
+"BULWARK",
+"BOLLWERK",
+"REMPART",
+"BALUARDO"
+],
+[
+"+1 Armor, +1 Shield charge",
+"+1 Panzerung, +1 Schildladung",
+"+1 Blindage, +1 charge de Bouclier",
+"+1 Armatura, +1 carica Scudo"
+],
+[
+"PHANTOM STEP",
+"PHANTOMSCHRITT",
+"PAS FANTÔME",
+"PASSO FANTASMA"
+],
+[
+"+1 Phase Drive",
+"+1 Phasenantrieb",
+"+1 Propulseur de Phase",
+"+1 Motore di Fase"
+],
+[
+"LUCKY STAR",
+"GLÜCKSSTERN",
+"ÉTOILE CHANCEUSE",
+"STELLA FORTUNATA"
+],
+[
+"+1 Crit Core, +1 Capacitor",
+"+1 Krit-Kern, +1 Kondensator",
+"+1 Noyau critique, +1 Condensateur",
+"+1 Nucleo critico, +1 Condensatore"
+],
+[
+"ORBITAL WATCH",
+"ORBITALWACHE",
+"GARDE ORBITALE",
+"SENTINELLA ORBITALE"
+],
+[
+"+1 Orbital Cannon",
+"+1 Orbitalkanone",
+"+1 Canon orbital",
+"+1 Cannone orbitale"
+],
+[
+"PRISMATIC LENS",
+"PRISMENLINSE",
+"LENTILLE PRISMATIQUE",
+"LENTE PRISMATICA"
+],
+[
+"+1 Prism Core, +1 Shadow Split",
+"+1 Prismenkern, +1 Schattenspaltung",
+"+1 Noyau prismatique, +1 Division d'ombre",
+"+1 Nucleo prismatico, +1 Divisione d'ombra"
+],
+[
+"BOUNCE HOUSE",
+"HÜPFBURG",
+"MAISON DES REBONDS",
+"CASA DEI RIMBALZI"
+],
+[
+"+1 Ricochet, +1 Pierce",
+"+1 Querschläger, +1 Durchschlag",
+"+1 Ricochet, +1 Perforation",
+"+1 Rimbalzo, +1 Perforazione"
+],
+[
+"DEEP WELL",
+"TIEFER BRUNNEN",
+"PUITS PROFOND",
+"POZZO PROFONDO"
+],
+[
+"+1 Gravity Well, +1 Pulse Engine",
+"+1 Gravitationsbrunnen, +1 Pulsantrieb",
+"+1 Puits gravitationnel, +1 Moteur à impulsions",
+"+1 Pozzo gravitazionale, +1 Motore a impulsi"
+],
+[
+"DEMOLITION",
+"ABRISS",
+"DÉMOLITION",
+"DEMOLIZIONE"
+],
+[
+"+1 Blast, +1 Executioner",
+"+1 Explosion, +1 Scharfrichter",
+"+1 Explosion, +1 Bourreau",
+"+1 Esplosione, +1 Giustiziere"
+],
+[
+"SWARM SEASON",
+"SCHWARMSAISON",
+"SAISON DES ESSAIMS",
+"STAGIONE DELLO SCIAME"
+],
+[
+"More, weaker enemies. Richer drops.",
+"Mehr, schwächere Gegner. Bessere Drops.",
+"Plus d'ennemis, plus faibles. Meilleur butin.",
+"Più nemici, più deboli. Drop più ricchi."
+],
+[
+"IRON FLEET",
+"EISENFLOTTE",
+"FLOTTE DE FER",
+"FLOTTA DI FERRO"
+],
+[
+"Fewer, tougher enemies. Richer drops.",
+"Weniger, zähere Gegner. Bessere Drops.",
+"Moins d'ennemis, plus résistants. Meilleur butin.",
+"Meno nemici, più resistenti. Drop più ricchi."
+],
+[
+"BULLET HELL",
+"KUGELHÖLLE",
+"ENFER DE BALLES",
+"INFERNO DI PROIETTILI"
+],
+[
+"Enemies fire far more, but their shots are slower.",
+"Gegner schießen viel öfter, aber ihre Schüsse sind langsamer.",
+"Les ennemis tirent bien plus, mais leurs tirs sont plus lents.",
+"I nemici sparano molto di più, ma i loro colpi sono più lenti."
+],
+[
+"BOUNTY HUNT",
+"KOPFGELDJAGD",
+"CHASSE AUX PRIMES",
+"CACCIA ALLA TAGLIA"
+],
+[
+"Elites everywhere - every one drops a cache.",
+"Elite-Gegner überall - jeder lässt einen Vorrat fallen.",
+"Des élites partout - chacune laisse tomber une cache.",
+"Élite ovunque - ognuna lascia cadere una scorta."
+],
+[
+"ION STORM",
+"IONENSTURM",
+"TEMPÊTE IONIQUE",
+"TEMPESTA IONICA"
+],
+[
+"Faster enemies, but upgrades drop far more often.",
+"Schnellere Gegner, aber Upgrades fallen viel öfter.",
+"Ennemis plus rapides, mais les améliorations tombent bien plus souvent.",
+"Nemici più veloci, ma i potenziamenti cadono molto più spesso."
+],
+[
+"VOID DRIFT",
+"LEERENDRIFT",
+"DÉRIVE DU VIDE",
+"DERIVA DEL VUOTO"
+],
+[
+"Slow enemies, tougher bosses.",
+"Langsame Gegner, zähere Bosse.",
+"Ennemis lents, boss plus résistants.",
+"Nemici lenti, boss più resistenti."
+],
+[
+"BLITZ",
+"BLITZ",
+"BLITZ",
+"LAMPO"
+],
+[
+"Waves come faster and bosses arrive every 4 waves.",
+"Wellen kommen schneller und Bosse erscheinen alle 4 Wellen.",
+"Les vagues arrivent plus vite et un boss apparaît toutes les 4 vagues.",
+"Le ondate arrivano più veloci e i boss compaiono ogni 4 ondate."
+],
+[
+"LONG SIEGE",
+"LANGE BELAGERUNG",
+"SIÈGE PROLONGÉ",
+"LUNGO ASSEDIO"
+],
+[
+"Slow waves, bosses every 6 waves, bigger bosses.",
+"Langsame Wellen, Bosse alle 6 Wellen, größere Bosse.",
+"Vagues lentes, un boss toutes les 6 vagues, boss plus gros.",
+"Ondate lente, boss ogni 6 ondate, boss più grandi."
+],
+[
+"DRONE FLOOD",
+"DROHNENFLUT",
+"DÉFERLANTE DE DRONES",
+"MAREA DI DRONI"
+],
+[
+"BATTLE LINE",
+"SCHLACHTLINIE",
+"LIGNE DE BATAILLE",
+"LINEA DI BATTAGLIA"
+],
+[
+"PINCER",
+"ZANGENANGRIFF",
+"TENAILLE",
+"TENAGLIA"
+],
+[
+"SWARM RUSH",
+"SCHWARMANSTURM",
+"RUÉE D'ESSAIM",
+"ASSALTO DELLO SCIAME"
+],
+[
+"SNIPER NEST",
+"SCHARFSCHÜTZENNEST",
+"NID DE SNIPERS",
+"NIDO DI CECCHINI"
+],
+[
+"ZIGZAG STORM",
+"ZICKZACK-STURM",
+"TEMPÊTE EN ZIGZAG",
+"TEMPESTA ZIGZAG"
+],
+[
+"IRON COLUMN",
+"EISENKOLONNE",
+"COLONNE DE FER",
+"COLONNA DI FERRO"
+],
+[
+"BOMBER RUN",
+"BOMBERANGRIFF",
+"RAID DE BOMBARDIERS",
+"INCURSIONE DI BOMBARDIERI"
+],
+[
+"DASH STORM",
+"DASH-STURM",
+"TEMPÊTE DE SPRINTS",
+"TEMPESTA DI SCATTI"
+],
+[
+"MISSILE CARRIER",
+"RAKETENTRÄGER",
+"PORTE-MISSILES",
+"PORTAMISSILI"
+],
+[
+"MIRV",
+"MIRV",
+"MIRV",
+"MIRV"
+],
+[
+"Missiles split into a wider salvo and hit harder.",
+"Raketen teilen sich in eine breitere Salve und treffen härter.",
+"Les missiles se divisent en une salve plus large et frappent plus fort.",
+"I missili si dividono in una salva più ampia e colpiscono più forte."
+],
+[
+"ARC STORM",
+"BLITZSTURM",
+"TEMPÊTE D'ARCS",
+"TEMPESTA DI FULMINI"
+],
+[
+"Kills can jump across a whole cluster.",
+"Abschüsse können auf einen ganzen Pulk überspringen.",
+"Les éliminations peuvent sauter à travers tout un groupe.",
+"Le uccisioni possono saltare attraverso un intero gruppo."
+],
+[
+"NOVA RING",
+"NOVA-RING",
+"ANNEAU NOVA",
+"ANELLO NOVA"
+],
+[
+"Orbitals periodically sweep the space around you.",
+"Orbitale fegen regelmäßig den Raum um dich herum.",
+"Les orbitaux balaient périodiquement l'espace autour de vous.",
+"Gli orbitali spazzano periodicamente lo spazio attorno a te."
+],
+[
+"AEGIS",
+"ÄGIDE",
+"ÉGIDE",
+"EGIDA"
+],
+[
+"Taking a hit releases a defensive shockwave.",
+"Ein Treffer löst eine defensive Schockwelle aus.",
+"Encaisser un coup libère une onde de choc défensive.",
+"Subire un colpo rilascia un'onda d'urto difensiva."
+],
+[
+"RAILGUN",
+"RAILGUN",
+"RAILGUN",
+"RAILGUN"
+],
+[
+"Charged shots become piercing rail slugs.",
+"Aufgeladene Schüsse werden zu durchschlagenden Rail-Geschossen.",
+"Les tirs chargés deviennent des projectiles rail perforants.",
+"I colpi caricati diventano proiettili rail perforanti."
+],
+[
+"BROADSIDER",
+"BREITSEITE",
+"BORDÉE",
+"FIANCATA"
+],
+[
+"Side guns evolve into a five-lane volley.",
+"Seitenkanonen entwickeln sich zu einer Salve auf fünf Bahnen.",
+"Les canons latéraux évoluent en une salve sur cinq voies.",
+"I cannoni laterali evolvono in una salva su cinque corsie."
+],
+[
+"INFERNO",
+"INFERNO",
+"INFERNO",
+"INFERNO"
+],
+[
+"Burning kills ignite everything nearby.",
+"Brennende Abschüsse setzen alles in der Nähe in Brand.",
+"Les éliminations en flammes enflamment tout ce qui est proche.",
+"Le uccisioni in fiamme incendiano tutto ciò che è vicino."
+],
+[
+"GHOST WALKER",
+"GEISTERWANDLER",
+"MARCHEUR FANTÔME",
+"CAMMINATORE FANTASMA"
+],
+[
+"GHOST",
+"GEIST",
+"SPECTRE",
+"SPETTRO"
+],
+[
+"Dashing refreshes your phase window instantly.",
+"Ein Dash erneuert dein Phasenfenster sofort.",
+"Le dash renouvelle instantanément votre fenêtre de phase.",
+"Lo scatto rinnova subito la tua finestra di fase."
+],
+[
+"KALEIDOSCOPE",
+"KALEIDOSKOP",
+"KALÉIDOSCOPE",
+"CALEIDOSCOPIO"
+],
+[
+"KALEIDO",
+"KALEIDO",
+"KALÉIDO",
+"CALEIDO"
+],
+[
+"Mirror shots inherit the prism’s full power.",
+"Spiegelschüsse erben die volle Kraft des Prismas.",
+"Les tirs miroir héritent de toute la puissance du prisme.",
+"I colpi speculari ereditano tutta la potenza del prisma."
+],
+[
+"PINBALL",
+"FLIPPER",
+"FLIPPER",
+"FLIPPER"
+],
+[
+"Every wall bounce detonates on nearby enemies.",
+"Jeder Wandabpraller detoniert bei Gegnern in der Nähe.",
+"Chaque rebond sur un mur explose sur les ennemis proches.",
+"Ogni rimbalzo sul muro esplode sui nemici vicini."
+],
+[
+"MIRV BARRAGE",
+"MIRV-SPERRFEUER",
+"BARRAGE MIRV",
+"SBARRAMENTO MIRV"
+],
+[
+"Missiles split into a wide, homing salvo.",
+"Raketen teilen sich in eine breite, zielsuchende Salve.",
+"Les missiles se divisent en une large salve à tête chercheuse.",
+"I missili si dividono in un'ampia salva a ricerca."
+],
+[
+"HIGH-YIELD WARHEADS",
+"HOCHLEISTUNGS-SPRENGKÖPFE",
+"OGIVES À HAUT RENDEMENT",
+"TESTATE AD ALTA RESA"
+],
+[
+"+30% missile damage",
+"+30 % Raketenschaden",
+"+30 % de dégâts de missile",
+"+30% danno dei missili"
+],
+[
+"AUTOLOADER",
+"AUTOLADER",
+"CHARGEUR AUTOMATIQUE",
+"CARICATORE AUTOMATICO"
+],
+[
+"Missiles reload 15% faster",
+"Raketen laden 15 % schneller nach",
+"Les missiles se rechargent 15 % plus vite",
+"I missili si ricaricano il 15% più in fretta"
+],
+[
+"CLUSTER BAY",
+"CLUSTER-SCHACHT",
+"SOUTE À GRAPPES",
+"VANO A GRAPPOLO"
+],
+[
+"+1 warhead in every salvo",
+"+1 Sprengkopf pro Salve",
+"+1 ogive par salve",
+"+1 testata per salva"
+],
+[
+"Kills arc lightning across whole clusters.",
+"Abschüsse schleudern Blitze über ganze Pulks.",
+"Les éliminations propagent des arcs électriques sur des groupes entiers.",
+"Le uccisioni scagliano fulmini su interi gruppi."
+],
+[
+"HIGH VOLTAGE",
+"HOCHSPANNUNG",
+"HAUTE TENSION",
+"ALTA TENSIONE"
+],
+[
+"+30% arc damage",
+"+30 % Blitzschaden",
+"+30 % de dégâts d'arc",
+"+30% danno dell'arco"
+],
+[
+"WIDE CONDUCTION",
+"WEITE LEITUNG",
+"LARGE CONDUCTION",
+"CONDUZIONE AMPIA"
+],
+[
+"+25% arc reach",
+"+25 % Blitzreichweite",
+"+25 % de portée d'arc",
+"+25% portata dell'arco"
+],
+[
+"FORKED LIGHTNING",
+"GABELBLITZ",
+"ÉCLAIR FOURCHU",
+"FULMINE BIFORCATO"
+],
+[
+"Each kill arcs to 2 more targets",
+"Jeder Abschuss springt auf 2 weitere Ziele",
+"Chaque élimination arque vers 2 cibles de plus",
+"Ogni uccisione salta su altri 2 bersagli"
+],
+[
+"Orbital cannons sweep the space around you.",
+"Orbitalkanonen fegen den Raum um dich herum.",
+"Les canons orbitaux balaient l'espace autour de vous.",
+"I cannoni orbitali spazzano lo spazio attorno a te."
+],
+[
+"SHOCK RING",
+"SCHOCKRING",
+"ANNEAU DE CHOC",
+"ANELLO D'URTO"
+],
+[
+"+30% ring damage",
+"+30 % Ringschaden",
+"+30 % de dégâts d'anneau",
+"+30% danno dell'anello"
+],
+[
+"QUICK CYCLE",
+"SCHNELLER ZYKLUS",
+"CYCLE RAPIDE",
+"CICLO RAPIDO"
+],
+[
+"Ring pulses 15% faster",
+"Ring pulsiert 15 % schneller",
+"L'anneau pulse 15 % plus vite",
+"L'anello pulsa il 15% più in fretta"
+],
+[
+"WIDE HORIZON",
+"WEITER HORIZONT",
+"LARGE HORIZON",
+"ORIZZONTE AMPIO"
+],
+[
+"+20% ring radius",
+"+20 % Ringradius",
+"+20 % de rayon d'anneau",
+"+20% raggio dell'anello"
+],
+[
+"Shield hits release a defensive shockwave.",
+"Treffer auf Schilde lösen eine defensive Schockwelle aus.",
+"Les coups sur le bouclier libèrent une onde de choc défensive.",
+"I colpi allo scudo rilasciano un'onda d'urto difensiva."
+],
+[
+"SHOCK PLATES",
+"SCHOCKPLATTEN",
+"PLAQUES DE CHOC",
+"PIASTRE D'URTO"
+],
+[
+"+30% shockwave damage",
+"+30 % Schockwellenschaden",
+"+30 % de dégâts d'onde de choc",
+"+30% danno dell'onda d'urto"
+],
+[
+"WIDE FIELD",
+"WEITES FELD",
+"LARGE CHAMP",
+"CAMPO AMPIO"
+],
+[
+"+20% shockwave radius",
+"+20 % Schockwellenradius",
+"+20 % de rayon d'onde de choc",
+"+20% raggio dell'onda d'urto"
+],
+[
+"SHIELD FORGE",
+"SCHILDSCHMIEDE",
+"FORGE DE BOUCLIER",
+"FUCINA SCUDO"
+],
+[
+"Slowly regrows shield charges",
+"Lässt Schildladungen langsam nachwachsen",
+"Régénère lentement les charges de bouclier",
+"Rigenera lentamente le cariche dello scudo"
+],
+[
+"Charged volleys fire piercing rail slugs.",
+"Aufgeladene Salven feuern durchschlagende Rail-Geschosse.",
+"Les salves chargées tirent des projectiles rail perforants.",
+"Le salve cariche sparano proiettili rail perforanti."
+],
+[
+"HEAVY SLUG",
+"SCHWERES GESCHOSS",
+"PROJECTILE LOURD",
+"PROIETTILE PESANTE"
+],
+[
+"+30% rail damage",
+"+30 % Rail-Schaden",
+"+30 % de dégâts rail",
+"+30% danno rail"
+],
+[
+"FAST CHARGE",
+"SCHNELLLADUNG",
+"CHARGE RAPIDE",
+"RICARICA RAPIDA"
+],
+[
+"Charged volleys 1 shot sooner",
+"Aufgeladene Salven 1 Schuss früher",
+"Salves chargées 1 tir plus tôt",
+"Salve cariche 1 colpo prima"
+],
+[
+"DEEP PIERCE",
+"TIEFER DURCHSCHLAG",
+"PERFORATION PROFONDE",
+"PERFORAZIONE PROFONDA"
+],
+[
+"Rail slugs pierce 3 more targets",
+"Rail-Geschosse durchschlagen 3 weitere Ziele",
+"Les projectiles rail perforent 3 cibles de plus",
+"I proiettili rail perforano 3 bersagli in più"
+],
+[
+"Side guns become a wide multi-lane volley.",
+"Seitenkanonen werden zu einer breiten Mehrbahn-Salve.",
+"Les canons latéraux deviennent une large salve multivoie.",
+"I cannoni laterali diventano un'ampia salva a più corsie."
+],
+[
+"HEAVY BROADSIDE",
+"SCHWERE BREITSEITE",
+"BORDÉE LOURDE",
+"FIANCATA PESANTE"
+],
+[
+"+30% side gun damage",
+"+30 % Seitenkanonen-Schaden",
+"+30 % de dégâts des canons latéraux",
+"+30% danno dei cannoni laterali"
+],
+[
+"PIERCING ROUNDS",
+"DURCHSCHLAGSMUNITION",
+"BALLES PERFORANTES",
+"PROIETTILI PERFORANTI"
+],
+[
+"Side shots pierce +1 enemy",
+"Seitenschüsse durchschlagen +1 Gegner",
+"Les tirs latéraux perforent +1 ennemi",
+"I colpi laterali perforano +1 nemico"
+],
+[
+"OUTRIDERS",
+"VORREITER",
+"ÉCLAIREURS",
+"SCORTE"
+],
+[
+"+2 outer side-gun lanes",
+"+2 äußere Seitenkanonen-Bahnen",
+"+2 voies extérieures de canons latéraux",
+"+2 corsie esterne dei cannoni laterali"
+],
+[
+"HOTTER FLAMES",
+"HEISSERE FLAMMEN",
+"FLAMMES PLUS CHAUDES",
+"FIAMME PIÙ CALDE"
+],
+[
+"+30% burn damage",
+"+30 % Brandschaden",
+"+30 % de dégâts de brûlure",
+"+30% danno da ustione"
+],
+[
+"FIRESTORM",
+"FEUERSTURM",
+"TEMPÊTE DE FEU",
+"TEMPESTA DI FUOCO"
+],
+[
+"+25% fire-spread radius",
+"+25 % Feuerausbreitungsradius",
+"+25 % de rayon de propagation du feu",
+"+25% raggio di propagazione del fuoco"
+],
+[
+"SLOW BURN",
+"LANGSAMER BRAND",
+"COMBUSTION LENTE",
+"COMBUSTIONE LENTA"
+],
+[
+"+30% burn duration",
+"+30 % Branddauer",
+"+30 % de durée de brûlure",
+"+30% durata dell'ustione"
+],
+[
+"Dashing refreshes your phase window.",
+"Ein Dash erneuert dein Phasenfenster.",
+"Le dash renouvelle votre fenêtre de phase.",
+"Lo scatto rinnova la tua finestra di fase."
+],
+[
+"SPECTRAL RAGE",
+"SPEKTRALE WUT",
+"RAGE SPECTRALE",
+"RABBIA SPETTRALE"
+],
+[
+"+40% ghost damage bonus",
+"+40 % Geisterschaden-Bonus",
+"+40 % de bonus de dégâts fantôme",
+"+40% bonus danno spettrale"
+],
+[
+"LONG PHASE",
+"LANGE PHASE",
+"PHASE LONGUE",
+"FASE LUNGA"
+],
+[
+"+0.25s untouchable per phase",
+"+0,25 s unverwundbar pro Phase",
+"+0,25 s d'invulnérabilité par phase",
+"+0,25 s di invulnerabilità per fase"
+],
+[
+"LINGERING HAUNT",
+"NACHHALLENDER SPUK",
+"HANTISE PERSISTANTE",
+"ALONE PERSISTENTE"
+],
+[
+"Ghost bonus lasts 0.8s longer",
+"Geisterbonus hält 0,8 s länger",
+"Le bonus fantôme dure 0,8 s de plus",
+"Il bonus spettrale dura 0,8 s in più"
+],
+[
+"BRIGHT ECHO",
+"HELLES ECHO",
+"ÉCHO ÉCLATANT",
+"ECO LUMINOSO"
+],
+[
+"+20% echo damage",
+"+20 % Echo-Schaden",
+"+20 % de dégâts d'écho",
+"+20% danno dell'eco"
+],
+[
+"RESONANCE",
+"RESONANZ",
+"RÉSONANCE",
+"RISONANZA"
+],
+[
+"+8% echo chance",
+"+8 % Echo-Chance",
+"+8 % de chance d'écho",
+"+8% probabilità di eco"
+],
+[
+"PIERCING ECHO",
+"DURCHSCHLAGENDES ECHO",
+"ÉCHO PERFORANT",
+"ECO PERFORANTE"
+],
+[
+"Echo shots pierce +1 enemy",
+"Echo-Schüsse durchschlagen +1 Gegner",
+"Les tirs d'écho perforent +1 ennemi",
+"I colpi eco perforano +1 nemico"
+],
+[
+"HEAVY BUMPERS",
+"SCHWERE BUMPER",
+"PARE-CHOCS LOURDS",
+"BUMPER PESANTI"
+],
+[
+"+35% bounce damage",
+"+35 % Abprallschaden",
+"+35 % de dégâts de rebond",
+"+35% danno da rimbalzo"
+],
+[
+"WIDE BLAST",
+"WEITE EXPLOSION",
+"LARGE EXPLOSION",
+"ESPLOSIONE AMPIA"
+],
+[
+"+25% bounce blast radius",
+"+25 % Abprall-Explosionsradius",
+"+25 % de rayon d'explosion de rebond",
+"+25% raggio esplosione da rimbalzo"
+],
+[
+"EXTRA BOUNCES",
+"ZUSÄTZLICHE ABPRALLER",
+"REBONDS SUPPLÉMENTAIRES",
+"RIMBALZI EXTRA"
+],
+[
+"+1 wall bounce per shot",
+"+1 Wandabpraller pro Schuss",
+"+1 rebond sur un mur par tir",
+"+1 rimbalzo sul muro per colpo"
+],
+[
+"SPARK",
+"FUNKE",
+"ÉTINCELLE",
+"SCINTILLA"
+],
+[
+"KINDLE",
+"ENTFACHER",
+"ALLUMEUR",
+"ACCENSIONE"
+],
+[
+"FLARE",
+"FACKEL",
+"FUSÉE",
+"BAGLIORE"
+],
+[
+"BLAZE",
+"LODERN",
+"BRASIER",
+"FIAMMATA"
+],
+[
+"CINDERWING",
+"ASCHENFLÜGEL",
+"AILE DE CENDRE",
+"ALA DI CENERE"
+],
+[
+"INFERNAL",
+"HÖLLISCH",
+"INFERNAL",
+"INFERNALE"
+],
+[
+"PYRELORD",
+"FEUERHERR",
+"SEIGNEUR DU BÛCHER",
+"SIGNORE DEL ROGO"
+],
+[
+"PHOENIX",
+"PHÖNIX",
+"PHÉNIX",
+"FENICE"
+],
+[
+"SOLAR PHOENIX",
+"SONNENPHÖNIX",
+"PHÉNIX SOLAIRE",
+"FENICE SOLARE"
+],
+[
+"FROST",
+"FROST",
+"GEL",
+"GELO"
+],
+[
+"RIME",
+"RAUREIF",
+"GIVRE",
+"BRINA"
+],
+[
+"SHARD",
+"SPLITTER",
+"ÉCLAT",
+"SCHEGGIA"
+],
+[
+"CRYSTAL",
+"KRISTALL",
+"CRISTAL",
+"CRISTALLO"
+],
+[
+"ICEBREAKER",
+"EISBRECHER",
+"BRISE-GLACE",
+"ROMPIGHIACCIO"
+],
+[
+"GLACIAL",
+"GLAZIAL",
+"GLACIAL",
+"GLACIALE"
+],
+[
+"BLIZZARD",
+"SCHNEESTURM",
+"BLIZZARD",
+"BUFERA"
+],
+[
+"ABSOLUTE ZERO",
+"ABSOLUTER NULLPUNKT",
+"ZÉRO ABSOLU",
+"ZERO ASSOLUTO"
+],
+[
+"AURORA",
+"POLARLICHT",
+"AURORE",
+"AURORA"
+],
+[
+"SPORE",
+"SPORE",
+"SPORE",
+"SPORA"
+],
+[
+"STING",
+"STACHEL",
+"AIGUILLON",
+"PUNGIGLIONE"
+],
+[
+"FANG",
+"FANG",
+"CROC",
+"ZANNA"
+],
+[
+"VIPER",
+"VIPER",
+"VIPÈRE",
+"VIPERA"
+],
+[
+"BASILISK",
+"BASILISK",
+"BASILIC",
+"BASILISCO"
+],
+[
+"HYDRA",
+"HYDRA",
+"HYDRE",
+"IDRA"
+],
+[
+"PLAGUE",
+"SEUCHE",
+"PESTE",
+"PESTE"
+],
+[
+"APEX TOXIN",
+"SPITZENGIFT",
+"TOXINE SUPRÊME",
+"TOSSINA SUPREMA"
+],
+[
+"LEVIATHAN",
+"LEVIATHAN",
+"LÉVIATHAN",
+"LEVIATANO"
+],
+[
+"SHADE",
+"SCHATTEN",
+"OMBRE",
+"OMBRA"
+],
+[
+"WISP",
+"IRRLICHT",
+"FEU FOLLET",
+"FUOCO FATUO"
+],
+[
+"SPECTER",
+"SPEKTER",
+"SPECTRE",
+"SPETTRO"
+],
+[
+"WRAITH",
+"GEIST",
+"FANTÔME",
+"SPIRITO"
+],
+[
+"REVENANT",
+"WIEDERGÄNGER",
+"REVENANT",
+"REVENANT"
+],
+[
+"NIGHTMARE",
+"ALPTRAUM",
+"CAUCHEMAR",
+"INCUBO"
+],
+[
+"VOID WALKER",
+"LEERENWANDLER",
+"MARCHEUR DU VIDE",
+"CAMMINATORE DEL VUOTO"
+],
+[
+"ECLIPSE",
+"FINSTERNIS",
+"ÉCLIPSE",
+"ECLISSI"
+],
+[
+"SINGULARITY",
+"SINGULARITÄT",
+"SINGULARITÉ",
+"SINGOLARITÀ"
+],
+[
+"GLINT",
+"GLIMMER",
+"SCINTILLEMENT",
+"LUCCICHIO"
+],
+[
+"DAWN",
+"MORGENROT",
+"AUBE",
+"ALBA"
+],
+[
+"RADIANT",
+"STRAHLEND",
+"RADIEUX",
+"RADIOSO"
+],
+[
+"HELIOS",
+"HELIOS",
+"HÉLIOS",
+"HELIOS"
+],
+[
+"SUNFORGED",
+"SONNENGESCHMIEDET",
+"FORGÉ AU SOLEIL",
+"FORGIATO DAL SOLE"
+],
+[
+"CORONA",
+"KORONA",
+"COURONNE",
+"CORONA"
+],
+[
+"SUPERNOVA",
+"SUPERNOVA",
+"SUPERNOVA",
+"SUPERNOVA"
+],
+[
+"ASTRAL",
+"ASTRAL",
+"ASTRAL",
+"ASTRALE"
+],
+[
+"STAR SOVEREIGN",
+"STERNENHERRSCHER",
+"SOUVERAIN DES ÉTOILES",
+"SOVRANO DELLE STELLE"
+],
+[
+"STATIC",
+"STATIK",
+"STATIQUE",
+"STATICO"
+],
+[
+"SHOCK",
+"SCHOCK",
+"CHOC",
+"SCOSSA"
+],
+[
+"BOLT",
+"BLITZ",
+"ÉCLAIR",
+"FULMINE"
+],
+[
+"THUNDER",
+"DONNER",
+"TONNERRE",
+"TUONO"
+],
+[
+"STORMCALLER",
+"STURMRUFER",
+"APPELEUR DE TEMPÊTE",
+"EVOCATEMPESTE"
+],
+[
+"SKYBREAKER",
+"HIMMELSBRECHER",
+"BRISE-CIEL",
+"SPEZZACIELI"
+],
+[
+"ZEUS",
+"ZEUS",
+"ZEUS",
+"ZEUS"
+],
+[
+"NICK",
+"KERBE",
+"ENTAILLE",
+"TACCA"
+],
+[
+"CUT",
+"SCHNITT",
+"COUPURE",
+"TAGLIO"
+],
+[
+"SLASH",
+"HIEB",
+"TAILLADE",
+"FENDENTE"
+],
+[
+"SCYTHE",
+"SENSE",
+"FAUX",
+"FALCE"
+],
+[
+"HARVESTER",
+"ERNTER",
+"MOISSONNEUR",
+"RACCOGLITORE"
+],
+[
+"CRIMSON",
+"PURPUR",
+"CRAMOISI",
+"CREMISI"
+],
+[
+"BLOODMOON",
+"BLUTMOND",
+"LUNE DE SANG",
+"LUNA DI SANGUE"
+],
+[
+"DEATH KNELL",
+"TOTENGLOCKE",
+"GLAS FUNÈBRE",
+"RINTOCCO DI MORTE"
+],
+[
+"GRIM SOVEREIGN",
+"GRIMMIGER HERRSCHER",
+"SOUVERAIN SINISTRE",
+"SOVRANO TETRO"
+],
+[
+"SEED",
+"SAMEN",
+"GRAINE",
+"SEME"
+],
+[
+"SPROUT",
+"SPROSS",
+"POUSSE",
+"GERMOGLIO"
+],
+[
+"BUD",
+"KNOSPE",
+"BOURGEON",
+"GEMMA"
+],
+[
+"BLOOM",
+"BLÜTE",
+"FLORAISON",
+"FIORITURA"
+],
+[
+"GROVE",
+"HAIN",
+"BOSQUET",
+"BOSCO"
+],
+[
+"ELDER",
+"ÄLTESTER",
+"ANCIEN",
+"ANZIANO"
+],
+[
+"WORLD TREE",
+"WELTENBAUM",
+"ARBRE-MONDE",
+"ALBERO DEL MONDO"
+],
+[
+"EDEN",
+"EDEN",
+"ÉDEN",
+"EDEN"
+],
+[
+"GENESIS",
+"GENESIS",
+"GENÈSE",
+"GENESI"
+],
+[
+"MINT",
+"PRÄGUNG",
+"FRAPPE",
+"ZECCA"
+],
+[
+"COIN",
+"MÜNZE",
+"PIÈCE",
+"MONETA"
+],
+[
+"GILDED",
+"VERGOLDET",
+"DORÉ",
+"DORATO"
+],
+[
+"ROYAL",
+"KÖNIGLICH",
+"ROYAL",
+"REALE"
+],
+[
+"REGENT",
+"REGENT",
+"RÉGENT",
+"REGGENTE"
+],
+[
+"SOVEREIGN",
+"SOUVERÄN",
+"SOUVERAIN",
+"SOVRANO"
+],
+[
+"MIDAS",
+"MIDAS",
+"MIDAS",
+"MIDA"
+],
+[
+"EMPYREAN",
+"EMPYREUM",
+"EMPYRÉE",
+"EMPIREO"
+],
+[
+"GOLDEN GOD",
+"GOLDGOTT",
+"DIEU DORÉ",
+"DIO D'ORO"
+],
+[
+"WEAPON+",
+"WAFFE+",
+"ARME+",
+"ARMA+"
+],
+[
+"DAMAGE+",
+"SCHADEN+",
+"DÉGÂTS+",
+"DANNO+"
+],
+[
+"RAPID+",
+"FEUERRATE+",
+"CADENCE+",
+"CADENZA+"
+],
+[
+"SPEED+",
+"TEMPO+",
+"VITESSE+",
+"VELOCITÀ+"
+],
+[
+"PIERCE+",
+"DURCHSCHLAG+",
+"PERFORATION+",
+"PERFORAZIONE+"
+],
+[
+"MAGNET+",
+"MAGNET+",
+"AIMANT+",
+"MAGNETE+"
+],
+[
+"SHIELD+1",
+"SCHILD+1",
+"BOUCLIER+1",
+"SCUDO+1"
+],
+[
+"+1 LIFE",
+"+1 LEBEN",
+"+1 VIE",
+"+1 VITA"
+],
+[
+"BLAST+",
+"EXPLOSION+",
+"EXPLOSION+",
+"ESPLOSIONE+"
+],
+[
+"HOMING+",
+"ZIELSUCHE+",
+"GUIDAGE+",
+"GUIDA+"
+],
+[
+"SIDE GUNS",
+"SEITENKANONEN",
+"CANONS LATÉRAUX",
+"CANNONI LATERALI"
+],
+[
+"ORBITAL CANNON",
+"ORBITALKANONE",
+"CANON ORBITAL",
+"CANNONE ORBITALE"
+],
+[
+"MISSILE RACK",
+"RAKETENWERFER",
+"LANCEUR DE MISSILES",
+"RAMPA MISSILI"
+],
+[
+"CRIT CORE",
+"KRIT-KERN",
+"NOYAU CRITIQUE",
+"NUCLEO CRITICO"
+],
+[
+"CHAIN ARC",
+"KETTENBLITZ",
+"ARC EN CHAÎNE",
+"ARCO A CATENA"
+],
+[
+"INCENDIARY",
+"BRANDMUNITION",
+"INCENDIAIRE",
+"INCENDIARIO"
+],
+[
+"RICOCHET",
+"QUERSCHLÄGER",
+"RICOCHET",
+"RIMBALZO"
+],
+[
+"BOSS HUNTER",
+"BOSSJÄGER",
+"CHASSEUR DE BOSS",
+"CACCIATORE DI BOSS"
+],
+[
+"ARMOR PLATING",
+"PANZERPLATTEN",
+"BLINDAGE",
+"CORAZZATURA"
+],
+[
+"AUTO REPAIR",
+"AUTO-REPARATUR",
+"AUTO-RÉPARATION",
+"AUTORIPARAZIONE"
+],
+[
+"BARRIER MATRIX",
+"BARRIEREMATRIX",
+"MATRICE DE BARRIÈRE",
+"MATRICE BARRIERA"
+],
+[
+"AFTERBURN DASH",
+"NACHBRENNER-DASH",
+"DASH POST-COMBUSTION",
+"SCATTO POSTCOMBUSTIONE"
+],
+[
+"PHASE DRIVE",
+"PHASENANTRIEB",
+"PROPULSEUR DE PHASE",
+"MOTORE DI FASE"
+],
+[
+"OVERDRIVE",
+"OVERDRIVE",
+"OVERDRIVE",
+"OVERDRIVE"
+],
+[
+"PRISM CORE",
+"PRISMENKERN",
+"NOYAU PRISMATIQUE",
+"NUCLEO PRISMATICO"
+],
+[
+"GRAVITY WELL",
+"GRAVITATIONSBRUNNEN",
+"PUITS GRAVITATIONNEL",
+"POZZO GRAVITAZIONALE"
+],
+[
+"EXECUTIONER",
+"SCHARFRICHTER",
+"BOURREAU",
+"GIUSTIZIERE"
+],
+[
+"PULSE ENGINE",
+"PULSANTRIEB",
+"MOTEUR À IMPULSIONS",
+"MOTORE A IMPULSI"
+],
+[
+"MIRROR SHOT",
+"SPIEGELSCHUSS",
+"TIR MIROIR",
+"COLPO SPECULARE"
+],
+[
+"CAPACITOR",
+"KONDENSATOR",
+"CONDENSATEUR",
+"CONDENSATORE"
+],
+[
+"REACTOR",
+"REAKTOR",
+"RÉACTEUR",
+"REATTORE"
+],
+[
+"SALVAGE MATRIX",
+"BERGUNGSMATRIX",
+"MATRICE DE RÉCUPÉRATION",
+"MATRICE DI RECUPERO"
+],
+[
+"Adds another forward firing lane.",
+"Fügt eine weitere Feuerbahn nach vorn hinzu.",
+"Ajoute une voie de tir vers l'avant.",
+"Aggiunge un'altra corsia di fuoco in avanti."
+],
+[
+"Increases base shot damage.",
+"Erhöht den Basisschaden der Schüsse.",
+"Augmente les dégâts de base des tirs.",
+"Aumenta il danno base dei colpi."
+],
+[
+"Reduces the time between shots.",
+"Verkürzt die Zeit zwischen den Schüssen.",
+"Réduit le temps entre les tirs.",
+"Riduce il tempo tra i colpi."
+],
+[
+"Increases fighter movement speed.",
+"Erhöht die Bewegungsgeschwindigkeit des Jägers.",
+"Augmente la vitesse de déplacement du chasseur.",
+"Aumenta la velocità di movimento del caccia."
+],
+[
+"Shots pass through more enemies.",
+"Schüsse durchdringen mehr Gegner.",
+"Les tirs traversent plus d'ennemis.",
+"I colpi attraversano più nemici."
+],
+[
+"Pulls pickups from farther away.",
+"Zieht Items aus größerer Entfernung an.",
+"Attire les bonus de plus loin.",
+"Attira gli oggetti da più lontano."
+],
+[
+"Adds one shield charge.",
+"Fügt eine Schildladung hinzu.",
+"Ajoute une charge de bouclier.",
+"Aggiunge una carica scudo."
+],
+[
+"Repairs +1 hull and increases max hull.",
+"Repariert +1 Rumpf und erhöht den maximalen Rumpf.",
+"Répare +1 de coque et augmente la coque maximale.",
+"Ripara +1 scafo e aumenta lo scafo massimo."
+],
+[
+"Shots detonate around their impact.",
+"Schüsse detonieren um ihren Einschlagpunkt.",
+"Les tirs explosent autour de leur point d'impact.",
+"I colpi esplodono attorno al punto d'impatto."
+],
+[
+"Shots curve toward nearby targets.",
+"Schüsse krümmen sich zu nahen Zielen.",
+"Les tirs s'incurvent vers les cibles proches.",
+"I colpi curvano verso i bersagli vicini."
+],
+[
+"Adds physical side cannons that fire with you.",
+"Fügt echte Seitenkanonen hinzu, die mit dir feuern.",
+"Ajoute de vrais canons latéraux qui tirent avec vous.",
+"Aggiunge veri cannoni laterali che sparano con te."
+],
+[
+"Deploys orbiting cannons that fire automatically.",
+"Setzt kreisende Kanonen ein, die automatisch feuern.",
+"Déploie des canons en orbite qui tirent automatiquement.",
+"Schiera cannoni in orbita che sparano automaticamente."
+],
+[
+"Adds a persistent homing missile rack.",
+"Fügt einen dauerhaften Werfer für zielsuchende Raketen hinzu.",
+"Ajoute un lanceur permanent de missiles à tête chercheuse.",
+"Aggiunge una rampa permanente di missili a ricerca."
+],
+[
+"Chance for shots to deal 2.5x damage.",
+"Chance, dass Schüsse 2,5-fachen Schaden verursachen.",
+"Chance que les tirs infligent 2,5x de dégâts.",
+"Probabilità che i colpi infliggano 2,5x il danno."
+],
+[
+"Kills can arc damage to nearby enemies.",
+"Abschüsse können Schaden auf nahe Gegner überspringen lassen.",
+"Les éliminations peuvent propager des dégâts aux ennemis proches.",
+"Le uccisioni possono trasmettere danno ai nemici vicini."
+],
+[
+"Shots ignite enemies for damage over time.",
+"Schüsse setzen Gegner in Brand und verursachen Schaden über Zeit.",
+"Les tirs enflamment les ennemis et infligent des dégâts dans le temps.",
+"I colpi incendiano i nemici infliggendo danno nel tempo."
+],
+[
+"Shots bounce off the screen edges.",
+"Schüsse prallen von den Bildschirmrändern ab.",
+"Les tirs rebondissent sur les bords de l'écran.",
+"I colpi rimbalzano sui bordi dello schermo."
+],
+[
+"Your weapons deal extra damage to bosses.",
+"Deine Waffen verursachen zusätzlichen Schaden an Bossen.",
+"Vos armes infligent des dégâts supplémentaires aux boss.",
+"Le tue armi infliggono danno extra ai boss."
+],
+[
+"Reduces hull damage taken.",
+"Verringert erlittenen Rumpfschaden.",
+"Réduit les dégâts subis par la coque.",
+"Riduce il danno subito dallo scafo."
+],
+[
+"Periodic repairs restore hull.",
+"Regelmäßige Reparaturen stellen den Rumpf wieder her.",
+"Des réparations périodiques restaurent la coque.",
+"Riparazioni periodiche ripristinano lo scafo."
+],
+[
+"Raises the maximum number of shields.",
+"Erhöht die maximale Anzahl an Schilden.",
+"Augmente le nombre maximal de boucliers.",
+"Aumenta il numero massimo di scudi."
+],
+[
+"Movement periodically surges into an afterburn dash.",
+"Die Bewegung schnellt regelmäßig in einen Nachbrenner-Dash.",
+"Le déplacement se transforme périodiquement en dash à post-combustion.",
+"Il movimento si trasforma periodicamente in uno scatto a postcombustione."
+],
+[
+"Periodic phase windows make you untouchable.",
+"Regelmäßige Phasenfenster machen dich unantastbar.",
+"Des fenêtres de phase périodiques vous rendent intouchable.",
+"Finestre di fase periodiche ti rendono intoccabile."
+],
+[
+"Kill streaks temporarily increase fire rate.",
+"Abschussserien erhöhen kurzzeitig die Feuerrate.",
+"Les séries d'éliminations augmentent temporairement la cadence de tir.",
+"Le serie di uccisioni aumentano temporaneamente la cadenza di fuoco."
+],
+[
+"Adds a spectral prism and bonus shot damage.",
+"Fügt ein Spektralprisma und zusätzlichen Schussschaden hinzu.",
+"Ajoute un prisme spectral et des dégâts de tir bonus.",
+"Aggiunge un prisma spettrale e danno bonus ai colpi."
+],
+[
+"Creates a gravity well that slows nearby enemies.",
+"Erzeugt einen Gravitationsbrunnen, der nahe Gegner verlangsamt.",
+"Crée un puits gravitationnel qui ralentit les ennemis proches.",
+"Crea un pozzo gravitazionale che rallenta i nemici vicini."
+],
+[
+"Damages weakened enemies more heavily.",
+"Verursacht bei geschwächten Gegnern mehr Schaden.",
+"Inflige plus de dégâts aux ennemis affaiblis.",
+"Infligge più danno ai nemici indeboliti."
+],
+[
+"Releases periodic damaging pulses around the fighter.",
+"Setzt regelmäßig schädliche Impulse um den Jäger frei.",
+"Libère périodiquement des impulsions dévastatrices autour du chasseur.",
+"Rilascia periodicamente impulsi dannosi attorno al caccia."
+],
+[
+"Chance to duplicate a shot.",
+"Chance, einen Schuss zu duplizieren.",
+"Chance de dupliquer un tir.",
+"Probabilità di duplicare un colpo."
+],
+[
+"Every few shots becomes a charged heavy shot.",
+"Alle paar Schüsse wird einer zum aufgeladenen Schwerschuss.",
+"Un tir sur quelques-uns devient un tir lourd chargé.",
+"Ogni pochi colpi ne diventa uno pesante e carico."
+],
+[
+"Boosts several core systems and changes the reactor glow.",
+"Verstärkt mehrere Kernsysteme und verändert das Reaktorleuchten.",
+"Améliore plusieurs systèmes centraux et change la lueur du réacteur.",
+"Potenzia diversi sistemi centrali e cambia il bagliore del reattore."
+],
+[
+"Elites and bosses pay out more score.",
+"Elite-Gegner und Bosse bringen mehr Punkte.",
+"Les élites et les boss rapportent plus de score.",
+"Élite e boss fruttano più punti."
+],
+[
+"SCORE",
+"PUNKTE",
+"SCORE",
+"PUNTI"
+],
+[
+"WAVE",
+"WELLE",
+"VAGUE",
+"ONDATA"
+],
+[
+"LVL",
+"STF",
+"NIV",
+"LIV"
+],
+[
+"FLOW",
+"FLUSS",
+"FLUX",
+"FLUSSO"
+],
+[
+"BOSS",
+"BOSS",
+"BOSS",
+"BOSS"
+],
+[
+"DMG",
+"SCH",
+"DÉG",
+"DAN"
+],
+[
+"RPD",
+"FEU",
+"CAD",
+"CAD"
+],
+[
+"SPD",
+"TMP",
+"VIT",
+"VEL"
+],
+[
+"PRC",
+"DRC",
+"PRF",
+"PRF"
+],
+[
+"MAG",
+"MAG",
+"AIM",
+"MAG"
+],
+[
+"BLT",
+"EXP",
+"EXP",
+"ESP"
+],
+[
+"HOM",
+"ZIE",
+"GUI",
+"GUI"
+],
+[
+"PAUSED",
+"PAUSE",
+"PAUSE",
+"PAUSA"
+],
+[
+"RESUME",
+"WEITER",
+"REPRENDRE",
+"RIPRENDI"
+],
+[
+"SETTINGS",
+"EINSTELLUNGEN",
+"PARAMÈTRES",
+"IMPOSTAZIONI"
+],
+[
+"QUIT TO MENU",
+"ZUM MENÜ",
+"QUITTER VERS LE MENU",
+"ESCI AL MENU"
+],
+[
+"START MISSION",
+"MISSION STARTEN",
+"DÉMARRER LA MISSION",
+"AVVIA MISSIONE"
+],
+[
+"BACK",
+"ZURÜCK",
+"RETOUR",
+"INDIETRO"
+],
+[
+"MISSION OVER",
+"MISSION BEENDET",
+"MISSION TERMINÉE",
+"MISSIONE FINITA"
+],
+[
+"RETRY",
+"NOCHMAL",
+"RÉESSAYER",
+"RIPROVA"
+],
+[
+"Touch anywhere along the bottom control strip — left or right — and drag to move your ship. Your ship fires automatically.",
+"Berühre irgendwo den unteren Steuerstreifen – links oder rechts – und ziehe, um dein Schiff zu bewegen. Dein Schiff feuert automatisch.",
+"Touchez n'importe où sur la bande de contrôle du bas — à gauche ou à droite — et faites glisser pour déplacer votre vaisseau. Votre vaisseau tire automatiquement.",
+"Tocca in un punto qualsiasi della fascia di controllo in basso — a sinistra o a destra — e trascina per muovere la nave. La nave spara automaticamente."
+],
+[
+"Build your own route. Pick an opening upgrade, then choose a new upgrade every 3rd wave. Enemies only drop simple stat boosts (damage, fire rate, speed, shields...).",
+"Baue deine eigene Route. Wähle ein Start-Upgrade und danach alle 3 Wellen ein neues Upgrade. Gegner lassen nur einfache Werte-Boni fallen (Schaden, Feuerrate, Tempo, Schilde ...).",
+"Construisez votre propre voie. Choisissez une amélioration de départ, puis une nouvelle amélioration toutes les 3 vagues. Les ennemis ne laissent tomber que de simples bonus de stats (dégâts, cadence, vitesse, boucliers...).",
+"Costruisci il tuo percorso. Scegli un potenziamento iniziale, poi un nuovo potenziamento ogni 3 ondate. I nemici lasciano cadere solo semplici bonus alle statistiche (danno, cadenza, velocità, scudi...)."
+],
+[
+"Every 5th wave a BOSS locks down the field. The first boss drops a build-defining POWER — MIRV, ARC STORM, NOVA RING, AEGIS, RAILGUN, BROADSIDER, INFERNO, GHOST WALKER, KALEIDOSCOPE or PINBALL. Every later boss drops a small but impactful upgrade to the power you chose.",
+"Alle 5 Wellen sperrt ein BOSS das Feld ab. Der erste Boss lässt eine buildprägende KRAFT fallen — {powers}. Jeder spätere Boss lässt ein kleines, aber wirkungsvolles Upgrade für die gewählte Kraft fallen.",
+"Toutes les 5 vagues, un BOSS verrouille le terrain. Le premier boss laisse tomber un POUVOIR qui définit votre build — {powers}. Chaque boss suivant laisse une petite amélioration, mais efficace, du pouvoir que vous avez choisi.",
+"Ogni 5 ondate un BOSS blocca il campo. Il primo boss lascia cadere un POTERE che definisce la build — {powers}. Ogni boss successivo lascia un piccolo ma incisivo potenziamento per il potere scelto."
+],
+[
+"WEAPON",
+"WAFFE",
+"ARME",
+"ARMA"
+],
+[
+"DAMAGE",
+"SCHADEN",
+"DÉGÂTS",
+"DANNO"
+],
+[
+"RAPID",
+"FEUERRATE",
+"CADENCE",
+"CADENZA"
+],
+[
+"SPEED",
+"TEMPO",
+"VITESSE",
+"VELOCITÀ"
+],
+[
+"SHIELD",
+"SCHILD",
+"BOUCLIER",
+"SCUDO"
+],
+[
+"+LIFE",
+"+LEBEN",
+"+VIE",
+"+VITA"
+],
+[
+"PIERCE",
+"DURCHSCHLAG",
+"PERFORANT",
+"PERFORAZ."
+],
+[
+"MAGNET",
+"MAGNET",
+"AIMANT",
+"MAGNETE"
+],
+[
+"BLAST",
+"EXPLOSION",
+"EXPLOSION",
+"ESPLOSIONE"
+],
+[
+"HOMING",
+"ZIELSUCHE",
+"GUIDAGE",
+"GUIDATO"
+],
+[
+"CRIT",
+"KRIT",
+"CRIT",
+"CRIT"
+],
+[
+"ARMOR",
+"PANZERUNG",
+"BLINDAGE",
+"ARMATURA"
+],
+[
+"VAMPIRE",
+"VAMPIR",
+"VAMPIRE",
+"VAMPIRO"
+],
+[
+"CHAIN",
+"KETTE",
+"CHAÎNE",
+"CATENA"
+],
+[
+"REAR GUN",
+"HECKWAFFE",
+"CANON ARRIÈRE",
+"CANNONE POST."
+],
+[
+"Spend Cores earned from runs on permanent bonuses and new ship skins.",
+"Gib in Runden verdiente Kerne für dauerhafte Boni und neue Schiffs-Skins aus.",
+"Dépensez les Noyaux gagnés en partie pour des bonus permanents et de nouveaux skins de vaisseau.",
+"Spendi i Nuclei guadagnati nelle partite in bonus permanenti e nuove skin per la nave."
+],
+[
+"CORES: {n}",
+"KERNE: {n}",
+"NOYAUX : {n}",
+"NUCLEI: {n}"
+],
+[
+"SHIP UPGRADES",
+"SCHIFFS-UPGRADES",
+"AMÉLIORATIONS DU VAISSEAU",
+"POTENZIAMENTI NAVE"
+],
+[
+"MAXED",
+"MAX",
+"MAX",
+"MAX"
+],
+[
+"BUY: {n}",
+"KAUFEN: {n}",
+"ACHAT : {n}",
+"COMPRA: {n}"
+],
+[
+"EQUIPPED",
+"GEWÄHLT",
+"ÉQUIPÉ",
+"ATTIVO"
+],
+[
+"EQUIP",
+"WÄHLEN",
+"ÉQUIPER",
+"EQUIPAGGIA"
+],
+[
+"ADD-ONS · SHOT COLOURS",
+"ZUSÄTZE · SCHUSSFARBEN",
+"EXTRAS · COULEURS DE TIR",
+"EXTRA · COLORI DEI COLPI"
+],
+[
+"SHIP SKINS",
+"SCHIFFS-SKINS",
+"SKINS DE VAISSEAU",
+"SKIN DELLA NAVE"
+],
+[
+"Skins evolve as you collect upgrades. Tap a ship to jump to its next form.",
+"Skins entwickeln sich, während du Upgrades sammelst. Tippe auf ein Schiff, um zur nächsten Form zu springen.",
+"Les skins évoluent à mesure que vous collectez des améliorations. Touchez un vaisseau pour passer à sa forme suivante.",
+"Le skin si evolvono man mano che raccogli potenziamenti. Tocca una nave per passare alla forma successiva."
+],
+[
+"TIER {n}",
+"STUFE {n}",
+"PALIER {n}",
+"LIVELLO {n}"
+],
+[
+"LANGUAGE",
+"SPRACHE",
+"LANGUE",
+"LINGUA"
+],
+[
+"Choose the game language.",
+"Wähle die Spielsprache.",
+"Choisissez la langue du jeu.",
+"Scegli la lingua del gioco."
+],
+[
+"SOUND",
+"TON",
+"SON",
+"SUONO"
+],
+[
+"Turn all game sounds on or off.",
+"Alle Spielgeräusche ein- oder ausschalten.",
+"Active ou coupe tous les sons du jeu.",
+"Attiva o disattiva tutti i suoni del gioco."
+],
+[
+"ON",
+"AN",
+"ON",
+"ON"
+],
+[
+"OFF",
+"AUS",
+"OFF",
+"OFF"
+],
+[
+"SOUND VOLUME",
+"LAUTSTÄRKE",
+"VOLUME SONORE",
+"VOLUME AUDIO"
+],
+[
+"How loud the effects are.",
+"Wie laut die Effekte sind.",
+"Volume des effets sonores.",
+"Quanto sono forti gli effetti."
+],
+[
+"VIBRATION",
+"VIBRATION",
+"VIBRATION",
+"VIBRAZIONE"
+],
+[
+"Short buzz when you get hit or a boss dies.",
+"Kurzes Summen, wenn du getroffen wirst oder ein Boss stirbt.",
+"Courte vibration quand vous êtes touché ou qu'un boss meurt.",
+"Breve vibrazione quando vieni colpito o un boss muore."
+],
+[
+"Not supported on this device.",
+"Auf diesem Gerät nicht unterstützt.",
+"Non pris en charge sur cet appareil.",
+"Non supportato su questo dispositivo."
+],
+[
+"CONTROL SENSITIVITY",
+"STEUER-EMPFINDLICHKEIT",
+"SENSIBILITÉ DES COMMANDES",
+"SENSIBILITÀ COMANDI"
+],
+[
+"How far you drag to reach full speed. Higher = more sensitive.",
+"Wie weit du ziehen musst, um volles Tempo zu erreichen. Höher = empfindlicher.",
+"Distance de glissement pour atteindre la vitesse maximale. Plus élevé = plus sensible.",
+"Quanto devi trascinare per raggiungere la massima velocità. Più alto = più sensibile."
+],
+[
+"FLOATING TEXT",
+"SCHWEBENDER TEXT",
+"TEXTE FLOTTANT",
+"TESTO FLUTTUANTE"
+],
+[
+"Pop-up text for pickups, powers and combos.",
+"Einblend-Text für Items, Kräfte und Kombos.",
+"Texte contextuel pour les bonus, pouvoirs et combos.",
+"Testo a comparsa per oggetti, poteri e combo."
+],
+[
+"EFFECTS QUALITY",
+"EFFEKTQUALITÄT",
+"QUALITÉ DES EFFETS",
+"QUALITÀ EFFETTI"
+],
+[
+"LOW uses fewer explosion particles - smoother on older phones.",
+"NIEDRIG nutzt weniger Explosionspartikel – flüssiger auf älteren Handys.",
+"BAS utilise moins de particules d'explosion - plus fluide sur les anciens téléphones.",
+"BASSA usa meno particelle di esplosione - più fluido sui telefoni vecchi."
+],
+[
+"LOW",
+"NIEDRIG",
+"BAS",
+"BASSA"
+],
+[
+"HIGH",
+"HOCH",
+"ÉLEVÉ",
+"ALTA"
+],
+[
+"SAVE DATA",
+"SPIELDATEN",
+"DONNÉES DE SAUVEGARDE",
+"DATI DI SALVATAGGIO"
+],
+[
+"RESET ALL PROGRESS",
+"GESAMTEN FORTSCHRITT ZURÜCKSETZEN",
+"RÉINITIALISER TOUTE LA PROGRESSION",
+"AZZERA TUTTI I PROGRESSI"
+],
+[
+"Deletes cores, Hangar upgrades, skins, add-ons and best score. This cannot be undone.",
+"Löscht Kerne, Hangar-Upgrades, Skins, Zusätze und Rekord. Das kann nicht rückgängig gemacht werden.",
+"Supprime les noyaux, les améliorations du Hangar, les skins, les extras et le meilleur score. Action irréversible.",
+"Elimina nuclei, potenziamenti dell'Hangar, skin, extra e record. Non può essere annullato."
+],
+[
+"TAP AGAIN TO CONFIRM",
+"NOCHMAL TIPPEN",
+"CONFIRMER ?",
+"TOCCA ANCORA"
+],
+[
+"RESET",
+"ZURÜCKSETZEN",
+"RÉINITIALISER",
+"AZZERA"
+],
+[
+"BEST SCORE: {n}",
+"REKORD: {n}",
+"MEILLEUR SCORE : {n}",
+"RECORD: {n}"
+],
+[
+"BEST: {n}",
+"REKORD: {n}",
+"MEILLEUR : {n}",
+"RECORD: {n}"
+],
+[
+"NEW BEST!",
+"NEUER REKORD!",
+"NOUVEAU RECORD !",
+"NUOVO RECORD!"
+],
+[
+"SCORE: {n}",
+"PUNKTE: {n}",
+"SCORE : {n}",
+"PUNTI: {n}"
+],
+[
+"Reached wave {n}",
+"Welle {n} erreicht",
+"Vague {n} atteinte",
+"Ondata {n} raggiunta"
+],
+[
+"+{n} CORES",
+"+{n} KERNE",
+"+{n} NOYAUX",
+"+{n} NUCLEI"
+],
+[
+"CHOOSE YOUR OPENING UPGRADE",
+"WÄHLE DEIN START-UPGRADE",
+"CHOISISSEZ VOTRE AMÉLIORATION DE DÉPART",
+"SCEGLI IL POTENZIAMENTO INIZIALE"
+],
+[
+"This starts your build route. Every 3rd wave you choose again.",
+"Damit beginnt deine Build-Route. Alle 3 Wellen wählst du erneut.",
+"Cela lance votre voie de build. Toutes les 3 vagues, vous choisissez à nouveau.",
+"Questo avvia il tuo percorso di build. Ogni 3 ondate scegli di nuovo."
+],
+[
+"ROUTE: {name}",
+"ROUTE: {name}",
+"VOIE : {name}",
+"PERCORSO: {name}"
+],
+[
+"FLEXIBLE - FITS ANY ROUTE",
+"FLEXIBEL - PASST ZU JEDER ROUTE",
+"FLEXIBLE - S'ADAPTE À TOUTE VOIE",
+"FLESSIBILE - ADATTO A OGNI PERCORSO"
+],
+[
+"CHOOSE AN UPGRADE",
+"WÄHLE EIN UPGRADE",
+"CHOISISSEZ UNE AMÉLIORATION",
+"SCEGLI UN POTENZIAMENTO"
+],
+[
+"WAVE {n} — CHOOSE AN UPGRADE",
+"WELLE {n} — WÄHLE EIN UPGRADE",
+"VAGUE {n} — CHOISISSEZ UNE AMÉLIORATION",
+"ONDATA {n} — SCEGLI UN POTENZIAMENTO"
+],
+[
+"Cards marked ★ feed your {name} power.",
+"Mit ★ markierte Karten stärken deine Kraft {name}.",
+"Les cartes marquées ★ alimentent votre pouvoir {name}.",
+"Le carte con ★ alimentano il tuo potere {name}."
+],
+[
+"Shape your build route.",
+"Forme deine Build-Route.",
+"Façonnez votre voie de build.",
+"Plasma il tuo percorso di build."
+],
+[
+"★ FEEDS {name}",
+"★ STÄRKT {name}",
+"★ ALIMENTE {name}",
+"★ ALIMENTA {name}"
+],
+[
+"SYSTEM UPGRADE",
+"SYSTEM-UPGRADE",
+"AMÉLIORATION SYSTÈME",
+"POTENZIAMENTO DI SISTEMA"
+],
+[
+"Lv {a} → {b}",
+"Lv {a} → {b}",
+"Niv {a} → {b}",
+"Liv {a} → {b}"
+],
+[
+"Lv {a} → {b} / {max}",
+"Lv {a} → {b} / {max}",
+"Niv {a} → {b} / {max}",
+"Liv {a} → {b} / {max}"
+],
+[
+"REROLL CHOICES ({n} left)",
+"NEU WÜRFELN ({n} übrig)",
+"RELANCER LES CHOIX (restant : {n})",
+"RILANCIA LE SCELTE (restanti: {n})"
+],
+[
+"BOSS DEFEATED — CLAIM A POWER",
+"BOSS BESIEGT — WÄHLE EINE KRAFT",
+"BOSS VAINCU — CHOISISSEZ UN POUVOIR",
+"BOSS SCONFITTO — SCEGLI UN POTERE"
+],
+[
+"This defines your build. Later bosses will upgrade it.",
+"Das prägt deinen Build. Spätere Bosse verbessern sie.",
+"Cela définit votre build. Les boss suivants l'amélioreront.",
+"Questo definisce la tua build. I boss successivi la potenzieranno."
+],
+[
+"MATCHES YOUR BUILD {n}%",
+"PASST ZU DEINEM BUILD {n} %",
+"CORRESPOND À VOTRE BUILD {n} %",
+"COMPATIBILE CON LA TUA BUILD {n}%"
+],
+[
+"BOSS DEFEATED — UPGRADE {name}",
+"BOSS BESIEGT — {name} VERBESSERN",
+"BOSS VAINCU — AMÉLIOREZ {name}",
+"BOSS SCONFITTO — POTENZIA {name}"
+],
+[
+"Power level {a} → {b}",
+"Kraftstufe {a} → {b}",
+"Niveau de pouvoir {a} → {b}",
+"Livello del potere {a} → {b}"
+],
+[
+"CORE OVERHAUL",
+"KERNÜBERHOLUNG",
+"RÉVISION DU NOYAU",
+"REVISIONE DEL NUCLEO"
+],
+[
+"Your power is fully upgraded. Fully repairs the hull and adds a shield charge.",
+"Deine Kraft ist voll aufgerüstet. Repariert den Rumpf komplett und gibt eine Schildladung.",
+"Votre pouvoir est entièrement amélioré. Répare complètement la coque et ajoute une charge de bouclier.",
+"Il tuo potere è al massimo. Ripara completamente lo scafo e aggiunge una carica scudo."
+],
+[
+"WAVE {n}",
+"WELLE {n}",
+"VAGUE {n}",
+"ONDATA {n}"
+],
+[
+"RAIL CHARGED",
+"RAIL GELADEN",
+"RAIL CHARGÉ",
+"RAIL CARICO"
+],
+[
+"MAXED!",
+"MAX!",
+"MAX !",
+"MAX!"
+],
+[
+"FORM SHIFT // {form}",
+"FORMWANDEL // {form}",
+"MUTATION // {form}",
+"MUTAZIONE // {form}"
+],
+[
+"SIGNATURE: {name}",
+"SIGNATUR: {name}",
+"SIGNATURE : {name}",
+"FIRMA: {name}"
+],
+[
+"POWER: {name}",
+"KRAFT: {name}",
+"POUVOIR : {name}",
+"POTERE: {name}"
+],
+[
+"+1 HP",
+"+1 LP",
+"+1 PV",
+"+1 PS"
+],
+[
+"FLOW x{n}",
+"FLUSS x{n}",
+"FLUX x{n}",
+"FLUSSO x{n}"
+],
+[
+"ELITE CACHE",
+"ELITE-VORRAT",
+"CACHE D'ÉLITE",
+"SCORTA D'ÉLITE"
+],
+[
+"{name} INCOMING",
+"{name} NAHT",
+"{name} ARRIVE",
+"{name} IN ARRIVO"
+],
+[
+"{name} ENRAGED!",
+"{name} TOBT!",
+"{name} EN RAGE !",
+"{name} INFURIATO!"
+],
+[
+"{name} ENRAGED",
+"{name} TOBT",
+"{name} EN RAGE",
+"{name} INFURIATO"
+],
+[
+"{name} [SHIELDED]",
+"{name} [GESCHÜTZT]",
+"{name} [PROTÉGÉ]",
+"{name} [SCHERMATO]"
+],
+[
+"{name} DEFEATED!",
+"{name} BESIEGT!",
+"{name} VAINCU !",
+"{name} SCONFITTO!"
+],
+[
+"FIELD REPAIRS +{n} HP",
+"FELDREPARATUR +{n} LP",
+"RÉPARATIONS DE TERRAIN +{n} PV",
+"RIPARAZIONI SUL CAMPO +{n} PS"
+],
+[
+"SWEEP!",
+"FEGER!",
+"BALAYAGE !",
+"SPAZZATA!"
+],
+[
+"PHASED",
+"PHASENSPRUNG",
+"PHASÉ",
+"FASATO"
+],
+[
+"SHIELD -1",
+"SCHILD -1",
+"BOUCLIER -1",
+"SCUDO -1"
+],
+[
+"DEFLECTED",
+"ABGELENKT",
+"DÉVIÉ",
+"DEVIATO"
+]
+];
+</script>
 <script>
 (function(){
   document.addEventListener('contextmenu', e => e.preventDefault());
@@ -294,6 +3145,35 @@
   resize();
 
   // ---------- Audio (synth SFX, no external assets) ----------
+  // ---------- Settings (saved on this device) ----------
+  const SETTINGS_DEFAULT = { sfxVol:80, vibrate:true, popups:true, fx:'high', sens:100, lang:'en' };
+  function loadSettings(){
+    try{ return Object.assign({}, SETTINGS_DEFAULT, JSON.parse(localStorage.getItem('gd_settings') || '{}')); }
+    catch(e){ return Object.assign({}, SETTINGS_DEFAULT); }
+  }
+  let settings = loadSettings();
+  function saveSettings(){ try{ localStorage.setItem('gd_settings', JSON.stringify(settings)); }catch(e){} }
+
+  // ---------- Languages (English is the default) ----------
+  const LANGS = [ ['en','English'], ['de','Deutsch'], ['fr','Français'], ['it','Italiano'] ];
+  const I18N = { de:{}, fr:{}, it:{} };
+  (function buildI18N(){
+    const col = { de:1, fr:2, it:3 };
+    for(const row of (window.GD_I18N_ROWS || [])){
+      for(const lg in col){ if(row[col[lg]]) I18N[lg][row[0]] = row[col[lg]]; }
+    }
+  })();
+  if(!LANGS.some(l => l[0] === settings.lang)) settings.lang = 'en';
+  // T('English text', {vars}) -> text in the chosen language. English text is the key,
+  // so anything without a translation simply stays in English.
+  function T(s, v){
+    let out = s;
+    const d = I18N[settings.lang];
+    if(d && d[s] !== undefined) out = d[s];
+    if(v) out = out.replace(/\{(\w+)\}/g, (m,k)=> v[k] !== undefined ? v[k] : m);
+    return out;
+  }
+
   let actx = null;
   let muted = localStorage.getItem('gd_muted') === '1';
   function ensureAudio(){
@@ -304,7 +3184,7 @@
     if(actx && actx.state === 'suspended') actx.resume().catch(()=>{});
   }
   function beep(freq, dur, type, vol, sweepTo){
-    if(muted || !actx) return;
+    if(muted || !actx || settings.sfxVol <= 0) return;
     try{
       const t0 = actx.currentTime;
       const osc = actx.createOscillator();
@@ -312,21 +3192,22 @@
       osc.type = type || 'square';
       osc.frequency.setValueAtTime(freq, t0);
       if(sweepTo) osc.frequency.exponentialRampToValueAtTime(Math.max(20,sweepTo), t0+dur);
-      gain.gain.setValueAtTime((vol||0.15), t0);
+      gain.gain.setValueAtTime(Math.max(0.0005, (vol||0.15)*(settings.sfxVol/100)), t0);
       gain.gain.exponentialRampToValueAtTime(0.001, t0+dur);
       osc.connect(gain); gain.connect(actx.destination);
       osc.start(t0); osc.stop(t0+dur);
     }catch(e){}
   }
+  function buzz(ms){ if(settings.vibrate && navigator.vibrate){ try{ navigator.vibrate(ms); }catch(e){} } }
   const sfx = {
     shoot(){ beep(720,0.06,'square',0.05,520); },
     hit(){ beep(220,0.05,'square',0.06); },
     enemyDeath(){ beep(180,0.14,'sawtooth',0.09,60); },
     upgrade(){ beep(520,0.09,'triangle',0.14,900); },
-    playerHit(){ beep(140,0.22,'sawtooth',0.18,50); },
+    playerHit(){ beep(140,0.22,'sawtooth',0.18,50); buzz(45); },
     shieldBlock(){ beep(660,0.1,'triangle',0.14,880); },
     bossHit(){ beep(160,0.05,'square',0.05); },
-    bossDeath(){ beep(90,0.5,'sawtooth',0.2,30); },
+    bossDeath(){ beep(90,0.5,'sawtooth',0.2,30); buzz(140); },
     waveStart(){ beep(440,0.12,'triangle',0.12,660); },
     classReward(){ beep(500,0.18,'triangle',0.16,1000); },
     gameOver(){ beep(300,0.5,'sawtooth',0.15,80); }
@@ -531,9 +3412,16 @@
   // ---------- Roguelite meta-progression ----------
   // Cores persist across runs (localStorage) and buy permanent perks from the Hangar.
   const META_PERKS = {
-    hull:    { name:'HULL PLATING',       desc:'+1 Max HP at run start',        maxLevel:3, costBase:15, costStep:15 },
-    reactor: { name:'OVERCHARGED REACTOR',desc:'+1 Weapon Level at run start',  maxLevel:2, costBase:25, costStep:30 },
-    salvage: { name:'SALVAGE DRIVE',      desc:'+10% Cores earned per run',     maxLevel:3, costBase:20, costStep:20 }
+    hull:      { name:'FIELD REPAIRS',       desc:'Every boss you defeat restores +1 HP per level',   maxLevel:3, costBase:15,  costStep:15 },
+    thrusters: { name:'AFTERBURNERS',        desc:'+1 Speed Level at run start',                       maxLevel:2, costBase:15,  costStep:20 },
+    tractor:   { name:'TRACTOR BEAM',        desc:'+1 Magnet Level at run start (pickups fly to you)', maxLevel:2, costBase:15,  costStep:15 },
+    shieldcap: { name:'SHIELD CAPACITOR',    desc:'+1 max Shield charge (carry more shields)',         maxLevel:2, costBase:25,  costStep:25 },
+    cache:     { name:'SUPPLY DRONE',        desc:'+15% enemy drop rate per level',                    maxLevel:3, costBase:25,  costStep:25 },
+    salvage:   { name:'SALVAGE DRIVE',       desc:'+10% Cores earned per run',                         maxLevel:3, costBase:20,  costStep:20 },
+    targeting: { name:'TARGETING COMPUTER',  desc:'+1 Damage Level at run start',                      maxLevel:2, costBase:30,  costStep:35 },
+    reactor:   { name:'OVERCHARGED REACTOR', desc:'+1 Weapon Level at run start',                      maxLevel:2, costBase:25,  costStep:30 },
+    reroll:    { name:'SECOND OPINION',      desc:'Reroll your shrine choices once per level, each run', maxLevel:2, costBase:60, costStep:60 },
+    pathfinder:{ name:'PATHFINDER',          desc:'Wave shrines offer 4 upgrades instead of 3',        maxLevel:1, costBase:120, costStep:0 }
   };
   function loadCores(){
     const v = parseInt(localStorage.getItem('gd_cores') || '0', 10);
@@ -543,8 +3431,10 @@
   function loadMeta(){
     try{
       const raw = JSON.parse(localStorage.getItem('gd_meta') || '{}');
-      return { hull: raw.hull||0, reactor: raw.reactor||0, salvage: raw.salvage||0 };
-    }catch(e){ return { hull:0, reactor:0, salvage:0 }; }
+      const m = {};
+      for(const k in META_PERKS) m[k] = Math.min(META_PERKS[k].maxLevel, Math.max(0, raw[k]||0));
+      return m;
+    }catch(e){ const m = {}; for(const k in META_PERKS) m[k] = 0; return m; }
   }
   function saveMeta(m){ localStorage.setItem('gd_meta', JSON.stringify(m)); }
   let cores = loadCores();
@@ -573,6 +3463,9 @@
     c.beginPath(); c.moveTo(x-s, y); c.lineTo(x+s, y); c.moveTo(x, y-s); c.lineTo(x, y+s); c.stroke();
   }
 
+  function shp(c, pts, r, sx){ c.beginPath(); pts.forEach((p,i)=>{ const x=p[0]*r*(sx||1), y=p[1]*r; if(i) c.lineTo(x,y); else c.moveTo(x,y); }); c.closePath(); }
+  function starShape(n, a, b){ const pts=[]; for(let i=0;i<n*2;i++){ const ang=-Math.PI/2+i*Math.PI/n, rr=i%2?b:a; pts.push([Math.cos(ang)*rr, Math.sin(ang)*rr]); } return pts; }
+
   const SKINS = {
     classic: {
       name:'CLASSIC', desc:'The original fighter. Grows wings and armour as you upgrade.', cost:0,
@@ -583,6 +3476,20 @@
 
     ember: {
       name:'EMBER', desc:'Forged in fire. Engine flames swell with speed and fire-rate upgrades, embers rise as you level.', cost:40,
+      shapes:[ [[0,-1.0],[0.3,-0.3],[0.5,0.5],[0,0.8],[-0.5,0.5],[-0.3,-0.3]],
+               [[0,-1.2],[0.34,-0.45],[0.9,0.35],[0.7,0.85],[0,0.5],[-0.7,0.85],[-0.9,0.35],[-0.34,-0.45]],
+               [[0,-1.4],[0.3,-0.8],[0.5,-0.1],[0.85,0.6],[0.4,0.95],[0,0.6],[-0.4,0.95],[-0.85,0.6],[-0.5,-0.1],[-0.3,-0.8]] ],
+      body(c, r, t, L, fr, pal){
+        const n = Math.min(6, 1 + Math.floor(t*0.7));
+        c.shadowColor = pal.glow; c.shadowBlur = 10;
+        for(let i=n-1;i>=0;i--) for(const s of [-1,1]){
+          const ang = 0.35 + i*0.3 + Math.sin(fr*0.06 + i + s)*0.035, len = r*(1.5 + i*0.2);
+          c.save(); c.translate(s*r*0.28, r*0.05); c.rotate(-s*ang);
+          c.fillStyle = i%3===0 ? pal.wing1 : i%3===1 ? pal.wing2 : pal.wing3;
+          c.beginPath(); c.moveTo(0,0); c.quadraticCurveTo(r*0.34, len*0.5, 0, len); c.quadraticCurveTo(-r*0.2, len*0.45, 0, 0); c.fill();
+          c.restore();
+        }
+      },
       forms:['SPARK','KINDLE','FLARE','BLAZE','CINDERWING','INFERNAL','PYRELORD','PHOENIX','SOLAR PHOENIX'],
       shape:[[0,-1.2],[0.34,-0.45],[0.9,0.35],[0.7,0.85],[0,0.5],[-0.7,0.85],[-0.9,0.35],[-0.34,-0.45]],
       pal:{ hull1:'#ffd9c9', hull2:'#ffc9a6', hull3:'#fff0d6', glow:'#ff7043', wing1:'#ff6a3d', wing2:'#ff9a4d', wing3:'#ffc36b',
@@ -605,7 +3512,7 @@
           c.beginPath(); c.arc((hash01(i*3.7+2)-0.5)*r*2.2, r*0.5 - ph*r*2.4, 1.2 + hash01(i)*1.2, 0, Math.PI*2); c.fill();
         }
         c.globalAlpha = ga;
-        if(t >= 6){
+        if(false){
           c.strokeStyle = 'rgba(255,140,60,.75)'; c.lineWidth = 2; c.setLineDash([6,6]); c.lineDashOffset = -fr*0.6;
           c.beginPath(); c.arc(0, r*0.1, r*1.5, 0, Math.PI*2); c.stroke(); c.setLineDash([]);
         }
@@ -622,6 +3529,25 @@
 
     glacier: {
       name:'GLACIER', desc:'Living crystal. Ice shards sprout with every armour and barrier upgrade; a frost halo forms at high tiers.', cost:60,
+      noBack:true,
+      shapes:[ [[0,-1.1],[0.45,0],[0,0.7],[-0.45,0]],
+               [[0,-1.2],[0.5,-0.3],[0.85,0.4],[0.5,0.85],[0,0.45],[-0.5,0.85],[-0.85,0.4],[-0.5,-0.3]],
+               [[0,-1.45],[0.4,-0.75],[0.8,-0.2],[0.6,0.6],[0,1.0],[-0.6,0.6],[-0.8,-0.2],[-0.4,-0.75]] ],
+      body(c, r, t, L, fr, pal){
+        const n = Math.min(7, 1 + t);
+        c.shadowColor = pal.glow; c.shadowBlur = 9; c.lineWidth = 1.1;
+        for(let i=0;i<n;i++) for(const s of [-1,1]){
+          const a = -1.0 + i*0.4, dx = s*Math.cos(a), dy = Math.sin(a), px = -dy, py = dx;
+          const len = r*(1.15 + (i%3)*0.32 + t*0.06), hw = r*0.13, bx = s*r*0.35, by = r*0.05;
+          c.fillStyle = i%2 ? pal.wing2 : pal.wing3; c.strokeStyle = 'rgba(255,255,255,.85)';
+          c.beginPath();
+          c.moveTo(bx + px*hw, by + py*hw);
+          c.lineTo(bx + dx*len*0.35 + px*hw*1.5, by + dy*len*0.35 + py*hw*1.5);
+          c.lineTo(bx + dx*len, by + dy*len);
+          c.lineTo(bx + dx*len*0.35 - px*hw*1.5, by + dy*len*0.35 - py*hw*1.5);
+          c.lineTo(bx - px*hw, by - py*hw); c.closePath(); c.fill(); c.stroke();
+        }
+      },
       forms:['FROST','RIME','SHARD','CRYSTAL','ICEBREAKER','GLACIAL','BLIZZARD','ABSOLUTE ZERO','AURORA'],
       shape:[[0,-1.2],[0.5,-0.3],[0.85,0.4],[0.5,0.85],[0,0.45],[-0.5,0.85],[-0.85,0.4],[-0.5,-0.3]],
       pal:{ hull1:'#e9f9ff', hull2:'#d6f3ff', hull3:'#ffffff', glow:'#8be9ff', wing1:'#6fd0ff', wing2:'#a9e6ff', wing3:'#d4f4ff',
@@ -661,6 +3587,25 @@
 
     venom: {
       name:'VENOM', desc:'Toxic bio-hull. Spines multiply with every damage upgrade; acid drips from the wings at higher tiers.', cost:80,
+      noBack:true,
+      shapes:[ [[0,-0.9],[0.5,-0.2],[0.45,0.6],[0,0.85],[-0.45,0.6],[-0.5,-0.2]],
+               [[0,-1.1],[0.3,-0.5],[0.95,-0.1],[0.75,0.85],[0.3,0.55],[0,0.75],[-0.3,0.55],[-0.75,0.85],[-0.95,-0.1],[-0.3,-0.5]],
+               [[0,-1.3],[0.2,-0.8],[0.7,-0.7],[0.55,-0.2],[0.95,0.3],[0.5,0.5],[0.4,1.0],[0,0.7],[-0.4,1.0],[-0.5,0.5],[-0.95,0.3],[-0.55,-0.2],[-0.7,-0.7],[-0.2,-0.8]] ],
+      body(c, r, t, L, fr, pal){
+        const n = Math.min(6, 1 + Math.floor(t*0.75));
+        c.lineCap = 'round'; c.shadowColor = pal.glow; c.shadowBlur = 8;
+        for(let i=0;i<n;i++) for(const s of [-1,1]){
+          const y0 = r*(-0.35 + i*0.16), sw = Math.sin(fr*0.07 + i*1.3 + s)*r*0.18;
+          const ex = s*r*(1.25 + i*0.13) + sw, ey = r*(0.55 + i*0.3) + Math.abs(sw)*0.5;
+          c.strokeStyle = i%2 ? pal.wing1 : pal.wing2; c.lineWidth = Math.max(1.6, 4.2 - i*0.4);
+          c.beginPath(); c.moveTo(s*r*0.3, y0); c.quadraticCurveTo(s*r*(1.3 + i*0.1), y0 - r*0.15 + sw*0.4, ex, ey); c.stroke();
+          c.fillStyle = pal.wing3; c.beginPath(); c.arc(ex, ey, i===0 ? 3 : 2, 0, Math.PI*2); c.fill();
+        }
+        if(t >= 2){
+          c.strokeStyle = pal.trim; c.lineWidth = 3;
+          for(const s of [-1,1]){ c.beginPath(); c.moveTo(s*r*0.18, -r*0.95); c.quadraticCurveTo(s*r*0.9, -r*1.05, s*r*0.5, -r*(1.6 + t*0.03)); c.stroke(); }
+        }
+      },
       forms:['SPORE','STING','FANG','VIPER','BASILISK','HYDRA','PLAGUE','APEX TOXIN','LEVIATHAN'],
       shape:[[0,-1.1],[0.3,-0.5],[0.95,-0.1],[0.75,0.85],[0.3,0.55],[0,0.75],[-0.3,0.55],[-0.75,0.85],[-0.95,-0.1],[-0.3,-0.5]],
       pal:{ hull1:'#d8ffd2', hull2:'#c2f7b8', hull3:'#f0ffe0', glow:'#5dff7a', wing1:'#2fd868', wing2:'#7dff8f', wing3:'#b6ff3d',
@@ -695,7 +3640,7 @@
             c.beginPath(); c.moveTo(s*r*0.12, -r*1.0); c.lineTo(s*r*0.32, -r*1.5); c.lineTo(s*r*0.02, -r*0.8); c.closePath(); c.fill();
           }
         }
-        if(t >= 8){
+        if(false){
           c.strokeStyle = 'rgba(176,107,255,.85)'; c.lineWidth = 2; c.shadowColor = '#b06bff'; c.shadowBlur = 10;
           c.setLineDash([4,5]); c.lineDashOffset = fr*0.5;
           c.beginPath(); c.arc(0, r*0.1, r*1.9, 0, Math.PI*2); c.stroke(); c.setLineDash([]);
@@ -705,6 +3650,25 @@
 
     phantom: {
       name:'PHANTOM', desc:'A ship half in another dimension. Afterimages multiply with tier, Phase and Dash; a void ring opens at the top.', cost:110,
+      shapes:[ [[0,-1.2],[0.25,0],[0.2,0.8],[0,0.55],[-0.2,0.8],[-0.25,0]],
+               [[0,-1.25],[0.5,-0.2],[0.75,0.9],[0.2,0.5],[0,0.85],[-0.2,0.5],[-0.75,0.9],[-0.5,-0.2]],
+               [[0,-1.45],[0.4,-0.6],[0.6,0.2],[0.5,1.0],[0,0.6],[-0.5,1.0],[-0.6,0.2],[-0.4,-0.6]] ],
+      body(c, r, t, L, fr, pal){
+        const n = Math.min(7, 1 + t), mid = (n-1)/2;
+        c.lineCap = 'round'; c.shadowColor = pal.glow; c.shadowBlur = 8;
+        for(let i=0;i<n;i++){
+          const x0 = (i - mid)*r*0.3, len = r*(1.1 + (1 - Math.abs(i-mid)/(mid+1))*0.9 + t*0.08);
+          c.globalAlpha = 0.55; c.strokeStyle = i%2 ? pal.wing2 : pal.wing3; c.lineWidth = 2.4;
+          c.beginPath(); c.moveTo(x0, r*0.3);
+          for(let k=1;k<=8;k++) c.lineTo(x0 + Math.sin(fr*0.09 + k*0.7 + i)*r*0.22*(k/8), r*0.3 + len*k/8);
+          c.stroke();
+        }
+        c.globalAlpha = 0.85; c.fillStyle = pal.wing1;
+        const blades = [ [[0.25,-0.5],[1.55,-1.5],[0.95,-0.2],[0.5,0.4]], [[0.3,0.1],[1.9,0.45],[1.0,0.95]], [[0.3,-0.9],[1.0,-1.9],[0.7,-0.6]] ];
+        const cnt = t>=7 ? 3 : t>=4 ? 2 : t>=2 ? 1 : 0;
+        for(let b=0;b<cnt;b++) for(const s of [-1,1]){ shp(c, blades[b], r, s); c.fill(); }
+        c.globalAlpha = 1;
+      },
       forms:['SHADE','WISP','SPECTER','WRAITH','REVENANT','NIGHTMARE','VOID WALKER','ECLIPSE','SINGULARITY'],
       shape:[[0,-1.25],[0.5,-0.2],[0.75,0.9],[0.2,0.5],[0,0.85],[-0.2,0.5],[-0.75,0.9],[-0.5,-0.2]],
       pal:{ hull1:'#3b2f66', hull2:'#4a3a85', hull3:'#5b47a8', glow:'#9b6bff', wing1:'#6a4bd6', wing2:'#8a6cff', wing3:'#b79cff',
@@ -731,7 +3695,7 @@
           c.strokeStyle = pal.halo; c.lineWidth = 1.6; c.shadowColor = pal.halo; c.shadowBlur = 8;
           for(const s of [-1,1]){ c.beginPath(); c.moveTo(s*r*0.72, r*0.85); c.lineTo(s*r*0.48, -r*0.15); c.stroke(); }
         }
-        if(t >= 8){
+        if(false){
           c.strokeStyle = 'rgba(255,107,214,.85)'; c.lineWidth = 2.5; c.shadowColor = pal.halo; c.shadowBlur = 12;
           c.setLineDash([10,8]); c.lineDashOffset = -fr*0.8;
           c.beginPath(); c.arc(0, 0, r*1.85, 0, Math.PI*2); c.stroke(); c.setLineDash([]);
@@ -741,6 +3705,20 @@
 
     solar: {
       name:'SOLAR', desc:'A star in a bottle. Corona rays multiply with weapon and reactor upgrades; the core ignites at high tiers.', cost:150,
+      shapes:[ [[0,-1.0],[0.55,0.0],[0.85,0.6],[0,0.4],[-0.85,0.6],[-0.55,0.0]],
+               [[0,-1.1],[0.5,-0.1],[1.0,0.7],[0,0.4],[-1.0,0.7],[-0.5,-0.1]],
+               starShape(8, 1.15, 0.8) ],
+      body(c, r, t, L, fr, pal){
+        const n = Math.min(12, 4 + t);
+        c.shadowColor = pal.glow; c.shadowBlur = 10;
+        for(let i=0;i<n;i++){
+          const a = fr*0.008 + i*Math.PI*2/n, tip = r*(1.55 + (i%2)*0.4 + t*0.04), w = 0.16;
+          c.fillStyle = i%2 ? pal.wing1 : pal.wing2;
+          c.beginPath(); c.moveTo(Math.cos(a-w)*r*0.75, Math.sin(a-w)*r*0.75); c.lineTo(Math.cos(a)*tip, Math.sin(a)*tip);
+          c.lineTo(Math.cos(a+w)*r*0.75, Math.sin(a+w)*r*0.75); c.closePath(); c.fill();
+        }
+        if(t >= 4){ c.strokeStyle = pal.ring; c.lineWidth = 2; c.beginPath(); c.arc(0, 0, r*1.05, 0, Math.PI*2); c.stroke(); }
+      },
       forms:['GLINT','DAWN','RADIANT','HELIOS','SUNFORGED','CORONA','SUPERNOVA','ASTRAL','STAR SOVEREIGN'],
       shape:[[0,-1.1],[0.5,-0.1],[1.0,0.7],[0,0.4],[-1.0,0.7],[-0.5,-0.1]],
       pal:{ hull1:'#fff4c9', hull2:'#ffefb0', hull3:'#fffbe6', glow:'#ffd75e', wing1:'#ffbf2f', wing2:'#ffe07a', wing3:'#fff0b0',
@@ -775,14 +3753,259 @@
             c.beginPath(); c.arc(Math.cos(a)*r*1.3, Math.sin(a)*r*1.3, 2.2, 0, Math.PI*2); c.fill();
           }
         }
-        if(t >= 8){
+        if(false){
           c.strokeStyle = pal.crest; c.lineWidth = 2; c.shadowColor = pal.glow; c.shadowBlur = 16;
           c.beginPath(); c.arc(0, 0, r*1.75 + Math.sin(fr*0.1)*1.5, 0, Math.PI*2); c.stroke();
         }
       }
+    },
+
+    tempest: {
+      name:'TEMPEST', desc:'Storm-forged. Lightning crawls over the wings and grows with every chain and critical upgrade.', cost:180,
+      shapes:[ [[0,-1.2],[0.3,-0.2],[0.4,0.8],[0,0.5],[-0.4,0.8],[-0.3,-0.2]],
+               [[0,-1.25],[0.28,-0.5],[1.0,0.1],[0.45,0.3],[0.62,0.9],[0,0.45],[-0.62,0.9],[-0.45,0.3],[-1.0,0.1],[-0.28,-0.5]],
+               [[0,-1.4],[0.35,-0.6],[0.7,-0.5],[0.5,0.0],[1.05,0.2],[0.5,0.4],[0.6,1.0],[0,0.55],[-0.6,1.0],[-0.5,0.4],[-1.05,0.2],[-0.5,0.0],[-0.7,-0.5],[-0.35,-0.6]] ],
+      body(c, r, t, L, fr, pal){
+        const e = 0.7 + t*0.08;
+        c.shadowColor = pal.glow; c.shadowBlur = 9;
+        if(t >= 6){
+          c.fillStyle = pal.wing2; c.globalAlpha = 0.22;
+          for(let i=0;i<5;i++){ c.beginPath(); c.arc((i-2)*r*0.5, -r*(0.95 + Math.sin(fr*0.05 + i)*0.1), r*0.38, 0, Math.PI*2); c.fill(); }
+          c.globalAlpha = 1;
+        }
+        const bolts = [
+          [[0.3,-0.35],[1.1,-0.75],[0.75,-0.1],[1.6,-0.3],[0.85,0.45],[1.25,0.4],[0.35,0.85]],
+          [[0.35,0.1],[1.3,0.35],[0.95,0.5],[1.85,0.95],[0.6,0.85]],
+          [[0.3,-0.55],[0.9,-1.35],[0.75,-0.75],[1.3,-1.2],[0.5,-0.2]]
+        ];
+        const cnt = t>=6 ? 3 : t>=3 ? 2 : 1;
+        for(let b=0;b<cnt;b++) for(const s of [-1,1]){
+          c.fillStyle = b===0 ? pal.wing1 : pal.wing2; c.strokeStyle = pal.wing3; c.lineWidth = 1.3;
+          shp(c, bolts[b].map(p=>[p[0]*e, p[1]]), r, s); c.fill(); c.stroke();
+        }
+      },
+      forms:['SPARK','STATIC','SHOCK','BOLT','THUNDER','STORMCALLER','TEMPEST','SKYBREAKER','ZEUS'],
+      shape:[[0,-1.25],[0.28,-0.5],[1.0,0.1],[0.45,0.3],[0.62,0.9],[0,0.45],[-0.62,0.9],[-0.45,0.3],[-1.0,0.1],[-0.28,-0.5]],
+      pal:{ hull1:'#e3ecff', hull2:'#d0deff', hull3:'#f4f8ff', glow:'#6fa8ff', wing1:'#3f7dff', wing2:'#7fb0ff', wing3:'#ffe45c',
+            trim:'#ffe45c', arc:'#9fc4ff', armor:'#9fc4ff', ring:'#5f9bff', crest:'#fff27a', halo:'#ffe45c', engine:'#7fb0ff', bullet:'#9fd0ff' },
+      back(c, r, t, L, fr, pal){
+        const n = Math.min(8, t + (L.chain||0) + (L.critical||0));
+        c.strokeStyle = pal.wing3; c.lineWidth = 1.6; c.shadowColor = pal.wing3; c.shadowBlur = 8;
+        for(let i=0;i<n;i++){
+          const side = i%2 ? 1 : -1, k = Math.floor(i/2);
+          const seed = Math.floor(fr/5) + i*7;
+          let x = side*r*0.6, y = -r*0.1 + k*r*0.25;
+          c.beginPath(); c.moveTo(x,y);
+          for(let j=1;j<=4;j++){ x += side*r*(0.16 + hash01(seed+j)*0.12); y += (hash01(seed*3+j)-0.35)*r*0.55; c.lineTo(x,y); }
+          c.stroke();
+        }
+      },
+      front(c, r, t, L, fr, pal){
+        if(t >= 3){
+          c.fillStyle = pal.crest; c.shadowColor = pal.crest; c.shadowBlur = 10;
+          for(let i=0;i<Math.min(6,t-1);i++){
+            const a = fr*0.06 + i*Math.PI*2/Math.min(6,t-1), d = r*(1.25 + 0.15*Math.sin(fr*0.2+i));
+            c.beginPath(); c.arc(Math.cos(a)*d, Math.sin(a)*d, 1.8, 0, Math.PI*2); c.fill();
+          }
+        }
+        if(false){
+          c.strokeStyle = 'rgba(255,228,92,.85)'; c.lineWidth = 2; c.shadowColor = pal.crest; c.shadowBlur = 12;
+          c.setLineDash([3,7]); c.lineDashOffset = -fr; c.beginPath(); c.arc(0,0,r*1.8,0,Math.PI*2); c.stroke(); c.setLineDash([]);
+        }
+      }
+    },
+
+    reaper: {
+      name:'REAPER', desc:'A crimson blade-ship. Scythe wings multiply with tier and damage; its eye opens as you grow.', cost:200,
+      noBack:true,
+      shapes:[ [[0,-1.15],[0.2,-0.3],[0.35,0.7],[0,0.5],[-0.35,0.7],[-0.2,-0.3]],
+               [[0,-1.2],[0.22,-0.35],[0.95,0.55],[0.35,0.5],[0.2,0.95],[0,0.6],[-0.2,0.95],[-0.35,0.5],[-0.95,0.55],[-0.22,-0.35]],
+               [[0,-1.45],[0.25,-0.6],[0.55,-0.2],[0.4,0.4],[0.5,1.0],[0,0.7],[-0.5,1.0],[-0.4,0.4],[-0.55,-0.2],[-0.25,-0.6]] ],
+      body(c, r, t, L, fr, pal){
+        const e = t*0.09;
+        c.shadowColor = pal.glow; c.shadowBlur = 10;
+        const blades = [ {y:0.4,ext:1.9,tip:-1.0}, {y:0.7,ext:2.1,tip:0.2}, {y:0.1,ext:1.6,tip:-1.6} ];
+        const cnt = t>=6 ? 3 : t>=3 ? 2 : 1;
+        for(let b=0;b<cnt;b++) for(const s of [-1,1]){
+          const B = blades[b];
+          c.fillStyle = b===0 ? pal.wing2 : b===1 ? pal.wing1 : pal.wing3;
+          c.beginPath(); c.moveTo(s*r*0.3, r*B.y);
+          c.quadraticCurveTo(s*r*(B.ext+e), r*(B.y-0.2), s*r*(1.15+e*0.5), r*(B.tip-e));
+          c.quadraticCurveTo(s*r*1.3, r*(B.y-0.3), s*r*0.3, r*(B.y-0.25)); c.closePath(); c.fill();
+        }
+        c.fillStyle = pal.trim;
+        for(let i=0;i<1+Math.floor(t/2);i++){ c.beginPath(); c.moveTo(-r*0.12, r*(0.6+i*0.28)); c.lineTo(0, r*(0.95+i*0.28)); c.lineTo(r*0.12, r*(0.6+i*0.28)); c.closePath(); c.fill(); }
+      },
+      forms:['NICK','CUT','SLASH','SCYTHE','HARVESTER','CRIMSON','BLOODMOON','DEATH KNELL','GRIM SOVEREIGN'],
+      shape:[[0,-1.2],[0.22,-0.35],[0.95,0.55],[0.35,0.5],[0.2,0.95],[0,0.6],[-0.2,0.95],[-0.35,0.5],[-0.95,0.55],[-0.22,-0.35]],
+      pal:{ hull1:'#2a1116', hull2:'#3a1520', hull3:'#4c1a28', glow:'#ff3b5c', wing1:'#c4203f', wing2:'#ff4d6d', wing3:'#ff9aa8',
+            trim:'#ff5c7a', arc:'#ff7a90', armor:'#ff7a90', ring:'#ff3b5c', crest:'#ffd0d8', halo:'#ff3b5c', engine:'#ff4d6d', bullet:'#ff6a85', edge:'#ff7a90' },
+      back(c, r, t, L, fr, pal){
+        const n = Math.min(8, 1 + t + (L.damage||0));
+        c.shadowColor = pal.glow; c.shadowBlur = 9;
+        for(let i=0;i<n;i++){
+          const side = i%2 ? 1 : -1, k = Math.floor(i/2);
+          const bx = side*r*(0.4 + k*0.1), by = r*(0.15 + k*0.05);
+          c.fillStyle = (k%2) ? pal.wing1 : pal.wing2;
+          c.beginPath(); c.moveTo(bx, by);
+          c.quadraticCurveTo(side*r*(1.2 + k*0.22), by - r*0.1, side*r*(1.05 + k*0.22), r*(1.0 + k*0.12));
+          c.quadraticCurveTo(side*r*(0.8 + k*0.15), by + r*0.1, bx, by + r*0.22); c.closePath(); c.fill();
+        }
+      },
+      front(c, r, t, L, fr, pal){
+        if(t >= 2){
+          const p = 0.6 + 0.4*Math.sin(fr*0.1);
+          c.fillStyle = pal.crest; c.shadowColor = pal.glow; c.shadowBlur = 8 + p*8;
+          c.beginPath(); c.ellipse(0, -r*0.2, r*0.11, r*0.2*p + r*0.03, 0, 0, Math.PI*2); c.fill();
+        }
+        if(t >= 5){
+          c.strokeStyle = 'rgba(255,59,92,.8)'; c.lineWidth = 1.6; c.shadowBlur = 8;
+          for(const s of [-1,1]){ c.beginPath(); c.moveTo(s*r*0.3, -r*0.9); c.lineTo(s*r*0.7, -r*1.5); c.stroke(); }
+        }
+        if(false){
+          c.strokeStyle = 'rgba(255,59,92,.85)'; c.lineWidth = 2.4; c.shadowColor = pal.glow; c.shadowBlur = 12;
+          c.beginPath(); c.arc(0,0,r*1.85,fr*0.03,fr*0.03+Math.PI*1.4); c.stroke();
+        }
+      }
+    },
+
+    gaia: {
+      name:'GAIA', desc:'Living wood and light. Leaves unfurl with every armour and repair upgrade; a bloom halo opens at high tiers.', cost:230,
+      noBack:true,
+      shapes:[ [[0,-0.95],[0.4,-0.2],[0.4,0.5],[0,0.8],[-0.4,0.5],[-0.4,-0.2]],
+               [[0,-1.1],[0.45,-0.45],[0.95,0.2],[0.6,0.85],[0,0.5],[-0.6,0.85],[-0.95,0.2],[-0.45,-0.45]],
+               starShape(8, 1.2, 0.7) ],
+      body(c, r, t, L, fr, pal){
+        const n = Math.min(4, 1 + Math.floor(t/2));
+        c.lineCap = 'round'; c.shadowColor = pal.glow; c.shadowBlur = 8;
+        if(t >= 5){
+          c.fillStyle = pal.halo; c.globalAlpha = 0.85;
+          for(let i=0;i<8;i++){ c.save(); c.rotate(fr*0.012 + i*Math.PI/4); c.beginPath(); c.ellipse(0, -r*1.35, r*0.16, r*0.42, 0, 0, Math.PI*2); c.fill(); c.restore(); }
+          c.globalAlpha = 1;
+        }
+        for(let i=0;i<n;i++) for(const s of [-1,1]){
+          const ex = s*r*(1.0 + i*0.32), ey = -r*(0.1 + i*0.28) + Math.sin(fr*0.04 + i + s)*r*0.06;
+          c.strokeStyle = '#6b8f3a'; c.lineWidth = 2.4;
+          c.beginPath(); c.moveTo(s*r*0.25, r*(0.5 - i*0.12)); c.quadraticCurveTo(s*r*(0.7 + i*0.2), r*(0.45 - i*0.3), ex, ey); c.stroke();
+          c.save(); c.translate(ex, ey); c.rotate(s*(0.5 + i*0.15)); c.fillStyle = i%2 ? pal.wing1 : pal.wing2;
+          c.beginPath(); c.ellipse(0, -r*0.28, r*0.18, r*(0.42 + i*0.02), 0, 0, Math.PI*2); c.fill(); c.restore();
+        }
+      },
+      forms:['SEED','SPROUT','BUD','BLOOM','GROVE','ELDER','WORLD TREE','EDEN','GENESIS'],
+      shape:[[0,-1.1],[0.45,-0.45],[0.95,0.2],[0.6,0.85],[0,0.5],[-0.6,0.85],[-0.95,0.2],[-0.45,-0.45]],
+      pal:{ hull1:'#efffe3', hull2:'#dcf7c8', hull3:'#fbffe8', glow:'#8dff9a', wing1:'#4cbf5a', wing2:'#9be36a', wing3:'#ffe27a',
+            trim:'#ffe27a', arc:'#b6f59a', armor:'#b6f59a', ring:'#6fdc7a', crest:'#fff3a0', halo:'#ff9ad5', engine:'#a6ff7a', bullet:'#b6ff8a' },
+      back(c, r, t, L, fr, pal){
+        const n = Math.min(10, 1 + t + (L.armor||0) + (L.repair||0));
+        c.shadowColor = pal.glow; c.shadowBlur = 8;
+        for(let i=0;i<n;i++){
+          const side = i%2 ? 1 : -1, k = Math.floor(i/2);
+          const sw = Math.sin(fr*0.05 + i)*0.08;
+          c.save(); c.translate(side*r*(0.5 + k*0.13), r*(0.1 + k*0.13)); c.rotate(side*(0.9 + k*0.12) + sw);
+          c.fillStyle = (k%2) ? pal.wing1 : pal.wing2;
+          c.beginPath(); c.ellipse(0, -r*0.3, r*0.14, r*0.36, 0, 0, Math.PI*2); c.fill();
+          c.restore();
+        }
+      },
+      front(c, r, t, L, fr, pal){
+        const ga = c.globalAlpha;
+        if(t >= 2){
+          c.fillStyle = pal.crest; c.shadowColor = pal.glow; c.shadowBlur = 6;
+          for(let i=0;i<Math.min(8,t+1);i++){
+            const ph = ((fr*0.015) + hash01(i+3)) % 1;
+            c.globalAlpha = ga * (1-ph);
+            c.beginPath(); c.arc((hash01(i*2+1)-0.5)*r*2.2, r*0.6 - ph*r*2.2, 1.5, 0, Math.PI*2); c.fill();
+          }
+          c.globalAlpha = ga;
+        }
+        if(t >= 6){
+          c.fillStyle = pal.halo; c.shadowColor = pal.halo; c.shadowBlur = 10;
+          for(let i=0;i<6;i++){
+            const a = fr*0.02 + i*Math.PI/3;
+            c.save(); c.translate(Math.cos(a)*r*1.65, Math.sin(a)*r*1.65); c.rotate(a);
+            c.globalAlpha = ga*0.85; c.beginPath(); c.ellipse(0,0,r*0.16,r*0.07,0,0,Math.PI*2); c.fill(); c.restore();
+          }
+          c.globalAlpha = ga;
+        }
+      }
+    },
+
+    aurum: {
+      name:'AURUM', desc:'Black and gold royalty. Golden plates orbit the hull, one more for every orbital cannon you own.', cost:260,
+      shapes:[ [[0,-1.0],[0.45,-0.1],[0.3,0.7],[0,0.9],[-0.3,0.7],[-0.45,-0.1]],
+               [[0,-1.15],[0.6,-0.2],[0.95,0.75],[0.4,0.5],[0,0.8],[-0.4,0.5],[-0.95,0.75],[-0.6,-0.2]],
+               [[0,-1.3],[0.2,-1.0],[0.4,-1.3],[0.65,-0.3],[0.9,0.8],[0.35,0.55],[0,0.95],[-0.35,0.55],[-0.9,0.8],[-0.65,-0.3],[-0.4,-1.3],[-0.2,-1.0]] ],
+      body(c, r, t, L, fr, pal){
+        const n = Math.min(5, 1 + Math.floor(t*0.6));
+        c.shadowColor = pal.glow; c.shadowBlur = 8;
+        for(let i=0;i<n;i++) for(const s of [-1,1]){
+          const y = -0.35 + i*0.3, xo = 1.05 + i*0.16;
+          c.fillStyle = i%2 ? pal.wing1 : pal.wing2; shp(c, [[0.3,y],[xo,y+0.1],[xo+0.1,y+0.28],[0.3,y+0.2]], r, s); c.fill();
+          c.strokeStyle = pal.trim; c.lineWidth = 1; c.stroke();
+        }
+        if(t >= 6) for(const s of [-1,1]){
+          c.fillStyle = pal.hull3; shp(c, [[0.42,0.35],[0.78,0.35],[0.7,1.45],[0.5,1.45]], r, s); c.fill();
+          c.strokeStyle = pal.trim; c.lineWidth = 1.2; c.stroke();
+        }
+      },
+      forms:['MINT','COIN','GILDED','ROYAL','REGENT','SOVEREIGN','MIDAS','EMPYREAN','GOLDEN GOD'],
+      shape:[[0,-1.15],[0.6,-0.2],[0.95,0.75],[0.4,0.5],[0,0.8],[-0.4,0.5],[-0.95,0.75],[-0.6,-0.2]],
+      pal:{ hull1:'#1c1a14', hull2:'#2a2618', hull3:'#3a3320', glow:'#ffd24a', wing1:'#d9a400', wing2:'#ffcf3a', wing3:'#fff0a0',
+            trim:'#ffe680', arc:'#ffd966', armor:'#ffd966', ring:'#ffcf3a', crest:'#ffffff', halo:'#ffe680', engine:'#ffcf3a', bullet:'#ffe27a', edge:'#ffe680' },
+      back(c, r, t, L, fr, pal){
+        const n = Math.min(8, Math.floor(t/2) + (L.orbitals||0));
+        c.shadowColor = pal.glow; c.shadowBlur = 8;
+        for(let i=0;i<n;i++){
+          const a = fr*0.03 + i*Math.PI*2/n, d = r*1.55;
+          c.save(); c.translate(Math.cos(a)*d, Math.sin(a)*d); c.rotate(a + Math.PI/2);
+          c.fillStyle = (i%2) ? pal.wing1 : pal.wing2; c.fillRect(-r*0.16, -r*0.07, r*0.32, r*0.14);
+          c.restore();
+        }
+      },
+      front(c, r, t, L, fr, pal){
+        if(false){
+          c.strokeStyle = pal.trim; c.lineWidth = 1.3; c.shadowColor = pal.glow; c.shadowBlur = 8;
+          c.beginPath(); c.arc(0, 0, r*1.3, 0, Math.PI*2); c.stroke();
+        }
+        if(t >= 7){
+          c.fillStyle = pal.wing2; c.shadowColor = pal.glow; c.shadowBlur = 10;
+          for(let i=-2;i<=2;i++){ c.beginPath(); c.moveTo(i*r*0.14 - r*0.06, -r*1.05); c.lineTo(i*r*0.14, -r*(1.35 - Math.abs(i)*0.08)); c.lineTo(i*r*0.14 + r*0.06, -r*1.05); c.closePath(); c.fill(); }
+        }
+        if(false){
+          c.strokeStyle = pal.crest; c.lineWidth = 2; c.shadowBlur = 16;
+          c.beginPath(); c.arc(0,0,r*1.9 + Math.sin(fr*0.1)*1.5,0,Math.PI*2); c.stroke();
+        }
+      }
     }
   };
-  const SKIN_ORDER = ['classic','ember','glacier','venom','phantom','solar'];
+  // ---------- Add-ons: shot colours ----------
+  const SHOT_COLORS = {
+    default: { name:'SKIN DEFAULT', desc:'Your ship\u2019s own shot colour.', cost:0,  color:null },
+    plasma:  { name:'PLASMA GREEN', desc:'Bright acid-green bolts.',            cost:30, color:'#66ffb2' },
+    ruby:    { name:'RUBY',         desc:'Deep red laser fire.',                cost:30, color:'#ff5c7a' },
+    ice:     { name:'ICE',          desc:'Pale frost-blue shots.',              cost:40, color:'#aef0ff' },
+    violet:  { name:'VOID VIOLET',  desc:'Shots from another dimension.',       cost:60, color:'#b58cff' },
+    gold:    { name:'GOLD',         desc:'Shots that look expensive.',          cost:90, color:'#ffd54a' },
+    rainbow: { name:'RAINBOW',      desc:'Every bullet cycles through colours.', cost:150, color:'rainbow' }
+  };
+  const SHOT_ORDER = ['default','plasma','ruby','ice','violet','gold','rainbow'];
+  function loadShots(){
+    try{
+      const raw = JSON.parse(localStorage.getItem('gd_shots') || '{}');
+      const owned = Array.isArray(raw.owned) ? raw.owned.filter(k=>SHOT_COLORS[k]) : [];
+      if(!owned.includes('default')) owned.unshift('default');
+      return { owned, selected: owned.includes(raw.selected) ? raw.selected : 'default' };
+    }catch(e){ return { owned:['default'], selected:'default' }; }
+  }
+  function saveShots(v){ try{ localStorage.setItem('gd_shots', JSON.stringify(v)); }catch(e){} }
+  let shotState = loadShots();
+  function shotColor(b){
+    const c = SHOT_COLORS[shotState.selected].color;
+    if(!c) return null;
+    return c==='rainbow' ? 'hsl('+((gameTime*0.25 + (b.y||0)*0.6)%360)+',100%,68%)' : c;
+  }
+
+  const SKIN_ORDER = ['classic','ember','glacier','venom','phantom','solar','tempest','reaper','gaia','aurum'];
 
   function loadSkins(){
     try{
@@ -801,7 +4024,7 @@
     { name:'OVERCHARGED START', desc:'+1 Weapon Level', apply:(L)=>{ L.weapon = Math.min(UPGRADE_MAX.weapon, L.weapon+1); } },
     { name:'GLASS CANNON', desc:'+2 Damage, -1 Max HP', apply:(L,p)=>{ L.damage = Math.min(UPGRADE_MAX.damage, L.damage+2); p.maxHp = Math.max(1, p.maxHp-1); p.hp = Math.min(p.hp, p.maxHp); } },
     { name:'SWIFT', desc:'+2 Speed Level', apply:(L)=>{ L.speed = Math.min(UPGRADE_MAX.speed, L.speed+2); } },
-    { name:'FORTIFIED', desc:'+1 Max HP', apply:(L,p)=>{ p.maxHp += 1; p.hp += 1; } },
+    { name:'FORTIFIED', desc:'+1 Armor, +1 Barrier', apply:(L)=>{ L.armor = Math.min(UPGRADE_MAX.armor, L.armor+1); L.barrier = Math.min(UPGRADE_MAX.barrier, L.barrier+1); } },
     { name:'VAMPIRIC PACT', desc:'+1 Vampire Level (kills can heal you)', apply:(L)=>{ L.vampire = Math.min(UPGRADE_MAX.vampire, L.vampire+1); } },
     { name:'STATIC FIELD', route:'arc', desc:'+1 Chain Arc', apply:(L)=>{ L.chain = Math.min(UPGRADE_MAX.chain, L.chain+1); } },
     { name:'EMBER ROUNDS', route:'inferno', desc:'+1 Incendiary', apply:(L)=>{ L.burn = Math.min(UPGRADE_MAX.burn, L.burn+1); } },
@@ -938,7 +4161,7 @@
     player.critChance = Math.min(0.5, L.critical * BAL.critPerLevel);
     player.armorDeflect = Math.min(0.4, L.armor * BAL.armorDeflect);
     player.armorInvulnBonus = L.armor * 120;
-    player.shieldMax = 3 + L.barrier*2;
+    player.shieldMax = 3 + (metaPerks.shieldcap||0) + L.barrier*2;
     player.shieldCharges = Math.min(player.shieldCharges, player.shieldMax);
     // Capstone reward for fully investing in the missile rack: a rear-facing
     // gun that catches enemies which slip behind the ship (advertised in the
@@ -966,9 +4189,13 @@
     player.shieldCharges=0; player.shieldMax=3; player.hp=3; player.maxHp=3; player.invuln=0; player.alive=true;
     player.combo=0; player.comboTimer=0;
 
-    player.maxHp += metaPerks.hull;
+    // Every run starts with exactly 3 HP. Extra HP can only be found in-run.
     player.hp = player.maxHp;
     player.levels.weapon += metaPerks.reactor;
+    player.levels.speed  += metaPerks.thrusters;
+    player.levels.damage += metaPerks.targeting;
+    player.levels.magnet += metaPerks.tractor;
+    player.rerolls = metaPerks.reroll;
     currentBlessing=null;
     rollRun();
     gameTime=0;
@@ -990,16 +4217,16 @@
     opts.push(flexible[0]);
     const list = document.getElementById('choiceList');
     list.innerHTML = '';
-    document.getElementById('choiceTitle').textContent = 'CHOOSE YOUR OPENING UPGRADE';
-    document.getElementById('choiceSub').textContent = 'This starts your build route. Every 3rd wave you choose again.';
+    document.getElementById('choiceTitle').textContent = T('CHOOSE YOUR OPENING UPGRADE');
+    document.getElementById('choiceSub').textContent = T('This starts your build route. Every 3rd wave you choose again.');
     for(const bl of opts){
       const pw = bl.route ? POWERS.find(p=>p.key===bl.route) : null;
-      const tagTxt = pw ? 'ROUTE: '+pw.name : 'FLEXIBLE - FITS ANY ROUTE';
+      const tagTxt = pw ? T('ROUTE: {name}', {name:T(pw.name)}) : T('FLEXIBLE - FITS ANY ROUTE');
       const tagCol = pw ? pw.color : '#ffd66a';
       const btn = document.createElement('button');
       btn.className = 'choiceBtn';
       btn.style.borderColor = '#ffd66a'; btn.style.boxShadow = '0 0 18px #ffd66a44';
-      btn.innerHTML = '<div class="choiceName" style="color:#ffd66a">'+bl.name+'</div><div class="choiceDesc">'+bl.desc+'</div>'+
+      btn.innerHTML = '<div class="choiceName" style="color:#ffd66a">'+T(bl.name)+'</div><div class="choiceDesc">'+T(bl.desc)+'</div>'+
         '<div class="choiceSynergy" style="color:'+tagCol+'">'+tagTxt+'</div>';
       let done = false;
       btn.addEventListener('click', ()=>{
@@ -1008,8 +4235,8 @@
         bl.apply(player.levels, player);
         recomputeStats(); updateHUD();
         closeChoice();
-        spawnBanner(bl.name, bl.desc, '#ffd66a');
-        if(runAnomaly) spawnBanner(runAnomaly.name, runAnomaly.desc, runAnomaly.color);
+        spawnBanner(T(bl.name), T(bl.desc), '#ffd66a');
+        if(runAnomaly) spawnBanner(T(runAnomaly.name), T(runAnomaly.desc), runAnomaly.color);
       });
       list.appendChild(btn);
     }
@@ -1017,7 +4244,7 @@
   }
   function closeChoice(){
     document.getElementById('choiceOverlay').classList.add('hidden');
-    document.getElementById('choiceTitle').textContent = 'CHOOSE AN UPGRADE';
+    document.getElementById('choiceTitle').textContent = T('CHOOSE AN UPGRADE');
     document.getElementById('choiceSub').textContent = '';
     paused = false;
   }
@@ -1061,10 +4288,11 @@
   function joyMove(x,y){
     let dx = x - joy.baseX, dy = y - joy.baseY;
     const dist = Math.hypot(dx,dy);
-    if(dist > JOY_RADIUS){
-      dx = dx/dist*JOY_RADIUS; dy = dy/dist*JOY_RADIUS;
+    const JR = JOY_RADIUS * 100 / settings.sens;   // higher sensitivity = smaller drag for full speed
+    if(dist > JR){
+      dx = dx/dist*JR; dy = dy/dist*JR;
     }
-    let nx = dx / JOY_RADIUS, ny = dy / JOY_RADIUS;
+    let nx = dx / JR, ny = dy / JR;
     const mag = Math.hypot(nx,ny);
     if(mag > 0.001){
       const curved = Math.pow(mag, 0.85);
@@ -1282,7 +4510,7 @@
     // RAILGUN signature: charged volleys also fire a piercing rail slug.
     if(charged && L.critical>=3 && L.capacitor>=2){
       bullets.push({x:player.x,y:player.y-12,vx:0,vy:-760,r:7,dmg:player.bulletDmg*BAL.railMult*pB('rail')*(1+0.3*pm('rail','a')),pierce:4+3*pm('rail','c'),dead:false,rail:true,burn:L.burn});
-      spawnPopup(player.x,player.y-42,'RAIL CHARGED','#ffe06a');
+      spawnPopup(player.x,player.y-42,T('RAIL CHARGED'),'#ffe06a');
     }
     // Mirror: a chance for the whole volley to be echoed by a weaker spectral copy.
     if(L.mirror>0 && Math.random() < Math.min(pOn('kaleidoscope')?0.85:0.55, L.mirror*0.13 + 0.08*pm('kaleidoscope','b'))){
@@ -1349,7 +4577,7 @@
   function spawnUpgrade(x,y){
     // Stat drops only. A little rarer once the first boss is down: by then the
     // player has a build-defining power on top of the stats.
-    const dropChance = (firstBossDefeated ? 0.07 : 0.11) * RUN.drop;
+    const dropChance = (firstBossDefeated ? 0.07 : 0.11) * RUN.drop * (1 + 0.15*metaPerks.cache);
     if(Math.random() > dropChance) return;
     upgrades.push({ x, y, r:12, type:pickUpgradeType(), vy:70 });
   }
@@ -1376,7 +4604,7 @@
     recomputeStats();
     updateHUD();
     sfx.upgrade();
-    spawnPopup(player.x, player.y-30, maxed ? 'MAXED!' : (UPGRADE_LABELS[type]||type), UPGRADE_COLORS[type]);
+    spawnPopup(player.x, player.y-30, maxed ? T('MAXED!') : T(UPGRADE_LABELS[type]||type), UPGRADE_COLORS[type]);
     if(!maxed){
       player.upgradeCount++;
       const newTier = Math.min(SHIP_TIER_MAX, Math.floor(player.upgradeCount / SHIP_TIER_UPGRADES));
@@ -1384,7 +4612,7 @@
         player.shipTier = newTier;
         sfx.classReward();
         const sk = activeSkin();
-        spawnPopup(player.x, player.y-50, 'FORM SHIFT // ' + (sk.forms ? sk.forms[newTier] : 'TIER '+newTier), sk.pal.glow);
+        spawnPopup(player.x, player.y-50, T('FORM SHIFT // {form}', {form: sk.forms ? T(sk.forms[newTier]) : T('TIER {n}', {n:newTier})}), sk.pal.glow);
         explode(player.x, player.y, '#7df3ff', 34);
       }
       announceNewBuilds(buildsBefore);
@@ -1419,7 +4647,7 @@
   function announceNewBuilds(before){
     const had = new Set(before.map(a=>a.key));
     for(const a of getActiveBuilds()) if(!had.has(a.key)){
-      spawnPopup(player.x,player.y-62,'SIGNATURE: '+a.name,a.color);
+      spawnPopup(player.x,player.y-62,T('SIGNATURE: {name}', {name:T(a.name)}),a.color);
       explode(player.x,player.y,a.color,28);
       sfx.classReward();
     }
@@ -1495,8 +4723,8 @@
     growShip(2);
     sfx.classReward();
     explode(player.x, player.y, p.color, 40);
-    spawnPopup(player.x, player.y-34, 'POWER: '+p.name, p.color);
-    spawnPopup(player.x, player.y-18, p.desc, p.color);
+    spawnPopup(player.x, player.y-34, T('POWER: {name}', {name:T(p.name)}), p.color);
+    spawnPopup(player.x, player.y-18, T(p.desc), p.color);
     announceNewBuilds(before);
     updateHUD();
   }
@@ -1506,8 +4734,8 @@
     growShip(1);
     sfx.classReward();
     explode(player.x, player.y, p.color, 24);
-    spawnPopup(player.x, player.y-34, m.name+' '+ROMAN[player.pmods[m.k]], p.color);
-    spawnPopup(player.x, player.y-18, m.desc, p.color);
+    spawnPopup(player.x, player.y-34, T(m.name)+' '+ROMAN[player.pmods[m.k]], p.color);
+    spawnPopup(player.x, player.y-18, T(m.desc), p.color);
     updateHUD();
   }
   function growShip(n){
@@ -1516,7 +4744,7 @@
     if(newTier > player.shipTier){
       player.shipTier = newTier;
       const sk = activeSkin();
-      spawnPopup(player.x, player.y-50, 'FORM SHIFT // ' + (sk.forms ? sk.forms[newTier] : 'TIER '+newTier), sk.pal.glow);
+      spawnPopup(player.x, player.y-50, T('FORM SHIFT // {form}', {form: sk.forms ? T(sk.forms[newTier]) : T('TIER {n}', {n:newTier})}), sk.pal.glow);
     }
   }
 
@@ -1548,8 +4776,8 @@
     const title = document.getElementById('choiceTitle'), sub = document.getElementById('choiceSub');
     const pw = currentPower();
     if(!pw){
-      title.textContent = 'BOSS DEFEATED \u2014 CLAIM A POWER';
-      sub.textContent = 'This defines your build. Later bosses will upgrade it.';
+      title.textContent = T('BOSS DEFEATED \u2014 CLAIM A POWER');
+      sub.textContent = T('This defines your build. Later bosses will upgrade it.');
       // Show the powers closest to what you already own, plus a couple of wildcards.
       const ranked = POWERS.map(p=>{
         const a = BUILD_ARCHETYPES.find(x=>x.key===p.key);
@@ -1557,23 +4785,23 @@
       }).sort((x,y)=>y.score-x.score);
       const top = ranked.slice(0,2), rest = shuffleInPlace(ranked.slice(2)).slice(0,2);
       for(const r of top.concat(rest)){
-        const tag = r.prog>0 ? 'MATCHES YOUR BUILD '+Math.round(r.prog*100)+'%' : '';
-        bossChoiceButton(list, r.p.color, r.p.name, [r.p.desc], tag, ()=>applyPower(r.p));
+        const tag = r.prog>0 ? T('MATCHES YOUR BUILD {n}%', {n:Math.round(r.prog*100)}) : '';
+        bossChoiceButton(list, r.p.color, T(r.p.name), [T(r.p.desc)], tag, ()=>applyPower(r.p));
       }
     } else {
-      title.textContent = 'BOSS DEFEATED \u2014 UPGRADE '+pw.name;
-      sub.textContent = 'Power level '+ROMAN[player.powerTier]+' \u2192 '+ROMAN[player.powerTier+1];
+      title.textContent = T('BOSS DEFEATED \u2014 UPGRADE {name}', {name:T(pw.name)});
+      sub.textContent = T('Power level {a} \u2192 {b}', {a:ROMAN[player.powerTier], b:ROMAN[player.powerTier+1]});
       const avail = pw.mods.filter(m=>(player.pmods[m.k]||0) < POWER_MOD_MAX);
       if(avail.length){
         for(const m of avail){
           const cur = player.pmods[m.k]||0;
-          bossChoiceButton(list, pw.color, m.name, [m.desc], 'Lv '+cur+' \u2192 '+(cur+1)+' / '+POWER_MOD_MAX, ()=>applyPowerMod(pw, m));
+          bossChoiceButton(list, pw.color, T(m.name), [T(m.desc)], T('Lv {a} \u2192 {b} / {max}', {a:cur, b:cur+1, max:POWER_MOD_MAX}), ()=>applyPowerMod(pw, m));
         }
       } else {
         // Power fully upgraded: bosses restore the ship instead.
-        bossChoiceButton(list, pw.color, 'CORE OVERHAUL', ['Your power is fully upgraded. Fully repairs the hull and adds a shield charge.'], '', ()=>{
+        bossChoiceButton(list, pw.color, T('CORE OVERHAUL'), [T('Your power is fully upgraded. Fully repairs the hull and adds a shield charge.')], '', ()=>{
           player.hp = player.maxHp; player.shieldCharges = Math.min(player.shieldMax, player.shieldCharges+1);
-          spawnPopup(player.x, player.y-34, 'CORE OVERHAUL', pw.color); updateHUD();
+          spawnPopup(player.x, player.y-34, T('CORE OVERHAUL'), pw.color); updateHUD();
         });
       }
     }
@@ -1599,7 +4827,7 @@
     player.overdriveTimer = Math.max(player.overdriveTimer, 1800);
     if(player.levels.vampire && player.hp < player.maxHp && Math.random() < 0.05*player.levels.vampire){
       player.hp = Math.min(player.maxHp, player.hp+1);
-      spawnPopup(player.x, player.y-30, '+1 HP', UPGRADE_COLORS.vampire);
+      spawnPopup(player.x, player.y-30, T('+1 HP'), UPGRADE_COLORS.vampire);
       updateHUD();
     }
     const comboMult = 1 + Math.min(2.5, Math.floor(player.combo/4)*0.5);
@@ -1629,10 +4857,10 @@
     }
     const baseScore = (e.type==='tank'?35: e.type==='splitter'?25: e.type==='turret'?26: e.type==='sniper'?20: e.type==='bomber'?22: e.type==='dasher'?16: 10);
     score += Math.round(baseScore * comboMult * (e.elite ? 2 : 1)) + player.levels.salvage*3;
-    if(player.combo % 4 === 0) spawnPopup(player.x,player.y-48,'FLOW x'+comboMult.toFixed(1),'#fff06a');
+    if(player.combo % 4 === 0) spawnPopup(player.x,player.y-48,T('FLOW x{n}', {n:comboMult.toFixed(1)}),'#fff06a');
     if(e.elite){
       spawnUpgradeForced(e.x,e.y);
-      spawnPopup(e.x,e.y-e.r-12,'ELITE CACHE','#ffcf4a');
+      spawnPopup(e.x,e.y-e.r-12,T('ELITE CACHE'),'#ffcf4a');
       explode(e.x,e.y,'#ffcf4a',24);
     }
     sfx.enemyDeath();
@@ -1712,10 +4940,12 @@
   }
 
   function spawnPopup(x,y,text,color){
+    if(!settings.popups) return;
     popups.push({x,y,text,color,life:900,t:0});
   }
 
   function explode(x,y,color,n){
+    if(settings.fx === 'low') n = Math.ceil(n*0.35);
     for(let i=0;i<n;i++){
       const a = Math.random()*Math.PI*2;
       const sp = Math.random()*160+40;
@@ -1747,7 +4977,7 @@
       telegraph: null
     };
     document.getElementById('wrap').classList.add('boss-alert');
-    spawnPopup(W/2, H*0.4, kindDef.name+' INCOMING', kindDef.color);
+    spawnPopup(W/2, H*0.4, T('{name} INCOMING', {name:T(kindDef.name)}), kindDef.color);
     updateHUD();
   }
 
@@ -1766,7 +4996,7 @@
       boss.enraged = true;
       boss.color = boss.enrageColor;
       boss.attackTimer = Math.min(boss.attackTimer, 350);
-      spawnPopup(boss.x, boss.y-boss.r-14, boss.name+' ENRAGED!', boss.enrageColor);
+      spawnPopup(boss.x, boss.y-boss.r-14, T('{name} ENRAGED!', {name:T(boss.name)}), boss.enrageColor);
     }
 
     if(boss.kind === 'warbringer'){
@@ -1885,7 +5115,7 @@
 
   function fireLaserSweep(y, gapX){
     const gapHalf = 55;
-    spawnPopup(boss.x, y-16, 'SWEEP!', '#ff3d6e');
+    spawnPopup(boss.x, y-16, T('SWEEP!'), '#ff3d6e');
     for(let x = 20; x < W-20; x += 24){
       if(Math.abs(x-gapX) < gapHalf) continue;
       enemyBullets.push({ x, y, vx:0, vy:260, r:6 });
@@ -1909,7 +5139,11 @@
     sfx.bossDeath();
     explode(boss.x, boss.y, boss.color, 60);
     score += 400 + wave*60;
-    spawnPopup(boss.x, boss.y-20, boss.name+' DEFEATED!', '#ffcf4a');
+    spawnPopup(boss.x, boss.y-20, T('{name} DEFEATED!', {name:T(boss.name)}), '#ffcf4a');
+    if(metaPerks.hull && player.hp < player.maxHp){
+      player.hp = Math.min(player.maxHp, player.hp + metaPerks.hull);
+      spawnPopup(player.x, player.y-46, T('FIELD REPAIRS +{n} HP', {n:metaPerks.hull}), '#7dffb0');
+    }
     triggerBossRewardChoice(boss.kind);
     firstBossDefeated = true;
     waveTheme = null;
@@ -1928,13 +5162,13 @@
   // ---------- HUD ----------
   function updateHUD(){
     document.getElementById('scoreVal').textContent = score;
-    document.getElementById('waveVal').textContent = bossActive ? 'BOSS' : wave;
+    document.getElementById('waveVal').textContent = bossActive ? T('BOSS') : wave;
     document.getElementById('weaponVal').textContent = player.weaponLevel;
     const comboEl=document.getElementById('comboVal'); if(comboEl) comboEl.textContent=player.combo>0 ? ('x'+(1+Math.min(2.5,Math.floor(player.combo/4)*0.5)).toFixed(1)+' ['+player.combo+']') : '0';
     const buildEl=document.getElementById('buildRow'); if(buildEl){
       const pw=currentPower();
-      buildEl.innerHTML=(pw?'<span class="buildTag" style="color:'+pw.color+'">\u2605 '+pw.name+' '+ROMAN[player.powerTier]+'</span>':'')+
-        getActiveBuilds().filter(a=>!pw||a.key!==pw.key).map(a=>'<span class="buildTag" style="color:'+a.color+'">'+a.short+'</span>').join(''); }
+      buildEl.innerHTML=(pw?'<span class="buildTag" style="color:'+pw.color+'">\u2605 '+T(pw.name)+' '+ROMAN[player.powerTier]+'</span>':'')+
+        getActiveBuilds().filter(a=>!pw||a.key!==pw.key).map(a=>'<span class="buildTag" style="color:'+a.color+'">'+T(a.short)+'</span>').join(''); }
 
     const livesDiv = document.getElementById('lives');
     livesDiv.innerHTML = '';
@@ -1953,13 +5187,13 @@
 
     const L = player.levels;
     const parts = [];
-    if(L.damage) parts.push('DMG'+L.damage);
-    if(L.rapid) parts.push('RPD'+L.rapid);
-    if(L.speed) parts.push('SPD'+L.speed);
-    if(L.pierce) parts.push('PRC'+L.pierce);
-    if(L.magnet) parts.push('MAG'+L.magnet);
-    if(L.explosive) parts.push('BLT'+L.explosive);
-    if(L.homing) parts.push('HOM'+L.homing);
+    if(L.damage) parts.push(T('DMG')+L.damage);
+    if(L.rapid) parts.push(T('RPD')+L.rapid);
+    if(L.speed) parts.push(T('SPD')+L.speed);
+    if(L.pierce) parts.push(T('PRC')+L.pierce);
+    if(L.magnet) parts.push(T('MAG')+L.magnet);
+    if(L.explosive) parts.push(T('BLT')+L.explosive);
+    if(L.homing) parts.push(T('HOM')+L.homing);
     if(player.classes.drone) parts.push('ENG');
     if(player.classes.nova) parts.push('VAN');
     if(player.classes.regen) parts.push('BER');
@@ -2038,7 +5272,7 @@
           player.phaseTimer = Math.max(6500, 10500-player.levels.phase*1000);
           player.invuln = Math.max(player.invuln, 900 + 250*pm('ghost','b'));
           if(player.levels.phase>=2 && player.levels.dash>=2) player.ghostBoost = ghostMs();
-          spawnPopup(player.x,player.y-35,'PHASED','#a78bff');
+          spawnPopup(player.x,player.y-35,T('PHASED'),'#a78bff');
         }
       }
       if(player.levels.dash && (Math.abs(mx)+Math.abs(my)>0.2)){
@@ -2058,14 +5292,14 @@
         player.repairTimer -= dt;
         if(player.repairTimer<=0){
           player.repairTimer = Math.max(6500,12000-player.levels.repair*1300);
-          if(player.hp<player.maxHp){ player.hp++; spawnPopup(player.x,player.y-30,'AUTO REPAIR','#69ff9d'); updateHUD(); }
+          if(player.hp<player.maxHp){ player.hp++; spawnPopup(player.x,player.y-30,T('AUTO REPAIR'),'#69ff9d'); updateHUD(); }
         }
       }
       if(pm('aegis','c')>0){
         player.aegisTimer -= dt;
         if(player.aegisTimer<=0){
           player.aegisTimer = Math.max(6000, 17000 - pm('aegis','c')*3000);
-          if(player.shieldCharges<player.shieldMax){ player.shieldCharges++; spawnPopup(player.x,player.y-30,'SHIELD FORGE','#b8c6ff'); updateHUD(); }
+          if(player.shieldCharges<player.shieldMax){ player.shieldCharges++; spawnPopup(player.x,player.y-30,T('SHIELD FORGE'),'#b8c6ff'); updateHUD(); }
         }
       }
       if(player.levels.pulse){
@@ -2083,7 +5317,7 @@
       if(player.levels.overdrive){
         player.overdriveTimer -= dt;
         const odOn = player.overdriveTimer>0 && player.killStreak>=4;
-        if(odOn && !player.odOn) spawnPopup(player.x,player.y-45,'OVERDRIVE','#fff06a');
+        if(odOn && !player.odOn) spawnPopup(player.x,player.y-45,T('OVERDRIVE'),'#fff06a');
         player.odOn = odOn;
       }
 
@@ -2173,7 +5407,7 @@
           player.regenTimer = 15000;
           if(player.hp < player.maxHp){
             player.hp++;
-            spawnPopup(player.x, player.y-30, '+1 HP', CLASS_DEFS.regen.color);
+            spawnPopup(player.x, player.y-30, T('+1 HP'), CLASS_DEFS.regen.color);
             updateHUD();
           }
         }
@@ -2202,8 +5436,8 @@
         } else {
           rollWaveTheme();
           sfx.waveStart();
-          spawnPopup(player.x, player.y-40, 'WAVE '+wave, '#35e3ff');
-          if(waveTheme) spawnBanner('WAVE '+wave+' \u2014 '+waveTheme.name, '', '#35e3ff');
+          spawnPopup(player.x, player.y-40, T('WAVE {n}', {n:wave}), '#35e3ff');
+          if(waveTheme) spawnBanner(T('WAVE {n}', {n:wave})+' \u2014 '+T(waveTheme.name), '', '#35e3ff');
           // Every 3rd wave: a supply shrine lets you choose an upgrade directly.
           if(wave % 3 === 0) triggerUpgradeChoice();
         }
@@ -2515,14 +5749,14 @@
       player.invuln=700+player.armorInvulnBonus;
       player.combo=0; player.comboTimer=0;
       sfx.shieldBlock();
-      spawnPopup(player.x,player.y-30,'SHIELD -1','#35e3ff');
+      spawnPopup(player.x,player.y-30,T('SHIELD -1'),'#35e3ff');
       triggerAegisShockwave();
       updateHUD();
       return;
     }
     if(player.armorDeflect>0 && Math.random() < player.armorDeflect){
       player.invuln = 700 + player.armorInvulnBonus;
-      spawnPopup(player.x,player.y-30,'DEFLECTED','#b8c6ff');
+      spawnPopup(player.x,player.y-30,T('DEFLECTED'),'#b8c6ff');
       triggerAegisShockwave();
       return;
     }
@@ -2543,10 +5777,10 @@
     const hull = tier>=6 ? pal.hull3 : tier>=3 ? pal.hull2 : pal.hull1;
 
     // Skin growth effects that sit behind the hull.
-    if(sk.back){ c.save(); sk.back(c, r, tier, L, fr, pal, hs, sk); c.restore(); }
+    if(sk.back && !sk.noBack){ c.save(); sk.back(c, r, tier, L, fr, pal, hs, sk); c.restore(); }
 
     // Outer phase/shield field.
-    if(st.shield || L.phase){
+    if(st.shield || (L.phase && (!sk.body || st.invuln))){
       const phased = L.phase && st.invuln;
       c.strokeStyle = phased ? '#a78bff' : '#35e3ff';
       c.lineWidth = phased ? 3 : 2;
@@ -2554,7 +5788,9 @@
       c.beginPath(); c.arc(0,0,r+9+Math.sin(fr*.1)*1.5,0,Math.PI*2); c.stroke();
     }
 
-    // Tier-based silhouette: each tier adds a new physical form.
+    // Tier-based silhouette. Skins with their own body() draw a completely different
+    // structure; only the classic fighter uses the generic wing stack.
+    if(sk.body){ c.save(); sk.body(c, r, tier, L, fr, pal, hs, sk); c.restore(); } else {
     if(tier>=1){
       c.fillStyle=pal.wing1; c.shadowColor=pal.wing1; c.shadowBlur=10;
       for(const side of [-1,1]){
@@ -2596,10 +5832,13 @@
       c.beginPath(); c.arc(0,0,r*1.9,0,Math.PI*2); c.stroke();
     }
 
-    // Main hull (silhouette depends on the skin).
+    }
+
+    // Main hull (silhouette depends on the skin and morphs with tier).
     c.fillStyle=hull; c.shadowColor=pal.glow; c.shadowBlur=14+tier*2;
     c.beginPath();
-    sk.shape.forEach((p,i)=>{ const x=p[0]*r*hs, y=p[1]*r*hs; if(i) c.lineTo(x,y); else c.moveTo(x,y); });
+    const hullShape = sk.shapes ? sk.shapes[tier>=6?2:tier>=3?1:0] : sk.shape;
+    hullShape.forEach((p,i)=>{ const x=p[0]*r*hs, y=p[1]*r*hs; if(i) c.lineTo(x,y); else c.moveTo(x,y); });
     c.closePath(); c.fill();
     if(pal.edge){ c.strokeStyle=pal.edge; c.lineWidth=1.5; c.shadowBlur=6; c.stroke(); }
 
@@ -2621,7 +5860,7 @@
     }
     if(L.orbitals){
       c.strokeStyle=pal.ring; c.lineWidth=2; c.shadowColor=pal.ring; c.shadowBlur=10;
-      c.beginPath(); c.arc(0,0,r*(1.65+L.orbitals*.08),0,Math.PI*2); c.stroke();
+      if(!sk.body){ c.beginPath(); c.arc(0,0,r*(1.65+L.orbitals*.08),0,Math.PI*2); c.stroke(); }
       for(let i=0;i<L.orbitals;i++){
         const a=st.droneAngle+i*Math.PI*2/L.orbitals;
         c.fillStyle=pal.ring; c.beginPath(); c.arc(Math.cos(a)*r*1.65,Math.sin(a)*r*1.65,4,0,Math.PI*2); c.fill();
@@ -2643,11 +5882,11 @@
     }
     if(L.armor){
       c.strokeStyle=pal.armor||'#b8c6ff'; c.lineWidth=2; c.shadowColor=c.strokeStyle; c.shadowBlur=7;
-      c.beginPath(); c.arc(0,.1*r,r*.92,-.85,Math.PI+.85); c.stroke();
+      if(!sk.body){ c.beginPath(); c.arc(0,.1*r,r*.92,-.85,Math.PI+.85); c.stroke(); }
     }
     if(L.gravity){
       c.strokeStyle='#55e0b0'; c.lineWidth=1.5; c.shadowColor='#55e0b0'; c.shadowBlur=8;
-      c.beginPath(); c.arc(0,0,r*(1.05+L.gravity*.08),0,Math.PI*2); c.stroke();
+      if(!sk.body){ c.beginPath(); c.arc(0,0,r*(1.05+L.gravity*.08),0,Math.PI*2); c.stroke(); }
     }
     if(L.reactor){
       c.fillStyle='#63faff'; c.shadowColor='#63faff'; c.shadowBlur=18;
@@ -2687,11 +5926,11 @@
     }
     if(L.orbitals>=3){
       c.strokeStyle=pal.ring; c.lineWidth=1.5; c.shadowColor=pal.ring; c.shadowBlur=12;
-      c.beginPath(); c.arc(0,0,r*2.0+Math.sin(fr*.08)*2,0,Math.PI*2); c.stroke();
+      if(!sk.body){ c.beginPath(); c.arc(0,0,r*2.0+Math.sin(fr*.08)*2,0,Math.PI*2); c.stroke(); }
     }
     if(L.armor>=2 && L.barrier>=1){
       c.strokeStyle=pal.armor||'#b8c6ff'; c.lineWidth=2.5; c.shadowColor=c.strokeStyle; c.shadowBlur=15;
-      c.beginPath(); c.arc(0,0,r*2.15,Math.PI*.18,Math.PI*.82); c.stroke();
+      if(!sk.body){ c.beginPath(); c.arc(0,0,r*2.15,Math.PI*.18,Math.PI*.82); c.stroke(); }
     }
     c.restore();
   }
@@ -2880,12 +6119,12 @@
       ctx.fillStyle = '#eef2ff';
       ctx.font = 'bold 11px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(boss.entering ? boss.name+' [SHIELDED]' : (boss.enraged ? boss.name+' ENRAGED' : boss.name), W/2, barY-6);
+      ctx.fillText(boss.entering ? T('{name} [SHIELDED]', {name:T(boss.name)}) : (boss.enraged ? T('{name} ENRAGED', {name:T(boss.name)}) : T(boss.name)), W/2, barY-6);
     }
 
     // Bullets
     for(const b of bullets){
-      const bc=(b.charged||b.crit)?'#fff06a':b.mirror?'#9ee7ff':b.missile?'#ff8b4a':(player.levels.prism?'#f0a0ff':curSkin.pal.bullet);
+      const bc=(b.charged||b.crit)?'#fff06a':b.mirror?'#9ee7ff':b.missile?'#ff8b4a':(shotColor(b)||(player.levels.prism?'#f0a0ff':curSkin.pal.bullet));
       ctx.fillStyle=bc; ctx.shadowColor=bc; ctx.shadowBlur=b.charged?16:8;
       ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,7); ctx.fill();
     }
@@ -3008,8 +6247,8 @@
     }
     if(runAnomaly && state==='playing'){
       ctx.globalAlpha = 0.8; ctx.shadowBlur = 0; ctx.textAlign = 'left'; ctx.font = '10px monospace';
-      ctx.fillStyle = runAnomaly.color; ctx.fillText('\u25C8 ' + runAnomaly.name, 8, TOP_MARGIN + 50);
-      if(waveTheme){ ctx.fillStyle = '#7df3ff'; ctx.fillText('\u25B8 ' + waveTheme.name, 8, TOP_MARGIN + 63); }
+      ctx.fillStyle = runAnomaly.color; ctx.fillText('\u25C8 ' + T(runAnomaly.name), 8, TOP_MARGIN + 50);
+      if(waveTheme){ ctx.fillStyle = '#7df3ff'; ctx.fillText('\u25B8 ' + T(waveTheme.name), 8, TOP_MARGIN + 63); }
     }
     ctx.restore();
     // Popups
@@ -3028,31 +6267,133 @@
     sfx.gameOver();
     const isNewBest = score > highScore;
     saveHighScoreIfNeeded();
-    document.getElementById('finalScore').textContent = 'SCORE: '+score;
-    document.getElementById('waveReached').textContent = 'Reached wave '+wave;
-    document.getElementById('bestScoreLine').textContent = isNewBest ? 'NEW BEST!' : ('BEST: '+highScore);
+    document.getElementById('finalScore').textContent = T('SCORE: {n}', {n:score});
+    document.getElementById('waveReached').textContent = T('Reached wave {n}', {n:wave});
+    document.getElementById('bestScoreLine').textContent = isNewBest ? T('NEW BEST!') : T('BEST: {n}', {n:highScore});
 
     const baseCores = Math.floor(score/40) + wave*3;
     const earned = Math.round(baseCores * (1 + metaPerks.salvage*0.1));
     cores += earned;
     saveCores(cores);
-    document.getElementById('coresEarnedLine').textContent = '+'+earned+' CORES';
+    document.getElementById('coresEarnedLine').textContent = T('+{n} CORES', {n:earned});
 
     document.getElementById('overScreen').classList.remove('hidden');
   }
 
   function refreshStartScreenHighScore(){
     const el = document.getElementById('highScoreLine');
-    el.textContent = highScore > 0 ? ('BEST SCORE: '+highScore) : '';
-    document.getElementById('coresLine').textContent = 'CORES: '+cores;
+    el.textContent = highScore > 0 ? T('BEST SCORE: {n}', {n:highScore}) : '';
+    document.getElementById('coresLine').textContent = T('CORES: {n}', {n:cores});
   }
   refreshStartScreenHighScore();
 
+  // ---------- Settings UI ----------
+  let settingsReturn = 'start', resetArmed = false, resetTimer = null;
+  function renderSettings(){
+    const list = document.getElementById('settingsList');
+    list.innerHTML = '';
+    const mkRow = (name, desc)=>{
+      const row = document.createElement('div'); row.className = 'setRow';
+      const top = document.createElement('div'); top.className = 'top';
+      const info = document.createElement('div'); info.className = 'perkInfo';
+      info.innerHTML = '<div class="perkName">'+name+'</div>'+(desc?'<div class="perkDesc">'+desc+'</div>':'');
+      top.appendChild(info); row.appendChild(top); list.appendChild(row);
+      return { row, top };
+    };
+    const toggle = (name, desc, label, onClick, disabled)=>{
+      const r = mkRow(name, desc);
+      const b = document.createElement('button'); b.className = 'perkBuyBtn'; b.textContent = label; b.disabled = !!disabled;
+      b.addEventListener('click', ()=>{ onClick(); renderSettings(); });
+      r.top.appendChild(b);
+    };
+    const slider = (name, desc, min, max, step, value, fmt, onInput, onChange)=>{
+      const r = mkRow(name, desc);
+      const v = document.createElement('span'); v.className = 'val'; v.textContent = fmt(value); r.top.appendChild(v);
+      const inp = document.createElement('input'); inp.type = 'range'; inp.min = min; inp.max = max; inp.step = step; inp.value = value;
+      inp.addEventListener('input', ()=>{ v.textContent = fmt(+inp.value); onInput(+inp.value); });
+      inp.addEventListener('change', ()=>{ if(onChange) onChange(); });
+      r.row.appendChild(inp);
+    };
+
+    // Language picker (native names, so it can always be found)
+    const lr = mkRow('\uD83C\uDF10 ' + T('LANGUAGE'), T('Choose the game language.'));
+    const lb = document.createElement('div'); lb.className = 'langBtns';
+    for(const [code, label] of LANGS){
+      const b = document.createElement('button');
+      b.className = 'perkBuyBtn langBtn' + (settings.lang === code ? ' active' : '');
+      b.textContent = label;
+      b.addEventListener('click', ()=>{ if(settings.lang === code) return; settings.lang = code; saveSettings(); applyLanguage(); });
+      lb.appendChild(b);
+    }
+    lr.row.appendChild(lb);
+
+    toggle(T('SOUND'), T('Turn all game sounds on or off.'), muted ? T('OFF') : T('ON'), ()=>{ ensureAudio(); setMuted(!muted); });
+    slider(T('SOUND VOLUME'), T('How loud the effects are.'), 0, 100, 5, settings.sfxVol, v=>v+'%',
+      v=>{ settings.sfxVol = v; saveSettings(); }, ()=>{ ensureAudio(); sfx.upgrade(); });
+    toggle(T('VIBRATION'), navigator.vibrate ? T('Short buzz when you get hit or a boss dies.') : T('Not supported on this device.'),
+      settings.vibrate ? T('ON') : T('OFF'), ()=>{ settings.vibrate = !settings.vibrate; saveSettings(); buzz(60); }, !navigator.vibrate);
+    slider(T('CONTROL SENSITIVITY'), T('How far you drag to reach full speed. Higher = more sensitive.'), 60, 160, 10, settings.sens, v=>v+'%',
+      v=>{ settings.sens = v; saveSettings(); });
+    toggle(T('FLOATING TEXT'), T('Pop-up text for pickups, powers and combos.'), settings.popups ? T('ON') : T('OFF'), ()=>{ settings.popups = !settings.popups; saveSettings(); });
+    toggle(T('EFFECTS QUALITY'), T('LOW uses fewer explosion particles - smoother on older phones.'), settings.fx === 'low' ? T('LOW') : T('HIGH'),
+      ()=>{ settings.fx = settings.fx === 'low' ? 'high' : 'low'; saveSettings(); });
+
+    const t = document.createElement('div'); t.className = 'sectionTitle'; t.textContent = T('SAVE DATA'); list.appendChild(t);
+    const rr = mkRow(T('RESET ALL PROGRESS'), T('Deletes cores, Hangar upgrades, skins, add-ons and best score. This cannot be undone.'));
+    const rb = document.createElement('button'); rb.className = 'perkBuyBtn dangerBtn';
+    rb.textContent = resetArmed ? T('TAP AGAIN TO CONFIRM') : T('RESET');
+    rb.addEventListener('click', ()=>{
+      if(!resetArmed){
+        resetArmed = true; clearTimeout(resetTimer);
+        resetTimer = setTimeout(()=>{ resetArmed = false; if(!document.getElementById('settingsOverlay').classList.contains('hidden')) renderSettings(); }, 4000);
+        renderSettings(); return;
+      }
+      for(const k of ['gd_cores','gd_meta','gd_skins','gd_shots','gd_highscore']) localStorage.removeItem(k);
+      location.reload();
+    });
+    rr.top.appendChild(rb);
+  }
+  function openSettings(from){
+    settingsReturn = from; resetArmed = false;
+    renderSettings();
+    document.getElementById('settingsOverlay').classList.remove('hidden');
+  }
+  function closeSettings(){
+    clearTimeout(resetTimer); resetArmed = false;
+    document.getElementById('settingsOverlay').classList.add('hidden');
+  }
+  document.getElementById('settingsBtn').addEventListener('click', ()=> openSettings('start'));
+  document.getElementById('pauseSettingsBtn').addEventListener('click', ()=> openSettings('pause'));
+  document.getElementById('settingsGearBtn').addEventListener('click', ()=>{
+    if(state !== 'playing') return;
+    if(!document.getElementById('choiceOverlay').classList.contains('hidden')) return;
+    setPaused(true);
+    openSettings('pause');
+  });
+  document.getElementById('settingsBackBtn').addEventListener('click', closeSettings);
+
+  // Re-applies the chosen language to everything currently on screen.
+  function applyLanguage(){
+    document.documentElement.lang = settings.lang;
+    const powerList = ['MIRV','ARC STORM','NOVA RING','AEGIS','RAILGUN','BROADSIDER','INFERNO','GHOST WALKER','KALEIDOSCOPE','PINBALL']
+      .map(n => T(n)).join(', ');
+    document.querySelectorAll('[data-i18n]').forEach(el=>{
+      el.textContent = T(el.getAttribute('data-i18n'), { powers: powerList });
+    });
+    updateHUD();
+    refreshStartScreenHighScore();
+    if(!document.getElementById('settingsOverlay').classList.contains('hidden')) renderSettings();
+    if(!document.getElementById('hangarOverlay').classList.contains('hidden')) renderHangar();
+  }
+
   // ---------- Hangar UI ----------
   function renderHangar(){
-    document.getElementById('hangarCoresLine').textContent = 'CORES: '+cores;
+    document.getElementById('hangarCoresLine').textContent = T('CORES: {n}', {n:cores});
     const list = document.getElementById('hangarList');
     list.innerHTML = '';
+    const upTitle = document.createElement('div');
+    upTitle.className = 'sectionTitle'; upTitle.textContent = T('SHIP UPGRADES');
+    list.appendChild(upTitle);
     for(const key of Object.keys(META_PERKS)){
       const def = META_PERKS[key];
       const lvl = metaPerks[key];
@@ -3062,11 +6403,11 @@
       row.className = 'perkRow';
       const info = document.createElement('div');
       info.className = 'perkInfo';
-      info.innerHTML = '<div class="perkName">'+def.name+' ('+lvl+'/'+def.maxLevel+')</div>'+
-                        '<div class="perkDesc">'+def.desc+'</div>';
+      info.innerHTML = '<div class="perkName">'+T(def.name)+' ('+lvl+'/'+def.maxLevel+')</div>'+
+                        '<div class="perkDesc">'+T(def.desc)+'</div>';
       const btn = document.createElement('button');
       btn.className = 'perkBuyBtn';
-      btn.textContent = maxed ? 'MAXED' : ('BUY: '+cost);
+      btn.textContent = maxed ? T('MAXED') : T('BUY: {n}', {n:cost});
       btn.disabled = maxed || cores < cost;
       btn.addEventListener('click', ()=>{
         if(metaPerks[key] >= def.maxLevel || cores < perkCost(key)) return;
@@ -3082,6 +6423,35 @@
       list.appendChild(row);
     }
     renderSkinShop(list);
+    renderShotShop(list);
+  }
+
+  // ---------- Hangar: shot colour add-ons ----------
+  function renderShotShop(list){
+    const title = document.createElement('div');
+    title.className = 'sectionTitle'; title.textContent = T('ADD-ONS \u00B7 SHOT COLOURS');
+    list.appendChild(title);
+    for(const id of SHOT_ORDER){
+      const sc = SHOT_COLORS[id];
+      const owned = shotState.owned.includes(id), equipped = shotState.selected === id;
+      const row = document.createElement('div'); row.className = 'perkRow';
+      const info = document.createElement('div'); info.className = 'perkInfo';
+      const sw = sc.color==='rainbow' ? 'linear-gradient(90deg,#ff5c5c,#ffd54a,#66ffb2,#5cc8ff,#b58cff)' : (sc.color || '#7df3ff');
+      info.innerHTML = '<div class="perkName"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+sw+';margin-right:8px;vertical-align:-1px"></span>'+T(sc.name)+'</div><div class="perkDesc">'+T(sc.desc)+'</div>';
+      const btn = document.createElement('button'); btn.className = 'perkBuyBtn';
+      if(equipped){ btn.textContent = T('EQUIPPED'); btn.disabled = true; }
+      else if(owned){ btn.textContent = T('EQUIP'); }
+      else { btn.textContent = T('BUY: {n}', {n:sc.cost}); btn.disabled = cores < sc.cost; }
+      btn.addEventListener('click', ()=>{
+        if(!shotState.owned.includes(id)){
+          if(cores < sc.cost) return;
+          cores -= sc.cost; saveCores(cores); shotState.owned.push(id);
+        }
+        shotState.selected = id; saveShots(shotState);
+        renderHangar(); refreshStartScreenHighScore();
+      });
+      row.appendChild(info); row.appendChild(btn); list.appendChild(row);
+    }
   }
 
   // ---------- Hangar: ship skins ----------
@@ -3099,11 +6469,11 @@
 
   function renderSkinShop(list){
     const title = document.createElement('div');
-    title.className = 'sectionTitle'; title.textContent = 'SHIP SKINS';
+    title.className = 'sectionTitle'; title.textContent = T('SHIP SKINS');
     list.appendChild(title);
     const hint = document.createElement('div');
     hint.className = 'sectionHint';
-    hint.textContent = 'Skins evolve as you collect upgrades. Tap a ship to jump to its next form.';
+    hint.textContent = T('Skins evolve as you collect upgrades. Tap a ship to jump to its next form.');
     list.appendChild(hint);
 
     hangarPreviews = [];
@@ -3118,13 +6488,13 @@
       const cv = document.createElement('canvas');
       cv.width = 96*dpr; cv.height = 96*dpr;
       const info = document.createElement('div'); info.className = 'skinInfo';
-      const nm = document.createElement('div'); nm.className = 'perkName'; nm.textContent = sk.name;
+      const nm = document.createElement('div'); nm.className = 'perkName'; nm.textContent = T(sk.name);
       const tl = document.createElement('div'); tl.className = 'skinTier';
-      const ds = document.createElement('div'); ds.className = 'perkDesc'; ds.textContent = sk.desc;
+      const ds = document.createElement('div'); ds.className = 'perkDesc'; ds.textContent = T(sk.desc);
       const btn = document.createElement('button'); btn.className = 'perkBuyBtn'; btn.style.marginTop = '8px';
-      if(equipped){ btn.textContent = 'EQUIPPED'; btn.disabled = true; }
-      else if(owned){ btn.textContent = 'EQUIP'; }
-      else { btn.textContent = 'BUY: '+sk.cost; btn.disabled = cores < sk.cost; }
+      if(equipped){ btn.textContent = T('EQUIPPED'); btn.disabled = true; }
+      else if(owned){ btn.textContent = T('EQUIP'); }
+      else { btn.textContent = T('BUY: {n}', {n:sk.cost}); btn.disabled = cores < sk.cost; }
       btn.addEventListener('click', ()=>{
         if(!skinState.owned.includes(id)){
           if(cores < sk.cost) return;
@@ -3137,7 +6507,7 @@
       });
 
       const prev = { cv, id, tier:0, nextAt: Date.now()+1500 };
-      prev.setLabel = ()=>{ tl.textContent = 'TIER '+prev.tier + (sk.forms ? ' \u00B7 '+sk.forms[prev.tier] : ''); };
+      prev.setLabel = ()=>{ tl.textContent = T('TIER {n}', {n:prev.tier}) + (sk.forms ? ' \u00B7 '+T(sk.forms[prev.tier]) : ''); };
       prev.setLabel();
       cv.addEventListener('click', ()=>{ prev.tier = (prev.tier+1) % 9; prev.nextAt = Date.now()+2500; prev.setLabel(); });
       hangarPreviews.push(prev);
@@ -3169,7 +6539,8 @@
     if(pool.length<3) pool = pool.concat(UPGRADE_TYPES.filter(t=>STAT_DROPS.includes(t) && canTake(t)));
     if(pool.length<3) pool = UPGRADE_TYPES.slice();
     const types=[];
-    while(types.length<3 && pool.length){
+    const cardCount = metaPerks.pathfinder ? 4 : 3;
+    while(types.length<cardCount && pool.length){
       let total=0;
       const weights=pool.map(type=>{
         const w=1+upgradeSynergyScore(type)*0.9 + (pw && pw.feeds.includes(type) ? 5 : 0);
@@ -3185,27 +6556,27 @@
       const feed = pw.feeds.filter(t=>canTake(t) && !types.includes(t));
       if(feed.length) types[types.length-1] = feed[Math.floor(Math.random()*feed.length)];
     }
-    document.getElementById('choiceTitle').textContent = 'WAVE '+wave+' \u2014 CHOOSE AN UPGRADE';
-    document.getElementById('choiceSub').textContent = pw ? 'Cards marked \u2605 feed your '+pw.name+' power.' : 'Shape your build route.';
+    document.getElementById('choiceTitle').textContent = T('WAVE {n} \u2014 CHOOSE AN UPGRADE', {n:wave});
+    document.getElementById('choiceSub').textContent = pw ? T('Cards marked \u2605 feed your {name} power.', {name:T(pw.name)}) : T('Shape your build route.');
     const list=document.getElementById('choiceList');
     list.innerHTML='';
     for(const type of types){
       let curLvl=type==='shield'?player.shieldCharges:(type==='life'?Math.max(0,player.maxHp-3):(player.levels[type]||0));
       let tag='';
       if(pw && pw.feeds.includes(type)){
-        tag='<div class="choiceSynergy" style="color:'+pw.color+'">\u2605 FEEDS '+pw.name+'</div>';
+        tag='<div class="choiceSynergy" style="color:'+pw.color+'">'+T('\u2605 FEEDS {name}', {name:T(pw.name)})+'</div>';
       } else {
         const near = BUILD_ARCHETYPES.filter(a=>a.req[type]!==undefined && buildProgress(a)<1)
           .sort((a,b)=>buildProgress(a)-buildProgress(b))[0];
-        if(near) tag='<div class="choiceSynergy" style="color:'+near.color+'">'+near.short+' '+Math.round(buildProgress(near)*100)+'%</div>';
+        if(near) tag='<div class="choiceSynergy" style="color:'+near.color+'">'+T(near.short)+' '+Math.round(buildProgress(near)*100)+'%</div>';
       }
       const btn=document.createElement('button');
       btn.className='choiceBtn';
       btn.style.borderColor=UPGRADE_COLORS[type];
       btn.style.boxShadow='0 0 18px '+UPGRADE_COLORS[type]+'44';
-      btn.innerHTML='<div class="choiceName" style="color:'+UPGRADE_COLORS[type]+'">'+UPGRADE_LABELS[type]+'</div>'+
-        '<div class="choiceDesc">Lv '+curLvl+' \u2192 '+(curLvl+1)+'</div>'+
-        '<div class="choiceDesc">'+(UPGRADE_DESC[type]||'SYSTEM UPGRADE')+'</div>'+tag;
+      btn.innerHTML='<div class="choiceName" style="color:'+UPGRADE_COLORS[type]+'">'+T(UPGRADE_LABELS[type])+'</div>'+
+        '<div class="choiceDesc">'+T('Lv {a} \u2192 {b}', {a:curLvl, b:curLvl+1})+'</div>'+
+        '<div class="choiceDesc">'+T(UPGRADE_DESC[type]||'SYSTEM UPGRADE')+'</div>'+tag;
       let done=false;
       btn.addEventListener('click',()=>{
         if(done) return; done=true;
@@ -3213,6 +6584,14 @@
         closeChoice();
       });
       list.appendChild(btn);
+    }
+    if(player.rerolls > 0){
+      const rb=document.createElement('button');
+      rb.className='choiceBtn'; rb.style.borderColor='#9db4ff'; rb.style.minHeight='0';
+      rb.innerHTML='<div class="choiceName" style="color:#9db4ff">'+T('REROLL CHOICES ({n} left)', {n:player.rerolls})+'</div>';
+      let rd=false;
+      rb.addEventListener('click',()=>{ if(rd) return; rd=true; player.rerolls--; triggerUpgradeChoice(); });
+      list.appendChild(rb);
     }
     document.getElementById('choiceOverlay').classList.remove('hidden');
   }
@@ -3238,6 +6617,7 @@
   });
 
   player.x = W/2; player.y = bottomLimit() - 24;
+  applyLanguage();
   requestAnimationFrame(loop);
 })();
 </script>
