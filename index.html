@@ -438,6 +438,29 @@
     reactor:4, salvage:2
   };
 
+  // Central balance table. Every number that decides how strong a build is
+  // lives here so the whole game can be tuned in one place.
+  const BAL = {
+    // offence
+    burnDps:2.1, burnSec:0.9, homingBase:1.6, homingPer:0.45,                       // Incendiary: hull/sec per level, seconds per level
+    critPerLevel:0.05, critMult:2.5,                // Crit Core
+    capEveryBase:8, capMultBase:1.8, capMultPerLevel:0.2, railMult:1.7,   // Capacitor / Railgun
+    sidegunDmg:[0,0.7,0.8,0.9], sideAngle:0.6,      // Side guns by level, and how tight their cone is
+    bossbane:0.15,                                  // Boss Hunter: +15% boss damage per level
+    overdriveRate:0.07,                             // Overdrive: fire-rate bonus per level while on a streak
+    droneDmg:0.9, droneRate:500,
+    orbitalRate:700, orbitalDmg:0.7, orbitalDmgPerLevel:0.1, novaRingDmg:0.35,
+    missileDmg:0.9, missileDmgPerLevel:0.22, missileHoming:2.3,
+    pulseDmg:0.8, chainDmg:1.0, explosiveDmg:0.5, mirrorMult:0.6, kaleidoMult:0.85, executeStep:0.25,
+    pinballDmg:0.3, ghostBoost:0.5, ghostBoostMs:2000,
+    // defence / control
+    armorDeflect:0.08,                              // Armor: chance per level to shrug off a hull hit
+    aegisBase:3, aegisArmor:1.0, aegisBarrier:1.2,
+    gravitySlow:0.09, gravityBulletSlow:0.08, gravityVuln:0.10, gravityRadius:30, gravityCrush:0.8,
+    // enemy scaling
+    hpSqrt:0.55, hpLate:0.12, hpLateFrom:12
+  };
+
   const UPGRADE_MAX = {
     weapon:7, damage:10, rapid:10, speed:10, pierce:5, magnet:6, explosive:5, homing:5,
     sideguns:3, orbitals:3, missiles:4, critical:5, chain:5, burn:5, ricochet:4, bossbane:5,
@@ -770,9 +793,81 @@
     { name:'GLASS CANNON', desc:'+3 Damage, -1 Max HP', apply:(L,p)=>{ L.damage = Math.min(UPGRADE_MAX.damage, L.damage+3); p.maxHp = Math.max(1, p.maxHp-1); p.hp = Math.min(p.hp, p.maxHp); } },
     { name:'SWIFT', desc:'+3 Speed Level', apply:(L)=>{ L.speed = Math.min(UPGRADE_MAX.speed, L.speed+3); } },
     { name:'FORTIFIED', desc:'+2 Max HP', apply:(L,p)=>{ p.maxHp += 2; p.hp += 2; } },
-    { name:'VAMPIRIC PACT', desc:'+1 Vampire Level', apply:(L)=>{ L.vampire = Math.min(UPGRADE_MAX.vampire, L.vampire+1); } },
-    { name:'STATIC FIELD', desc:'+1 Chain Level', apply:(L)=>{ L.chain = Math.min(UPGRADE_MAX.chain, L.chain+1); } }
+    { name:'VAMPIRIC PACT', desc:'+1 Vampire Level (kills can heal you)', apply:(L)=>{ L.vampire = Math.min(UPGRADE_MAX.vampire, L.vampire+1); } },
+    { name:'STATIC FIELD', desc:'+2 Chain Arc', apply:(L)=>{ L.chain = Math.min(UPGRADE_MAX.chain, L.chain+2); } },
+    { name:'EMBER ROUNDS', desc:'+2 Incendiary', apply:(L)=>{ L.burn = Math.min(UPGRADE_MAX.burn, L.burn+2); } },
+    { name:'SIDEWINDER', desc:'+1 Side Guns, +1 Rapid', apply:(L)=>{ L.sideguns = Math.min(UPGRADE_MAX.sideguns, L.sideguns+1); L.rapid = Math.min(UPGRADE_MAX.rapid, L.rapid+1); } },
+    { name:'HUNTER PACK', desc:'+2 Missile Rack, +1 Homing', apply:(L)=>{ L.missiles = Math.min(UPGRADE_MAX.missiles, L.missiles+2); L.homing = Math.min(UPGRADE_MAX.homing, L.homing+1); } },
+    { name:'BULWARK', desc:'+2 Armor, +2 Shield charges', apply:(L,p)=>{ L.armor = Math.min(UPGRADE_MAX.armor, L.armor+2); p.shieldCharges = 2; } },
+    { name:'PHANTOM STEP', desc:'+1 Phase Drive, +1 Afterburn Dash', apply:(L)=>{ L.phase = Math.min(UPGRADE_MAX.phase, L.phase+1); L.dash = Math.min(UPGRADE_MAX.dash, L.dash+1); } },
+    { name:'LUCKY STAR', desc:'+2 Crit Core, +1 Capacitor', apply:(L)=>{ L.critical = Math.min(UPGRADE_MAX.critical, L.critical+2); L.capacitor = Math.min(UPGRADE_MAX.capacitor, L.capacitor+1); } },
+    { name:'ORBITAL WATCH', desc:'+2 Orbital Cannons', apply:(L)=>{ L.orbitals = Math.min(UPGRADE_MAX.orbitals, L.orbitals+2); } },
+    { name:'PRISMATIC LENS', desc:'+1 Prism Core, +2 Shadow Split', apply:(L)=>{ L.prism = Math.min(UPGRADE_MAX.prism, L.prism+1); L.mirror = Math.min(UPGRADE_MAX.mirror, L.mirror+2); } },
+    { name:'BOUNCE HOUSE', desc:'+2 Ricochet, +1 Pierce', apply:(L)=>{ L.ricochet = Math.min(UPGRADE_MAX.ricochet, L.ricochet+2); L.pierce = Math.min(UPGRADE_MAX.pierce, L.pierce+1); } },
+    { name:'DEEP WELL', desc:'+2 Gravity Well, +1 Pulse Engine', apply:(L)=>{ L.gravity = Math.min(UPGRADE_MAX.gravity, L.gravity+2); L.pulse = Math.min(UPGRADE_MAX.pulse, L.pulse+1); } },
+    { name:'DEMOLITION', desc:'+2 Blast, +1 Executioner', apply:(L)=>{ L.explosive = Math.min(UPGRADE_MAX.explosive, L.explosive+2); L.execution = Math.min(UPGRADE_MAX.execution, L.execution+1); } }
   ];
+
+  // ---------- Run variety ----------
+  // Every run rolls a Sector Anomaly (a rule twist), 4 featured Supply lines
+  // (those upgrades drop far more often, nudging you toward a different build),
+  // a random boss order, and every wave gets its own enemy theme/formation.
+  const RUN_DEFAULT = { hp:1, speed:1, fire:1, bulletSpeed:1, countAdd:0, interval:1, elite:1, drop:1, bossHp:1, waveMs:18000, bossEvery:5 };
+  let RUN = Object.assign({}, RUN_DEFAULT);
+  let runAnomaly = null, runFeatured = [], bossBag = [], lastBossKey = null, waveTheme = null, lastThemeKey = null;
+  let banners = [];
+  const ANOMALIES = [
+    { key:'swarm',  name:'SWARM SEASON', color:'#ffcf4a', desc:'More, weaker enemies. Richer drops.',            mods:{ hp:0.7, countAdd:1, drop:1.25 } },
+    { key:'iron',   name:'IRON FLEET',   color:'#9d5dff', desc:'Fewer, tougher enemies. Richer drops.',          mods:{ hp:1.5, interval:1.3, drop:1.35 } },
+    { key:'bullet', name:'BULLET HELL',  color:'#ff5d8f', desc:'Enemies fire far more, but their shots are slower.', mods:{ fire:1.6, bulletSpeed:0.78 } },
+    { key:'bounty', name:'BOUNTY HUNT',  color:'#ffd66a', desc:'Elites everywhere - every one drops a cache.',   mods:{ elite:3.2 } },
+    { key:'ion',    name:'ION STORM',    color:'#35e3ff', desc:'Faster enemies, but upgrades drop far more often.', mods:{ speed:1.18, drop:1.7 } },
+    { key:'void',   name:'VOID DRIFT',   color:'#a78bff', desc:'Slow enemies, tougher bosses.',                   mods:{ speed:0.78, bossHp:1.3 } },
+    { key:'blitz',  name:'BLITZ',        color:'#ff8b4a', desc:'Waves come faster and bosses arrive every 4 waves.', mods:{ waveMs:13500, bossEvery:4, hp:0.9 } },
+    { key:'siege',  name:'LONG SIEGE',   color:'#69ff9d', desc:'Slow waves, bosses every 6 waves, bigger bosses.', mods:{ waveMs:23000, bossEvery:6, bossHp:1.2, drop:1.15 } }
+  ];
+  // Upgrades worth steering a build with (basic stat upgrades are always plentiful).
+  const FEATURE_POOL = ['sideguns','orbitals','missiles','critical','chain','burn','ricochet','armor','barrier','dash','phase',
+    'prism','gravity','execution','pulse','mirror','capacitor','explosive','homing','pierce'];
+  const WAVE_THEMES = [
+    { key:'flood',    name:'DRONE FLOOD',  min:3,  boost:{drone:6},               countAdd:1 },
+    { key:'line',     name:'BATTLE LINE',  min:3,  formation:'line' },
+    { key:'pincer',   name:'PINCER',       min:3,  formation:'pincer' },
+    { key:'swarm',    name:'SWARM RUSH',   min:6,  boost:{swarm:5, zigzag:2},     countAdd:1 },
+    { key:'snipers',  name:'SNIPER NEST',  min:6,  boost:{sniper:5} },
+    { key:'zig',      name:'ZIGZAG STORM', min:6,  boost:{zigzag:5},              formation:'line' },
+    { key:'column',   name:'IRON COLUMN',  min:9,  boost:{tank:4, turret:3, splitter:3}, formation:'column' },
+    { key:'bombers',  name:'BOMBER RUN',   min:9,  boost:{bomber:5, drone:2} },
+    { key:'dashers',  name:'DASH STORM',   min:11, boost:{dasher:5} }
+  ];
+  function shuffleInPlace(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+  function spawnBanner(title, sub, color){ banners.push({ title, sub, color, t:0, life:3200 }); }
+  function nextBossKind(){
+    if(bossBag.length===0){
+      bossBag = shuffleInPlace(BOSS_KINDS.slice());
+      if(bossBag.length>1 && bossBag[bossBag.length-1].key===lastBossKey) [bossBag[0], bossBag[bossBag.length-1]] = [bossBag[bossBag.length-1], bossBag[0]];
+    }
+    const k = bossBag.pop(); lastBossKey = k.key; return k;
+  }
+  function rollWaveTheme(){
+    const avail = ['drone'];
+    if(firstBossDefeated){
+      avail.push('zigzag','swarm','sniper');
+      if(wave>=7) avail.push('splitter'); if(wave>=8) avail.push('tank','bomber'); if(wave>=9) avail.push('turret'); if(wave>=10) avail.push('dasher');
+    }
+    const opts = WAVE_THEMES.filter(t => wave>=t.min && t.key!==lastThemeKey && (t.formation || (t.boost && Object.keys(t.boost).some(k=>avail.includes(k)))));
+    // ~1 wave in 4 stays a plain wave so themes don't become wallpaper.
+    if(!opts.length || Math.random()<0.25){ waveTheme = null; lastThemeKey = null; return; }
+    waveTheme = opts[Math.floor(Math.random()*opts.length)]; lastThemeKey = waveTheme.key;
+  }
+  function neutralRun(){ RUN = Object.assign({}, RUN_DEFAULT); runAnomaly = null; runFeatured = []; waveTheme = null; banners = []; }
+  function rollRun(){
+    neutralRun();
+    runAnomaly = ANOMALIES[Math.floor(Math.random()*ANOMALIES.length)];
+    Object.assign(RUN, runAnomaly.mods);
+    runFeatured = shuffleInPlace(FEATURE_POOL.slice()).slice(0,4);
+    bossBag = []; lastBossKey = null; lastThemeKey = null;
+  }
   let currentBlessing = null;
 
   let state = 'start';
@@ -818,6 +913,8 @@
   const SHIP_TIER_UPGRADES = 2;
   const SHIP_TIER_MAX = 8;      // tiers 0..5
 
+  let gameTime = 0;   // ms of real play time (frame-rate independent)
+
   function recomputeStats(){
     const L = player.levels;
     player.weaponLevel = 1 + L.weapon;
@@ -827,8 +924,9 @@
     player.pierce = L.pierce;
     player.magnetR = 40 + L.magnet*22 + L.gravity*18;
     player.explosiveRadius = L.explosive>0 ? 26 + L.explosive*9 : 0;
-    player.homingRate = L.homing>0 ? 2.0 + L.homing*0.55 : 0;
-    player.critChance = L.critical * 0.06;
+    player.homingRate = L.homing>0 ? BAL.homingBase + L.homing*BAL.homingPer : 0;
+    player.critChance = Math.min(0.5, L.critical * BAL.critPerLevel);
+    player.armorDeflect = Math.min(0.4, L.armor * BAL.armorDeflect);
     player.armorInvulnBonus = L.armor * 120;
     player.shieldMax = 3 + L.barrier*2;
     player.shieldCharges = Math.min(player.shieldCharges, player.shieldMax);
@@ -853,21 +951,50 @@
     player.upgradeCount=0; player.shipTier=0; player.signatures={};
     player.droneAngle=0; player.droneTimer=0; player.novaTimer=0; player.regenTimer=0;
     player.repairTimer=0; player.pulseTimer=0; player.dashTimer=0; player.phaseTimer=0;
-    player.overdriveTimer=0; player.capacitorShots=0; player.missileTimer=0; player.signatureTimer=0; player.railTimer=0; player.shotsFired=0; player.kills=0; player.killStreak=0;
+    player.overdriveTimer=0; player.ghostBoost=0; player.odOn=false; player.capacitorShots=0; player.missileTimer=0; player.signatureTimer=0; player.railTimer=0; player.shotsFired=0; player.kills=0; player.killStreak=0;
     player.shieldCharges=0; player.shieldMax=3; player.hp=3; player.maxHp=3; player.invuln=0; player.alive=true;
     player.combo=0; player.comboTimer=0;
 
     player.maxHp += metaPerks.hull;
     player.hp = player.maxHp;
     player.levels.weapon += metaPerks.reactor;
-    currentBlessing=BLESSINGS[Math.floor(Math.random()*BLESSINGS.length)];
-    currentBlessing.apply(player.levels,player);
+    currentBlessing=null;
+    rollRun();
+    gameTime=0;
 
     recomputeStats();
     player.x=W/2; player.y=bottomLimit()-24;
     updateHUD();
-    spawnPopup(player.x,player.y-50,currentBlessing.name,'#ffd66a');
-    spawnPopup(player.x,player.y-34,currentBlessing.desc,'#ffd66a');
+  }
+
+  // Start-of-run: pick 1 of 3 random blessings, then the sector briefing appears.
+  function triggerBlessingChoice(){
+    paused = true;
+    const opts = shuffleInPlace(BLESSINGS.slice()).slice(0,3);
+    const list = document.getElementById('choiceList');
+    list.innerHTML = '';
+    document.getElementById('choiceTitle').textContent = 'CHOOSE YOUR BLESSING';
+    for(const bl of opts){
+      const btn = document.createElement('button');
+      btn.className = 'choiceBtn';
+      btn.style.borderColor = '#ffd66a'; btn.style.boxShadow = '0 0 18px #ffd66a44';
+      btn.innerHTML = '<div class="choiceName" style="color:#ffd66a">'+bl.name+'</div><div class="choiceDesc">'+bl.desc+'</div>';
+      let done = false;
+      btn.addEventListener('click', ()=>{
+        if(done) return; done = true;
+        currentBlessing = bl;
+        bl.apply(player.levels, player);
+        recomputeStats(); updateHUD();
+        document.getElementById('choiceOverlay').classList.add('hidden');
+        document.getElementById('choiceTitle').textContent = 'CHOOSE AN UPGRADE';
+        paused = false;
+        spawnBanner(bl.name, bl.desc, '#ffd66a');
+        if(runAnomaly) spawnBanner(runAnomaly.name, runAnomaly.desc, runAnomaly.color);
+        { const f = runFeatured.map(k=>UPGRADE_LABELS[k]); spawnBanner('SUPPLY LINES', f.slice(0,2).join('  \u00B7  ')+'\n'+f.slice(2).join('  \u00B7  '), '#7df3ff'); }
+      });
+      list.appendChild(btn);
+    }
+    document.getElementById('choiceOverlay').classList.remove('hidden');
   }
   // ---------- Controls ----------
   const joy = { active:false, id:null, baseX:0, baseY:0, dx:0, dy:0 };
@@ -985,14 +1112,22 @@
 
     // Scaling spawn count every 10 levels
     const tier = Math.floor((wave - 1) / 10);
-    const countToSpawn = Math.min(1 + tier, cap - enemies.length);
+    const formation = waveTheme && waveTheme.formation;
+    const want = 1 + tier + RUN.countAdd + ((waveTheme && waveTheme.countAdd) || 0) + (formation ? 1 : 0);
+    const countToSpawn = Math.min(want, cap - enemies.length);
 
+    // Formations place a whole batch on purpose instead of at random.
+    const colX = 60 + Math.random()*(W-120);
     for(let i = 0; i < countToSpawn; i++){
-      spawnEnemy();
+      let fx;
+      if(formation==='line') fx = 40 + (i+0.5)*(W-80)/countToSpawn;
+      else if(formation==='pincer') fx = (i%2===0) ? 40 + Math.random()*W*0.22 : W-40 - Math.random()*W*0.22;
+      else if(formation==='column') fx = colX + (Math.random()-0.5)*30;
+      spawnEnemy(fx);
     }
   }
 
-  function spawnEnemy(){
+  function spawnEnemy(xOverride){
     let availableTypes = ['drone'];
     // Every special enemy type is held back until the player clears the
     // first boss (wave 5) — before that it's just the simple drone type,
@@ -1006,15 +1141,20 @@
       if (wave >= 10) availableTypes.push('dasher');
     }
 
-    let type = availableTypes[Math.floor(Math.random() * availableTypes.length)];
+    // Wave themes bias which enemy types show up.
+    const pool = availableTypes.slice();
+    if(waveTheme && waveTheme.boost){
+      for(const t in waveTheme.boost) if(availableTypes.includes(t)) for(let i=1;i<waveTheme.boost[t];i++) pool.push(t);
+    }
+    let type = pool[Math.floor(Math.random() * pool.length)];
     if(HEAVY_TYPES.includes(type)){
       let heavy = 0;
       for(const e of enemies) if(HEAVY_TYPES.includes(e.type)) heavy++;
       if(heavy >= maxHeavy()) type = Math.random() < 0.5 ? 'drone' : (firstBossDefeated ? 'zigzag' : 'drone');
     }
-    const x = 40 + Math.random() * (W - 80);
+    const x = (xOverride!==undefined) ? Math.max(30, Math.min(W-30, xOverride)) : 40 + Math.random() * (W - 80);
 
-    const hpMult = 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.55;
+    const hpMult = 1 + Math.sqrt(Math.max(0, wave - 1)) * BAL.hpSqrt + Math.max(0, wave - BAL.hpLateFrom) * BAL.hpLate;
     const speedMult = Math.min(1.6, 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.14);
     const aggroMult = Math.min(2.0, 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.26);
 
@@ -1038,11 +1178,11 @@
       baseHp = 2; r = 12; speed = 78; color = '#4affaf'; shootChance = 0;
     }
 
-    let hp = Math.max(1, Math.round(baseHp * hpMult));
-    speed *= speedMult;
-    shootChance *= aggroMult;
+    let hp = Math.max(1, Math.round(baseHp * hpMult * RUN.hp));
+    speed *= speedMult * RUN.speed;
+    shootChance *= aggroMult * RUN.fire;
 
-    const eliteChance = wave >= 3 ? Math.min(0.12, 0.018 + wave*0.004) : 0;
+    const eliteChance = wave >= 3 ? Math.min(0.4, Math.min(0.12, 0.018 + wave*0.004) * RUN.elite) : 0;
     const elite = Math.random() < eliteChance;
     if(elite){
       hp *= 1.8;
@@ -1084,39 +1224,62 @@
   }
 
   function playerShoot(now){
-    if(now - player.lastShot < player.fireRate) return;
+    const L = player.levels;
+    let rate = player.fireRate;
+    // Overdrive: while you're on a kill streak your guns run hotter.
+    if(L.overdrive && player.overdriveTimer>0 && player.killStreak>=4) rate *= (1 - Math.min(0.4, BAL.overdriveRate*L.overdrive));
+    if(now - player.lastShot < rate) return;
     player.lastShot = now;
+    player.shotsFired++;
     sfx.shoot();
     const lvl = player.weaponLevel;
     const spread = Math.min(lvl-1, 6);
     const angleStep = 0.14;
     const count = 1 + spread;
     const startAngle = -((count-1)/2)*angleStep;
+
+    // Capacitor: every few volleys is a charged heavy volley.
+    const capEvery = L.capacitor ? Math.max(3, BAL.capEveryBase - L.capacitor) : 0;
+    const charged = capEvery>0 && (player.shotsFired % capEvery === 0);
+    const chargeMult = charged ? (BAL.capMultBase + BAL.capMultPerLevel*L.capacitor) : 1;
+
     for(let i=0;i<count;i++){
       const a = -Math.PI/2 + startAngle + i*angleStep;
+      const crit = player.critChance>0 && Math.random() < player.critChance;
       bullets.push({
         x: player.x, y: player.y - player.r,
         vx: Math.cos(a)*560, vy: Math.sin(a)*560,
-        r:4, dmg: player.bulletDmg, pierce: player.pierce, dead:false, ricochet: player.levels.ricochet
+        r: charged?5:4, dmg: player.bulletDmg * (crit?BAL.critMult:1) * chargeMult * ((player.ghostBoost>0)?(1+BAL.ghostBoost):1),
+        pierce: player.pierce + (charged?1:0), dead:false, ricochet: L.ricochet,
+        burn: L.burn, crit, charged
       });
     }
+    // RAILGUN signature: charged volleys also fire a piercing rail slug.
+    if(charged && L.critical>=3 && L.capacitor>=2){
+      bullets.push({x:player.x,y:player.y-12,vx:0,vy:-760,r:7,dmg:player.bulletDmg*BAL.railMult,pierce:4,dead:false,rail:true,burn:L.burn});
+      spawnPopup(player.x,player.y-42,'RAIL CHARGED','#ffe06a');
+    }
     // Mirror: a chance for the whole volley to be echoed by a weaker spectral copy.
-    if(player.levels.mirror>0 && Math.random() < Math.min(0.55, player.levels.mirror*0.13)){
-      const kaleido = player.levels.mirror>=3 && player.levels.prism>=2;
-      const mirrorMult = kaleido ? 1.0 : 0.6;
+    if(L.mirror>0 && Math.random() < Math.min(0.55, L.mirror*0.13)){
+      const kaleido = L.mirror>=3 && L.prism>=2;
+      const mirrorMult = kaleido ? BAL.kaleidoMult : BAL.mirrorMult;
       for(let i=0;i<count;i++){
         const a = -Math.PI/2 + startAngle + i*angleStep;
         bullets.push({
           x: player.x, y: player.y - player.r,
           vx: Math.cos(a)*560, vy: Math.sin(a)*560,
           r:3.5, dmg: player.bulletDmg*mirrorMult, pierce: player.pierce, dead:false,
-          ricochet: player.levels.ricochet, mirror:true
+          ricochet: L.ricochet, burn: L.burn, mirror:true
         });
       }
     }
-    if(player.levels.sideguns>=3){
-      for(const a of [-0.48,-0.24,0.24,0.48]){
-        bullets.push({x:player.x,y:player.y-player.r,vx:Math.sin(a)*600,vy:-Math.cos(a)*600,r:3.5,dmg:player.bulletDmg*0.72,pierce:player.pierce,dead:false,signature:true});
+    // Side guns: every level adds side cannons that fire with you.
+    if(L.sideguns>0){
+      const sa = BAL.sideAngle;
+      const angs = (L.sideguns>=3 ? [-0.72,-0.48,-0.24,0.24,0.48,0.72] : L.sideguns===2 ? [-0.48,-0.24,0.24,0.48] : [-0.24,0.24]).map(a=>a*sa);
+      const sd = BAL.sidegunDmg[Math.min(3,L.sideguns)];
+      for(const a of angs){
+        bullets.push({x:player.x,y:player.y-player.r,vx:Math.sin(a)*600,vy:-Math.cos(a)*600,r:3.5,dmg:player.bulletDmg*sd,pierce:player.pierce,dead:false,burn:L.burn,signature:L.sideguns>=3});
       }
     }
     // Rear gun: fires downward, catches enemies that get behind the ship
@@ -1135,20 +1298,25 @@
     }
   }
 
+  function upgradeMaxed(t){ return UPGRADE_MAX[t]!==undefined && player.levels[t] >= UPGRADE_MAX[t]; }
   function pickUpgradeType(){
-    const total = UPGRADE_TYPES.reduce((s,t)=>s+UPGRADE_WEIGHTS[t],0);
+    // Maxed upgrades no longer drop - every pickup is progress.
+    const pool = UPGRADE_TYPES.filter(t => !upgradeMaxed(t));
+    // This run's featured Supply lines drop ~2.6x as often.
+    const wt = t => UPGRADE_WEIGHTS[t] * (runFeatured.includes(t) ? 2.6 : 1);
+    const total = pool.reduce((s,t)=>s+wt(t),0);
     let r = Math.random()*total;
-    for(const t of UPGRADE_TYPES){
-      r -= UPGRADE_WEIGHTS[t];
+    for(const t of pool){
+      r -= wt(t);
       if(r<=0) return t;
     }
-    return UPGRADE_TYPES[0];
+    return pool[0] || 'shield';
   }
 
   function spawnUpgrade(x,y){
     // Drops are halved once the first boss is down — by then the player
     // has a real build going, so pickups should feel a bit more earned.
-    const dropChance = firstBossDefeated ? 0.07 : 0.14;
+    const dropChance = (firstBossDefeated ? 0.07 : 0.14) * RUN.drop;
     if(Math.random() > dropChance) return;
     upgrades.push({ x, y, r:12, type:pickUpgradeType(), vy:70 });
   }
@@ -1319,6 +1487,78 @@
     document.getElementById('choiceOverlay').classList.remove('hidden');
   }
 
+  // Every source of boss damage goes through here so Boss Hunter and Executioner apply to all of them.
+  function hurtBoss(d){
+    if(!boss || boss.hp<=0 || boss.entering) return;
+    let m = 1 + BAL.bossbane*player.levels.bossbane;
+    if(player.levels.execution && boss.hp/boss.maxHp < 0.35) m *= 1 + player.levels.execution*BAL.executeStep;
+    boss.hp -= d*m;
+  }
+
+  // One place decides what a dead enemy is worth, no matter what killed it
+  // (bullets, pulses, burns, chain arcs, novas...). Passive builds used to get
+  // no score, combo, drops or splits from kills that weren't a direct bullet hit.
+  function rewardKill(e){
+    player.kills++;
+    player.killStreak++;
+    player.combo = Math.min(20, player.combo + 1);
+    player.comboTimer = 2200;
+    player.overdriveTimer = Math.max(player.overdriveTimer, 1800);
+    if(player.levels.vampire && player.hp < player.maxHp && Math.random() < 0.05*player.levels.vampire){
+      player.hp = Math.min(player.maxHp, player.hp+1);
+      spawnPopup(player.x, player.y-30, '+1 HP', UPGRADE_COLORS.vampire);
+      updateHUD();
+    }
+    const comboMult = 1 + Math.min(2.5, Math.floor(player.combo/4)*0.5);
+    // Chain reaction: one kill can arc into nearby enemies.
+    if(player.levels.chain){
+      const R=(player.levels.chain>=3?72:42)+player.levels.chain*8;
+      const targets=enemies.filter(other=>other!==e && other.hp>0 && Math.hypot(other.x-e.x,other.y-e.y)<R)
+        .sort((a,b)=>Math.hypot(a.x-e.x,a.y-e.y)-Math.hypot(b.x-e.x,b.y-e.y))
+        .slice(0,player.levels.chain>=3?3:99);
+      for(const other of targets){
+        other.hp -= (player.levels.chain>=3?BAL.chainDmg:0.7)*player.levels.chain;
+        chainZaps.push({x1:e.x,y1:e.y,x2:other.x,y2:other.y,t:0,life:150});
+        explode(other.x,other.y,'#55f2ff',5);
+      }
+    }
+    // INFERNO signature: a kill that dies while still burning spreads the fire.
+    if(player.levels.burn>=3 && player.levels.execution>=2 && e.burnUntil && gameTime < e.burnUntil){
+      for(const other of enemies){
+        if(other===e || other.hp<=0) continue;
+        if(Math.hypot(other.x-e.x, other.y-e.y) < 85){
+          other.burnUntil = Math.max(other.burnUntil||0, gameTime + BAL.burnSec*1000*player.levels.burn);
+          other.burnDmg = Math.max(other.burnDmg||0, BAL.burnDps*player.levels.burn);
+          explode(other.x,other.y,'#ff7043',4);
+        }
+      }
+    }
+    const baseScore = (e.type==='tank'?35: e.type==='splitter'?25: e.type==='turret'?26: e.type==='sniper'?20: e.type==='bomber'?22: e.type==='dasher'?16: 10);
+    score += Math.round(baseScore * comboMult * (e.elite ? 2 : 1)) + player.levels.salvage*3;
+    if(player.combo % 4 === 0) spawnPopup(player.x,player.y-48,'FLOW x'+comboMult.toFixed(1),'#fff06a');
+    if(e.elite){
+      spawnUpgradeForced(e.x,e.y);
+      spawnPopup(e.x,e.y-e.r-12,'ELITE CACHE','#ffcf4a');
+      explode(e.x,e.y,'#ffcf4a',24);
+    }
+    sfx.enemyDeath();
+    explode(e.x,e.y,e.color,e.dead?4:18);
+    if(e.type === 'splitter') spawnMiniDrones(e.x, e.y);
+    if(e.type === 'bomber') bomberBurst(e.x, e.y);
+    spawnUpgrade(e.x,e.y);
+    updateHUD();
+  }
+  function processDeaths(){
+    let guard = 0, any = true;
+    while(any && guard++ < 6){
+      any = false;
+      for(const e of enemies){
+        if(e.hp<=0 && !e.dead){ e.dead = true; any = true; rewardKill(e); }
+      }
+    }
+    enemies = enemies.filter(e => !e.dead && e.hp>0);
+  }
+
   function triggerNova(){
     const R = 190;
     enemyBullets = enemyBullets.filter(b => Math.hypot(b.x-player.x, b.y-player.y) >= R);
@@ -1326,20 +1566,11 @@
       if(e.hp<=0) continue;
       if(Math.hypot(e.x-player.x, e.y-player.y) < R){
         e.hp -= 2;
-        if(e.hp<=0){
-          score += 8;
-          explode(e.x,e.y,e.color,14);
-          if(e.type==='splitter') spawnMiniDrones(e.x,e.y);
-          if(e.type==='bomber') bomberBurst(e.x,e.y);
-          spawnUpgrade(e.x,e.y);
-        } else {
-          explode(e.x,e.y,e.color,4);
-        }
+        explode(e.x,e.y,e.color,4);
       }
     }
-    enemies = enemies.filter(e => e.hp>0);
     if(boss && boss.hp>0 && Math.hypot(boss.x-player.x, boss.y-player.y) < R){
-      boss.hp -= 6;
+      hurtBoss(6);
     }
     novaPulses.push({ x:player.x, y:player.y, r:8, life:500, t:0 });
     updateHUD();
@@ -1348,24 +1579,16 @@
   function triggerExplosiveAoE(x, y, exclude){
     const R = player.explosiveRadius;
     if(R<=0) return;
-    const dmg = player.bulletDmg*0.6;
+    const dmg = player.bulletDmg*BAL.explosiveDmg;
     for(const e of enemies){
       if(e===exclude || e.hp<=0) continue;
       if(Math.hypot(e.x-x, e.y-y) < R){
         e.hp -= dmg;
-        if(e.hp<=0){
-          score += 8;
-          explode(e.x,e.y,e.color,14);
-          if(e.type==='splitter') spawnMiniDrones(e.x,e.y);
-          if(e.type==='bomber') bomberBurst(e.x,e.y);
-          spawnUpgrade(e.x,e.y);
-        } else {
-          explode(e.x,e.y,e.color,3);
-        }
+        explode(e.x,e.y,e.color,3);
       }
     }
     if(boss && boss!==exclude && boss.hp>0 && Math.hypot(boss.x-x, boss.y-y) < R){
-      boss.hp -= dmg;
+      hurtBoss(dmg);
     }
     explode(x,y,'#ff6a2b',10);
     updateHUD();
@@ -1415,9 +1638,8 @@
     enemies = [];
     enemyBullets = [];
     spawnTimer = 999999;
-    const bossIndex = Math.floor(wave / BOSS_EVERY) - 1;
-    const kindDef = BOSS_KINDS[((bossIndex % BOSS_KINDS.length) + BOSS_KINDS.length) % BOSS_KINDS.length];
-    const hp = 90 + wave * 22 + Math.floor(Math.sqrt(wave) * 35);
+    const kindDef = nextBossKind();
+    const hp = Math.round((90 + wave * 22 + Math.floor(Math.sqrt(wave) * 35)) * RUN.bossHp);
     boss = {
       x: W/2, y: -140, targetY: H*0.22,
       r: 46 + Math.min(wave,20)*0.7,
@@ -1596,6 +1818,7 @@
     spawnPopup(boss.x, boss.y-20, boss.name+' DEFEATED!', '#ffcf4a');
     triggerBossRewardChoice(boss.kind);
     firstBossDefeated = true;
+    waveTheme = null;
     boss = null;
     bossActive = false;
     // Leftover boss bullets / Hive Mother minions shouldn't follow you into the next wave.
@@ -1717,6 +1940,7 @@
         if(player.phaseTimer <= 0){
           player.phaseTimer = Math.max(6500, 10500-player.levels.phase*1000);
           player.invuln = Math.max(player.invuln, 900);
+          if(player.levels.phase>=2 && player.levels.dash>=2) player.ghostBoost = BAL.ghostBoostMs;
           spawnPopup(player.x,player.y-35,'PHASED','#a78bff');
         }
       }
@@ -1726,7 +1950,7 @@
           player.dashTimer = Math.max(2200,4800-player.levels.dash*550);
           const ghostBuild = player.levels.phase>=2 && player.levels.dash>=2;
           player.invuln = Math.max(player.invuln, ghostBuild ? 900 : 260);
-          if(ghostBuild) player.phaseTimer = Math.min(player.phaseTimer, 500);
+          if(ghostBuild){ player.phaseTimer = Math.min(player.phaseTimer, 500); player.ghostBoost = BAL.ghostBoostMs; }
           player.x += mx*80; player.y += my*80;
           player.x=Math.max(player.r,Math.min(W-player.r,player.x));
           player.y=Math.max(TOP_MARGIN+player.r,Math.min(bottomLimit()-player.r,player.y));
@@ -1744,22 +1968,22 @@
         player.pulseTimer -= dt;
         if(player.pulseTimer<=0){
           player.pulseTimer = Math.max(2600,5200-player.levels.pulse*500);
-          const R=75+player.levels.pulse*18, dmg=1+player.levels.pulse*0.8;
+          const R=75+player.levels.pulse*18, dmg=1+player.levels.pulse*BAL.pulseDmg;
           for(const e of enemies){
-            if(Math.hypot(e.x-player.x,e.y-player.y)<R) e.hp-=dmg;
+            if(e.hp>0 && Math.hypot(e.x-player.x,e.y-player.y)<R) e.hp-=dmg;
           }
+          if(boss && Math.hypot(boss.x-player.x,boss.y-player.y)<R+boss.r) hurtBoss(dmg);
           novaPulses.push({x:player.x,y:player.y,r:8,life:420,t:0,color:'#ff9f43'});
         }
       }
       if(player.levels.overdrive){
         player.overdriveTimer -= dt;
-        if(player.overdriveTimer<=0 && player.killStreak>=8){
-          player.overdriveTimer = Math.max(1200,3600-player.levels.overdrive*350);
-          player.lastShot = 0;
-          spawnPopup(player.x,player.y-45,'OVERDRIVE','#fff06a');
-        }
+        const odOn = player.overdriveTimer>0 && player.killStreak>=4;
+        if(odOn && !player.odOn) spawnPopup(player.x,player.y-45,'OVERDRIVE','#fff06a');
+        player.odOn = odOn;
       }
 
+      if(player.ghostBoost>0) player.ghostBoost -= dt;
       playerShoot(now);
       if(player.invuln>0) player.invuln -= dt;
 
@@ -1767,11 +1991,11 @@
         player.droneAngle += dtS*2.2;
         player.droneTimer -= dt;
         if(player.droneTimer <= 0){
-          player.droneTimer = 650;
+          player.droneTimer = BAL.droneRate;
           for(let i=0;i<2;i++){
             const a = player.droneAngle + i*Math.PI;
             const dx = player.x+Math.cos(a)*34, dy = player.y+Math.sin(a)*34;
-            bullets.push({ x:dx, y:dy, vx:0, vy:-520, r:3, dmg: Math.max(0.5, player.bulletDmg*0.5), pierce:0, dead:false });
+            bullets.push({ x:dx, y:dy, vx:0, vy:-520, r:3, dmg: Math.max(0.5, player.bulletDmg*BAL.droneDmg), pierce:0, dead:false, burn:player.levels.burn });
           }
         }
       }
@@ -1779,7 +2003,7 @@
         player.droneAngle += dtS*(1.1+player.levels.orbitals*0.18);
         player.droneTimer -= dt;
         if(player.droneTimer<=0){
-          player.droneTimer=850;
+          player.droneTimer=BAL.orbitalRate;
           const n=player.levels.orbitals;
           for(let i=0;i<n;i++){
             const a=player.droneAngle+i*(Math.PI*2/n);
@@ -1788,7 +2012,7 @@
             const speed = 500;
             bullets.push({
               x:dx, y:dy, vx:Math.cos(-Math.PI/2)*speed, vy:Math.sin(-Math.PI/2)*speed,
-              r:3.5, dmg: player.bulletDmg*(0.55+player.levels.orbitals*0.08), pierce:0, dead:false
+              r:3.5, dmg: player.bulletDmg*(BAL.orbitalDmg+player.levels.orbitals*BAL.orbitalDmgPerLevel), pierce:0, dead:false, burn:player.levels.burn
             });
           }
         }
@@ -1802,7 +2026,7 @@
           for(let i=0;i<n;i++){
             const spread = mirv ? (i-1)*55 : 0;
             bullets.push({x:player.x+(i?spread*.15:0),y:player.y-8,vx:spread,vy:-260,r:5,
-              dmg:player.bulletDmg*(0.8+player.levels.missiles*0.18)*(mirv?1.08:1),pierce:0,dead:false,
+              dmg:player.bulletDmg*(BAL.missileDmg+player.levels.missiles*BAL.missileDmgPerLevel)*(mirv?1.08:1),pierce:0,dead:false,
               missile:true,ricochet:0,burn:player.levels.burn,signature:mirv});
           }
         }
@@ -1812,24 +2036,23 @@
         player.signatureTimer=(player.signatureTimer||0)-dt;
         if(player.signatureTimer<=0){
           player.signatureTimer=1650;
-          const R=105+player.levels.orbitals*14, dmg=0.8+player.levels.orbitals*0.35;
+          const R=105+player.levels.orbitals*14, dmg=0.8+player.levels.orbitals*BAL.novaRingDmg;
           for(const e of enemies) if(e.hp>0 && Math.hypot(e.x-player.x,e.y-player.y)<R) e.hp-=dmg;
+          if(boss && Math.hypot(boss.x-player.x,boss.y-player.y)<R+boss.r) hurtBoss(dmg);
           novaPulses.push({x:player.x,y:player.y,r:18,life:360,t:0,color:'#72b7ff'});
         }
       }
-      if(player.levels.critical>=3 && player.levels.capacitor>=2){
-        player.railTimer=(player.railTimer||0)-dt;
-        if(player.railTimer<=0 && player.shotsFired%9===0){
-          player.railTimer=180;
-          bullets.push({x:player.x,y:player.y-12,vx:0,vy:-760,r:7,dmg:player.bulletDmg*3.4,pierce:4,dead:false,rail:true});
-          spawnPopup(player.x,player.y-42,'RAIL CHARGED','#ffe06a');
-        }
-      }
+      // Gravity well: enemies (and their bullets) move slower while inside the field.
+      // (It used to shave speed off permanently every frame, freezing enemies in place.)
       if(player.levels.gravity){
-        const R=90+player.levels.gravity*22;
+        const R=90+player.levels.gravity*BAL.gravityRadius;
+        const slow = 1 - Math.min(0.55, BAL.gravitySlow*player.levels.gravity);
         for(const e of enemies){
-          if(Math.hypot(e.x-player.x,e.y-player.y)<R) e.speed=Math.max(10,e.speed*(1-0.015*player.levels.gravity));
+          const inside = Math.hypot(e.x-player.x,e.y-player.y)<R;
+          e.slowMul = inside ? slow : 1;
+          if(inside && e.hp>0) e.hp -= BAL.gravityCrush*player.levels.gravity*dtS;   // the well crushes what it holds
         }
+        if(boss && Math.hypot(boss.x-player.x,boss.y-player.y)<R+boss.r) hurtBoss(BAL.gravityCrush*player.levels.gravity*dtS);
       }
 
       if(player.classes.nova){
@@ -1857,22 +2080,27 @@
       // Exponentially speed up spawn frequency every 10 levels
       const tier = Math.floor((wave - 1) / 10);
       const baseInterval = Math.max(1300 - wave * 55, 300);
-      const spawnInterval = Math.max(150, baseInterval / (1 + tier * 0.4));
+      const spawnInterval = Math.max(150, baseInterval / (1 + tier * 0.4)) * RUN.interval;
 
       if(spawnTimer <= 0){
         spawnEnemyBatch();
         spawnTimer = spawnInterval + Math.random()*200;
       }
       waveTimer += dt;
-      if(waveTimer > 18000){
+      if(waveTimer > RUN.waveMs){
         waveTimer = 0;
         wave++;
         updateHUD();
-        if(wave % BOSS_EVERY === 0){
+        if(wave % RUN.bossEvery === 0){
+          waveTheme = null;
           startBossFight();
         } else {
+          rollWaveTheme();
           sfx.waveStart();
           spawnPopup(player.x, player.y-40, 'WAVE '+wave, '#35e3ff');
+          if(waveTheme) spawnBanner('WAVE '+wave+' \u2014 '+waveTheme.name, '', '#35e3ff');
+          // Every 3rd wave: a supply shrine lets you choose an upgrade directly.
+          if(wave % 3 === 0) triggerUpgradeChoice();
         }
       }
     } else if(boss){
@@ -1881,16 +2109,23 @@
 
     // shootChance is tuned per 60Hz frame; scale by real elapsed time so a
     // 90/120Hz phone doesn't get double the enemy fire.
+    gameTime += dt;
+    for(const bn of banners) bn.t += dt;
+    banners = banners.filter(bn => bn.t < bn.life);
+    if(boss && boss.burnUntil && gameTime < boss.burnUntil) hurtBoss((boss.burnDmg||0)*dtS);
     const fireScale = dt / 16.667;
     for(const e of enemies){
       e.t += dtS;
-      if(e.burnUntil && frame < e.burnUntil && e.hp>0){
-        e.hp -= (e.burnDmg||0)*dtS*60;
+      if(e.hp<=0) continue;
+      if(e.burnUntil && gameTime < e.burnUntil){
+        e.hp -= (e.burnDmg||0)*dtS;
+        if(e.hp<=0) continue;
       }
 
+      const sm = e.slowMul || 1;   // Gravity Well slow (only while inside the field)
       if(e.type === 'dasher'){
         if(e.dashState === 'fall'){
-          e.y += e.speed * dtS;
+          e.y += e.speed * dtS * sm;
           e.x += Math.sin(e.t*2) * 20 * dtS;
           if(e.y > H*0.22){
             e.dashState = 'charge';
@@ -1912,7 +2147,7 @@
           if(e.dashTimer <= 0) e.dashState = 'fall';
         }
       } else {
-        e.y += e.speed * dtS;
+        e.y += e.speed * dtS * sm;
         if(e.type === 'zigzag'){
           e.x += Math.sin(e.t * 3.5) * 110 * dtS;
         } else if(e.type === 'drone'){
@@ -1958,7 +2193,8 @@
     enemies = enemies.filter(e => e.y < H+60);
 
     for(const b of bullets){
-      if(player.homingRate>0){
+      const hr = player.homingRate>0 ? player.homingRate : (b.missile ? BAL.missileHoming : 0);   // missiles always seek
+      if(hr>0){
         let target=null, bd=260;
         for(const e of enemies){
           if(e.hp<=0) continue;
@@ -1975,7 +2211,7 @@
           let diff = desired-cur;
           while(diff>Math.PI) diff -= Math.PI*2;
           while(diff<-Math.PI) diff += Math.PI*2;
-          const maxTurn = player.homingRate*dtS;
+          const maxTurn = hr*dtS;
           const turn = Math.max(-maxTurn, Math.min(maxTurn, diff));
           const spd = Math.hypot(b.vx,b.vy);
           const newAng = cur+turn;
@@ -1990,7 +2226,11 @@
     }
     bullets = bullets.filter(b => !b.dead && b.y > -20 && b.x>-20 && b.x<W+20);
 
-    for(const b of enemyBullets){ b.x += b.vx*dtS; b.y += b.vy*dtS; }
+    const gL = player.levels.gravity, gR = 90 + gL*BAL.gravityRadius, gB = 1 - Math.min(0.5, BAL.gravityBulletSlow*gL);
+    for(const b of enemyBullets){
+      const bm = (gL && Math.hypot(b.x-player.x,b.y-player.y) < gR) ? gB : 1;
+      b.x += b.vx*dtS*bm*RUN.bulletSpeed; b.y += b.vy*dtS*bm*RUN.bulletSpeed;
+    }
     enemyBullets = enemyBullets.filter(b => b.y < H+20 && b.y>-20 && b.x>-40 && b.x<W+40);
 
     for(const u of upgrades){
@@ -2038,73 +2278,23 @@
         const d = Math.hypot(b.x-e.x, b.y-e.y);
         if(d < b.r + e.r){
           let hitDmg=b.dmg;
-          if(player.levels.execution && e.hp/e.maxHp<0.35) hitDmg*=1+player.levels.execution*0.25;
+          if(player.levels.execution && e.hp/e.maxHp<0.35) hitDmg*=1+player.levels.execution*BAL.executeStep;
+          if(player.levels.gravity && e.slowMul<1) hitDmg*=1+player.levels.gravity*BAL.gravityVuln;
           e.hp -= hitDmg;
           if(b.burn){
-            e.burnUntil = Math.max(e.burnUntil||0, frame + 35*b.burn);
-            e.burnDmg = Math.max(e.burnDmg||0, 0.10*b.burn);
+            e.burnUntil = Math.max(e.burnUntil||0, gameTime + BAL.burnSec*1000*b.burn);
+            e.burnDmg = Math.max(e.burnDmg||0, BAL.burnDps*b.burn);
           }
           explode(b.x,b.y,e.color,4);
           if(b.pierce>0){ b.pierce--; } else {
             b.dead = true;
             if(player.explosiveRadius>0) triggerExplosiveAoE(b.x,b.y,e);
           }
-          if(e.hp<=0){
-            player.kills++;
-            player.killStreak++;
-            player.combo = Math.min(20, player.combo + 1);
-            player.comboTimer = 2200;
-            player.overdriveTimer = Math.max(player.overdriveTimer, 1800);
-            if(player.levels.vampire && player.hp < player.maxHp && Math.random() < 0.05*player.levels.vampire){
-              player.hp = Math.min(player.maxHp, player.hp+1);
-              spawnPopup(player.x, player.y-30, '+1 HP', UPGRADE_COLORS.vampire);
-              updateHUD();
-            }
-            const comboMult = 1 + Math.min(2.5, Math.floor(player.combo/4)*0.5);
-            // Chain reaction: one kill can arc into a nearby enemy.
-            if(player.levels.chain){
-              const R=(player.levels.chain>=3?72:42)+player.levels.chain*8;
-              const targets=enemies.filter(other=>other!==e && other.hp>0 && Math.hypot(other.x-e.x,other.y-e.y)<R)
-                .sort((a,b)=>Math.hypot(a.x-e.x,a.y-e.y)-Math.hypot(b.x-e.x,b.y-e.y))
-                .slice(0,player.levels.chain>=3?3:99);
-              for(const other of targets){
-                other.hp -= (player.levels.chain>=3?1.0:0.7)*player.levels.chain;
-                chainZaps.push({x1:e.x,y1:e.y,x2:other.x,y2:other.y,t:0,life:150});
-                explode(other.x,other.y,'#55f2ff',5);
-              }
-            }
-            // INFERNO signature: a kill that dies while still burning spreads the fire.
-            if(player.levels.burn>=3 && player.levels.execution>=2 && e.burnUntil && frame < e.burnUntil){
-              const iR = 85;
-              for(const other of enemies){
-                if(other===e || other.hp<=0) continue;
-                if(Math.hypot(other.x-e.x, other.y-e.y) < iR){
-                  other.burnUntil = Math.max(other.burnUntil||0, frame + 35*player.levels.burn);
-                  other.burnDmg = Math.max(other.burnDmg||0, 0.10*player.levels.burn);
-                  explode(other.x,other.y,'#ff7043',4);
-                }
-              }
-            }
-            const baseScore = (e.type==='tank'?35: e.type==='splitter'?25: e.type==='turret'?26: e.type==='sniper'?20: e.type==='bomber'?22: e.type==='dasher'?16: 10);
-            score += Math.round(baseScore * comboMult * (e.elite ? 2 : 1)) + player.levels.salvage*3;
-            if(player.combo % 4 === 0) spawnPopup(player.x,player.y-48,'FLOW x'+comboMult.toFixed(1),'#fff06a');
-            if(e.elite){
-              spawnUpgradeForced(e.x,e.y);
-              spawnPopup(e.x,e.y-e.r-12,'ELITE CACHE','#ffcf4a');
-              explode(e.x,e.y,'#ffcf4a',24);
-            }
-            sfx.enemyDeath();
-            explode(e.x,e.y,e.color,18);
-            if(e.type === 'splitter') spawnMiniDrones(e.x, e.y);
-            if(e.type === 'bomber') bomberBurst(e.x, e.y);
-            spawnUpgrade(e.x,e.y);
-            updateHUD();
-          }
           if(b.dead) break;
         }
       }
     }
-    enemies = enemies.filter(e => e.hp>0);
+    processDeaths();
 
     // Collisions: player bullets vs boss (Immune while entering)
     if(boss && boss.hp>0){
@@ -2116,7 +2306,12 @@
             explode(b.x, b.y, '#35e3ff', 2);
             b.dead = true;
           } else {
-            boss.hp -= b.dmg;
+            let bd = b.dmg;
+            if(b.burn){
+              boss.burnUntil = Math.max(boss.burnUntil||0, gameTime + BAL.burnSec*1000*b.burn);
+              boss.burnDmg = Math.max(boss.burnDmg||0, BAL.burnDps*b.burn);
+            }
+            hurtBoss(bd);
             if(frame % 6 === 0) sfx.bossHit();
             explode(b.x,b.y,boss.color,4);
             if(b.pierce>0){ b.pierce--; } else {
@@ -2145,14 +2340,15 @@
         }
       }
       for(const e of enemies){
+        if(e.dead || e.hp<=0) continue;
         const d = Math.hypot(e.x-player.x, e.y-player.y);
         if(d < e.r + player.r){
-          e.hp = 0;
+          e.hp = 0; e.dead = true;
           explode(e.x,e.y,e.color,14);
           hitPlayer();
         }
       }
-      enemies = enemies.filter(e => e.hp>0);
+      enemies = enemies.filter(e => !e.dead);
       if(boss){
         const d = Math.hypot(boss.x-player.x, boss.y-player.y);
         if(d < boss.r + player.r){
@@ -2180,46 +2376,29 @@
 
   function pinballBounce(x,y){
     if(!(player.levels.ricochet>=3 && player.levels.pierce>=2)) return;
-    const R = 48, dmg = player.bulletDmg*0.5;
+    const R = 48, dmg = player.bulletDmg*BAL.pinballDmg;
     for(const e of enemies){
       if(e.hp<=0) continue;
       if(Math.hypot(e.x-x, e.y-y) < R){
         e.hp -= dmg;
-        if(e.hp<=0){
-          score += 8;
-          explode(e.x,e.y,e.color,10);
-          if(e.type==='splitter') spawnMiniDrones(e.x,e.y);
-          if(e.type==='bomber') bomberBurst(e.x,e.y);
-          spawnUpgrade(e.x,e.y);
-        }
       }
     }
-    enemies = enemies.filter(e => e.hp>0);
-    if(boss && boss.hp>0 && Math.hypot(boss.x-x, boss.y-y) < R) boss.hp -= dmg;
+    if(boss && boss.hp>0 && Math.hypot(boss.x-x, boss.y-y) < R) hurtBoss(dmg);
   }
 
   function triggerAegisShockwave(){
     if(!(player.levels.armor>=2 && player.levels.barrier>=1)) return;
     const R = 130 + player.levels.barrier*16;
-    const dmg = 2 + player.levels.armor*0.7 + player.levels.barrier*0.9;
+    const dmg = BAL.aegisBase + player.levels.armor*BAL.aegisArmor + player.levels.barrier*BAL.aegisBarrier;
     for(const e of enemies){
       if(e.hp<=0) continue;
       if(Math.hypot(e.x-player.x, e.y-player.y) < R){
         e.hp -= dmg;
-        if(e.hp<=0){
-          score += 8;
-          explode(e.x,e.y,e.color,14);
-          if(e.type==='splitter') spawnMiniDrones(e.x,e.y);
-          if(e.type==='bomber') bomberBurst(e.x,e.y);
-          spawnUpgrade(e.x,e.y);
-        } else {
-          explode(e.x,e.y,'#b8c6ff',5);
-        }
+        explode(e.x,e.y,'#b8c6ff',5);
       }
     }
-    enemies = enemies.filter(e => e.hp>0);
     if(boss && boss.hp>0 && Math.hypot(boss.x-player.x, boss.y-player.y) < R){
-      boss.hp -= dmg;
+      hurtBoss(dmg);
     }
     novaPulses.push({ x:player.x, y:player.y, r:10, life:420, t:0, color:'#b8c6ff' });
     updateHUD();
@@ -2234,6 +2413,12 @@
       spawnPopup(player.x,player.y-30,'SHIELD -1','#35e3ff');
       triggerAegisShockwave();
       updateHUD();
+      return;
+    }
+    if(player.armorDeflect>0 && Math.random() < player.armorDeflect){
+      player.invuln = 700 + player.armorInvulnBonus;
+      spawnPopup(player.x,player.y-30,'DEFLECTED','#b8c6ff');
+      triggerAegisShockwave();
       return;
     }
     player.hp--;
@@ -2595,7 +2780,7 @@
 
     // Bullets
     for(const b of bullets){
-      const bc=b.charged?'#fff06a':b.mirror?'#9ee7ff':b.missile?'#ff8b4a':(player.levels.prism?'#f0a0ff':curSkin.pal.bullet);
+      const bc=(b.charged||b.crit)?'#fff06a':b.mirror?'#9ee7ff':b.missile?'#ff8b4a':(player.levels.prism?'#f0a0ff':curSkin.pal.bullet);
       ctx.fillStyle=bc; ctx.shadowColor=bc; ctx.shadowBlur=b.charged?16:8;
       ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,7); ctx.fill();
     }
@@ -2703,6 +2888,25 @@
         }
       }
     }
+    // Run briefing banners + a small persistent tag for the current anomaly / wave theme.
+    ctx.save();
+    ctx.textAlign='center';
+    let by = H*0.2;
+    for(const bn of banners){
+      const a = Math.max(0, Math.min(1, bn.t/250, (bn.life-bn.t)/500));
+      ctx.globalAlpha = a; ctx.fillStyle = bn.color; ctx.shadowColor = bn.color; ctx.shadowBlur = 14;
+      ctx.font = 'bold 19px monospace'; ctx.fillText(bn.title, W/2, by);
+      const lines = bn.sub ? bn.sub.split('\n') : [];
+      ctx.shadowBlur = 0; ctx.fillStyle = '#cfd6ff'; ctx.font = '12px monospace';
+      lines.forEach((ln,li)=> ctx.fillText(ln, W/2, by + 19 + li*15));
+      by += 30 + Math.max(1,lines.length)*15 + 8;
+    }
+    if(runAnomaly && state==='playing'){
+      ctx.globalAlpha = 0.8; ctx.shadowBlur = 0; ctx.textAlign = 'left'; ctx.font = '10px monospace';
+      ctx.fillStyle = runAnomaly.color; ctx.fillText('\u25C8 ' + runAnomaly.name, 8, TOP_MARGIN + 50);
+      if(waveTheme){ ctx.fillStyle = '#7df3ff'; ctx.fillText('\u25B8 ' + waveTheme.name, 8, TOP_MARGIN + 63); }
+    }
+    ctx.restore();
     // Popups
     ctx.textAlign='center';
     for(const p of popups){
@@ -2902,6 +3106,7 @@
     state = 'playing';
     setPaused(false);
     sfx.waveStart();
+    triggerBlessingChoice();
   });
   document.getElementById('retryBtn').addEventListener('click', ()=>{
     ensureAudio();
@@ -2911,6 +3116,7 @@
     state = 'playing';
     setPaused(false);
     sfx.waveStart();
+    triggerBlessingChoice();
   });
 
   player.x = W/2; player.y = bottomLimit() - 24;
