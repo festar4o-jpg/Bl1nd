@@ -467,7 +467,7 @@
     aegisBase:3, aegisArmor:1.0, aegisBarrier:1.2,
     gravitySlow:0.09, gravityBulletSlow:0.08, gravityVuln:0.10, gravityRadius:30, gravityCrush:0.8,
     // enemy scaling
-    hpSqrt:0.55, hpLate:0.12, hpLateFrom:12
+    hpSqrt:0.75, hpLate:0.16, hpLateFrom:12
   };
 
   const UPGRADE_MAX = {
@@ -798,23 +798,23 @@
 
   // A random run-start Blessing adds variety between attempts, roguelite-style.
   const BLESSINGS = [
-    { name:'OVERCHARGED START', desc:'+2 Weapon Level', apply:(L)=>{ L.weapon = Math.min(UPGRADE_MAX.weapon, L.weapon+2); } },
-    { name:'GLASS CANNON', desc:'+3 Damage, -1 Max HP', apply:(L,p)=>{ L.damage = Math.min(UPGRADE_MAX.damage, L.damage+3); p.maxHp = Math.max(1, p.maxHp-1); p.hp = Math.min(p.hp, p.maxHp); } },
-    { name:'SWIFT', desc:'+3 Speed Level', apply:(L)=>{ L.speed = Math.min(UPGRADE_MAX.speed, L.speed+3); } },
-    { name:'FORTIFIED', desc:'+2 Max HP', apply:(L,p)=>{ p.maxHp += 2; p.hp += 2; } },
+    { name:'OVERCHARGED START', desc:'+1 Weapon Level', apply:(L)=>{ L.weapon = Math.min(UPGRADE_MAX.weapon, L.weapon+1); } },
+    { name:'GLASS CANNON', desc:'+2 Damage, -1 Max HP', apply:(L,p)=>{ L.damage = Math.min(UPGRADE_MAX.damage, L.damage+2); p.maxHp = Math.max(1, p.maxHp-1); p.hp = Math.min(p.hp, p.maxHp); } },
+    { name:'SWIFT', desc:'+2 Speed Level', apply:(L)=>{ L.speed = Math.min(UPGRADE_MAX.speed, L.speed+2); } },
+    { name:'FORTIFIED', desc:'+1 Max HP', apply:(L,p)=>{ p.maxHp += 1; p.hp += 1; } },
     { name:'VAMPIRIC PACT', desc:'+1 Vampire Level (kills can heal you)', apply:(L)=>{ L.vampire = Math.min(UPGRADE_MAX.vampire, L.vampire+1); } },
-    { name:'STATIC FIELD', route:'arc', desc:'+2 Chain Arc', apply:(L)=>{ L.chain = Math.min(UPGRADE_MAX.chain, L.chain+2); } },
-    { name:'EMBER ROUNDS', route:'inferno', desc:'+2 Incendiary', apply:(L)=>{ L.burn = Math.min(UPGRADE_MAX.burn, L.burn+2); } },
-    { name:'SIDEWINDER', route:'broadside', desc:'+1 Side Guns, +1 Rapid', apply:(L)=>{ L.sideguns = Math.min(UPGRADE_MAX.sideguns, L.sideguns+1); L.rapid = Math.min(UPGRADE_MAX.rapid, L.rapid+1); } },
-    { name:'HUNTER PACK', route:'missile', desc:'+2 Missile Rack, +1 Homing', apply:(L)=>{ L.missiles = Math.min(UPGRADE_MAX.missiles, L.missiles+2); L.homing = Math.min(UPGRADE_MAX.homing, L.homing+1); } },
-    { name:'BULWARK', route:'aegis', desc:'+2 Armor, +2 Shield charges', apply:(L,p)=>{ L.armor = Math.min(UPGRADE_MAX.armor, L.armor+2); p.shieldCharges = 2; } },
-    { name:'PHANTOM STEP', route:'ghost', desc:'+1 Phase Drive, +1 Afterburn Dash', apply:(L)=>{ L.phase = Math.min(UPGRADE_MAX.phase, L.phase+1); L.dash = Math.min(UPGRADE_MAX.dash, L.dash+1); } },
-    { name:'LUCKY STAR', route:'rail', desc:'+2 Crit Core, +1 Capacitor', apply:(L)=>{ L.critical = Math.min(UPGRADE_MAX.critical, L.critical+2); L.capacitor = Math.min(UPGRADE_MAX.capacitor, L.capacitor+1); } },
-    { name:'ORBITAL WATCH', route:'nova', desc:'+2 Orbital Cannons', apply:(L)=>{ L.orbitals = Math.min(UPGRADE_MAX.orbitals, L.orbitals+2); } },
-    { name:'PRISMATIC LENS', route:'kaleido', desc:'+1 Prism Core, +2 Shadow Split', apply:(L)=>{ L.prism = Math.min(UPGRADE_MAX.prism, L.prism+1); L.mirror = Math.min(UPGRADE_MAX.mirror, L.mirror+2); } },
-    { name:'BOUNCE HOUSE', route:'pinball', desc:'+2 Ricochet, +1 Pierce', apply:(L)=>{ L.ricochet = Math.min(UPGRADE_MAX.ricochet, L.ricochet+2); L.pierce = Math.min(UPGRADE_MAX.pierce, L.pierce+1); } },
-    { name:'DEEP WELL', route:'nova', desc:'+2 Gravity Well, +1 Pulse Engine', apply:(L)=>{ L.gravity = Math.min(UPGRADE_MAX.gravity, L.gravity+2); L.pulse = Math.min(UPGRADE_MAX.pulse, L.pulse+1); } },
-    { name:'DEMOLITION', route:'inferno', desc:'+2 Blast, +1 Executioner', apply:(L)=>{ L.explosive = Math.min(UPGRADE_MAX.explosive, L.explosive+2); L.execution = Math.min(UPGRADE_MAX.execution, L.execution+1); } }
+    { name:'STATIC FIELD', route:'arc', desc:'+1 Chain Arc', apply:(L)=>{ L.chain = Math.min(UPGRADE_MAX.chain, L.chain+1); } },
+    { name:'EMBER ROUNDS', route:'inferno', desc:'+1 Incendiary', apply:(L)=>{ L.burn = Math.min(UPGRADE_MAX.burn, L.burn+1); } },
+    { name:'SIDEWINDER', route:'broadside', desc:'+1 Side Guns', apply:(L)=>{ L.sideguns = Math.min(UPGRADE_MAX.sideguns, L.sideguns+1); } },
+    { name:'HUNTER PACK', route:'missile', desc:'+1 Missile Rack', apply:(L)=>{ L.missiles = Math.min(UPGRADE_MAX.missiles, L.missiles+1); } },
+    { name:'BULWARK', route:'aegis', desc:'+1 Armor, +1 Shield charge', apply:(L,p)=>{ L.armor = Math.min(UPGRADE_MAX.armor, L.armor+1); p.shieldCharges = 1; } },
+    { name:'PHANTOM STEP', route:'ghost', desc:'+1 Phase Drive', apply:(L)=>{ L.phase = Math.min(UPGRADE_MAX.phase, L.phase+1); } },
+    { name:'LUCKY STAR', route:'rail', desc:'+1 Crit Core, +1 Capacitor', apply:(L)=>{ L.critical = Math.min(UPGRADE_MAX.critical, L.critical+1); L.capacitor = Math.min(UPGRADE_MAX.capacitor, L.capacitor+1); } },
+    { name:'ORBITAL WATCH', route:'nova', desc:'+1 Orbital Cannon', apply:(L)=>{ L.orbitals = Math.min(UPGRADE_MAX.orbitals, L.orbitals+1); } },
+    { name:'PRISMATIC LENS', route:'kaleido', desc:'+1 Prism Core, +1 Shadow Split', apply:(L)=>{ L.prism = Math.min(UPGRADE_MAX.prism, L.prism+1); L.mirror = Math.min(UPGRADE_MAX.mirror, L.mirror+1); } },
+    { name:'BOUNCE HOUSE', route:'pinball', desc:'+1 Ricochet, +1 Pierce', apply:(L)=>{ L.ricochet = Math.min(UPGRADE_MAX.ricochet, L.ricochet+1); L.pierce = Math.min(UPGRADE_MAX.pierce, L.pierce+1); } },
+    { name:'DEEP WELL', route:'nova', desc:'+1 Gravity Well, +1 Pulse Engine', apply:(L)=>{ L.gravity = Math.min(UPGRADE_MAX.gravity, L.gravity+1); L.pulse = Math.min(UPGRADE_MAX.pulse, L.pulse+1); } },
+    { name:'DEMOLITION', route:'inferno', desc:'+1 Blast, +1 Executioner', apply:(L)=>{ L.explosive = Math.min(UPGRADE_MAX.explosive, L.explosive+1); L.execution = Math.min(UPGRADE_MAX.execution, L.execution+1); } }
   ];
 
   // ---------- Run variety ----------
@@ -928,8 +928,8 @@
   function recomputeStats(){
     const L = player.levels;
     player.weaponLevel = 1 + L.weapon;
-    player.bulletDmg = 1 + L.damage*0.4 + L.prism*0.18 + L.reactor*0.12;
-    player.fireRate = Math.max(70, BASE_FIRE_RATE * Math.pow(0.92, L.rapid) * (1 - Math.min(0.28,L.reactor*0.04)));
+    player.bulletDmg = 1 + L.damage*0.25 + L.prism*0.18 + L.reactor*0.12;
+    player.fireRate = Math.max(70, BASE_FIRE_RATE * Math.pow(0.94, L.rapid) * (1 - Math.min(0.28,L.reactor*0.04)));
     player.baseSpeed = BASE_SPEED * Math.pow(1.06, L.speed) * (1 + L.reactor*0.025);
     player.pierce = L.pierce;
     player.magnetR = 40 + L.magnet*22 + L.gravity*18;
@@ -1328,10 +1328,10 @@
   // Enemy drops are deliberately plain: raw stats only. Build-shaping upgrades
   // come from the opening pick, the wave shrines and the bosses.
   const STAT_DROPS   = ['damage','rapid','speed','weapon','magnet','shield','life'];
-  const STAT_WEIGHTS = { damage:12, rapid:11, speed:8, weapon:4, magnet:5, shield:7, life:3 };
+  const STAT_WEIGHTS = { damage:12, rapid:11, speed:8, weapon:3, magnet:5, shield:5, life:1.5 };
   function canTake(t){
     if(t==='shield') return player.shieldCharges < player.shieldMax;
-    if(t==='life')   return player.maxHp < 12;
+    if(t==='life')   return player.maxHp < 8;
     return (player.levels[t]||0) < (UPGRADE_MAX[t]||1);
   }
   function pickUpgradeType(){
@@ -1349,7 +1349,7 @@
   function spawnUpgrade(x,y){
     // Stat drops only. A little rarer once the first boss is down: by then the
     // player has a build-defining power on top of the stats.
-    const dropChance = (firstBossDefeated ? 0.10 : 0.15) * RUN.drop;
+    const dropChance = (firstBossDefeated ? 0.07 : 0.11) * RUN.drop;
     if(Math.random() > dropChance) return;
     upgrades.push({ x, y, r:12, type:pickUpgradeType(), vy:70 });
   }
@@ -1366,7 +1366,7 @@
       if(player.shieldCharges < player.shieldMax) player.shieldCharges++;
       else maxed=true;
     } else if(type==='life'){
-      if(player.maxHp < 12){ player.maxHp++; player.hp=Math.min(player.hp+1,player.maxHp); }
+      if(player.maxHp < 8){ player.maxHp++; player.hp=Math.min(player.hp+1,player.maxHp); }
       else maxed=true;
     } else if(L[type] !== undefined){
       if(L[type] < (UPGRADE_MAX[type]||5)) L[type]++;
@@ -1478,7 +1478,7 @@
   function currentPower(){ return player.power ? POWERS.find(p=>p.key===player.power) : null; }
   function pOn(k){ return player.power===k; }
   function pm(k,m){ return player.power===k ? (player.pmods[m]||0) : 0; }   // stacks of a power upgrade
-  function pB(k){ return player.power===k ? POWER_BOOST : 1; }               // chosen-power damage boost
+  function pB(k){ return player.power===k ? 1 + 0.08*player.powerTier : 1; }               // chosen-power damage boost
   function burnDpsMul(){ return pB('inferno')*(1+0.3*pm('inferno','a')); }
   function burnDurMul(){ return 1+0.3*pm('inferno','c'); }
   function ghostDmg(){ return BAL.ghostBoost*pB('ghost')*(1+0.4*pm('ghost','a')); }
@@ -1491,7 +1491,7 @@
     for(const [k,v] of Object.entries(p.bonus||{})) L[k] = Math.min(UPGRADE_MAX[k], (L[k]||0)+v);
     player.power = p.key; player.powerTier = 1; player.pmods = {a:0,b:0,c:0};
     recomputeStats();
-    if(p.key==='aegis') player.shieldCharges = Math.min(player.shieldMax, player.shieldCharges+2);
+    if(p.key==='aegis') player.shieldCharges = Math.min(player.shieldMax, player.shieldCharges+1);
     growShip(2);
     sfx.classReward();
     explode(player.x, player.y, p.color, 40);
@@ -1733,7 +1733,7 @@
     enemyBullets = [];
     spawnTimer = 999999;
     const kindDef = nextBossKind();
-    const hp = Math.round((90 + wave * 22 + Math.floor(Math.sqrt(wave) * 35)) * RUN.bossHp);
+    const hp = Math.round((90 + wave * 22 + Math.floor(Math.sqrt(wave) * 35)) * 1.4 * RUN.bossHp);
     boss = {
       x: W/2, y: -140, targetY: H*0.22,
       r: 46 + Math.min(wave,20)*0.7,
