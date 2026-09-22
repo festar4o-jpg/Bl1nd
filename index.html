@@ -3114,6 +3114,12 @@ window.GD_I18N_ROWS = [
 "SCUDO -1"
 ],
 [
+"{stat} -1",
+"{stat} -1",
+"{stat} -1",
+"{stat} -1"
+],
+[
 "DEFLECTED",
 "ABGELENKT",
 "DÉVIÉ",
@@ -3310,6 +3316,9 @@ window.GD_I18N_ROWS = [
     execution:'EXECUTIONER', pulse:'PULSE ENGINE', mirror:'MIRROR SHOT',
     capacitor:'CAPACITOR', reactor:'REACTOR', salvage:'SALVAGE MATRIX'
   };
+
+  // Plain legend-style names, reused for the "stat -1" popup on knockback.
+  const UPGRADE_TERMS = { damage:'DAMAGE', rapid:'RAPID', speed:'SPEED', weapon:'WEAPON', magnet:'MAGNET' };
 
   const UPGRADE_ICONS = {
     weapon:'W', damage:'D', rapid:'R', speed:'S', pierce:'P', magnet:'M',
@@ -4577,7 +4586,7 @@ window.GD_I18N_ROWS = [
   function spawnUpgrade(x,y){
     // Stat drops only. A little rarer once the first boss is down: by then the
     // player has a build-defining power on top of the stats.
-    const dropChance = (firstBossDefeated ? 0.07 : 0.11) * RUN.drop * (1 + 0.15*metaPerks.cache);
+    const dropChance = (firstBossDefeated ? 0.05 : 0.11) * RUN.drop * (1 + 0.15*metaPerks.cache);
     if(Math.random() > dropChance) return;
     upgrades.push({ x, y, r:12, type:pickUpgradeType(), vy:70 });
   }
@@ -5767,7 +5776,25 @@ window.GD_I18N_ROWS = [
     sfx.playerHit();
     explode(player.x,player.y,'#ff3d6e',14);
     triggerAegisShockwave();
+    knockBackStat();
     updateHUD();
+  }
+  // A hit that actually costs HP also jolts loose one of your basic stat
+  // upgrades. It's dropped back at your feet so you can recollect it if you
+  // move fast - a tempo cost rather than a silent, unrecoverable nerf.
+  const STAT_LOSS_POOL = ['damage','rapid','speed','weapon','magnet'];
+  function knockBackStat(){
+    const pool = STAT_LOSS_POOL.filter(t => (player.levels[t]||0) > 0);
+    if(!pool.length) return;
+    const type = pool[Math.floor(Math.random()*pool.length)];
+    player.levels[type]--;
+    recomputeStats();
+    spawnPopup(player.x, player.y-40, T('{stat} -1', {stat: T(UPGRADE_TERMS[type])}), UPGRADE_COLORS[type]);
+    // Placed just outside pickup/magnet range so it's a real dash-for-it, not
+    // an instant freebie - but it still falls and despawns like any drop if
+    // the player doesn't go get it, so a hit can genuinely cost the stat.
+    const ang = Math.random()*Math.PI*2, dist = 55;
+    upgrades.push({ x:player.x+Math.cos(ang)*dist, y:player.y+Math.sin(ang)*dist, r:12, type, vy:70 });
   }
   // ---------- Ship rendering (shared by the game and the Hangar previews) ----------
   // Draws around (0,0). st = { shield, invuln, droneAngle }.
