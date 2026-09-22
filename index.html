@@ -196,6 +196,53 @@
   }
   @keyframes bosspulse{ 0%,100%{ opacity:.45 } 50%{ opacity:1 } }
 
+  /* ---- Feedback FX layer: overdrive edge-glow (looping) + one-shot flashes ---- */
+  #fxEdge{ position:fixed; inset:0; pointer-events:none; z-index:6; opacity:0; }
+  #fxEdge.overdrive{
+    opacity:1;
+    animation: odpulse 0.45s ease-in-out infinite;
+  }
+  @keyframes odpulse{
+    0%,100%{ box-shadow: inset 0 0 55px rgba(255,240,106,0.22); }
+    50%{ box-shadow: inset 0 0 95px rgba(255,240,106,0.55); }
+  }
+  #fxFlash{ position:fixed; inset:0; pointer-events:none; z-index:7; opacity:0; }
+  #fxFlash.close{
+    background: radial-gradient(ellipse at center, rgba(255,61,110,0) 38%, rgba(255,61,110,0.6) 100%);
+    animation: fxFlashAnim 0.5s ease-out;
+  }
+  #fxFlash.graze{
+    background: radial-gradient(ellipse at center, rgba(255,61,110,0) 55%, rgba(255,61,110,0.28) 100%);
+    animation: fxFlashAnim 0.32s ease-out;
+  }
+  #fxFlash.golden{
+    background: radial-gradient(ellipse at center, rgba(255,214,74,0.55) 0%, rgba(255,214,74,0) 62%);
+    animation: fxFlashAnim 0.55s ease-out;
+  }
+  @keyframes fxFlashAnim{ 0%{ opacity:1 } 100%{ opacity:0 } }
+
+  /* ---- Unlock fanfare ---- */
+  #unlockFanfare{
+    position:fixed; inset:0; z-index:60; display:none;
+    align-items:center; justify-content:center; flex-direction:column;
+    background:rgba(4,6,16,0.72); text-align:center; padding:24px;
+  }
+  #unlockFanfare.show{ display:flex; animation: fanfareIn 0.35s ease-out; }
+  #unlockFanfare .fanfareTag{ font-size:13px; letter-spacing:2px; color:var(--gold); opacity:0.9; }
+  #unlockFanfare .fanfareTitle{
+    font-size:26px; font-weight:bold; color:#fff; margin:10px 0 6px;
+    text-shadow:0 0 18px var(--gold), 0 0 36px var(--gold);
+    animation: fanfareTitlePulse 1.1s ease-in-out infinite;
+  }
+  #unlockFanfare .fanfareDesc{ font-size:13px; color:var(--hull-dim); max-width:320px; overflow-wrap:anywhere; }
+  #unlockFanfare canvas{ width:120px; height:120px; margin:6px 0; filter:drop-shadow(0 0 20px var(--gold)); }
+  @keyframes fanfareIn{ 0%{ opacity:0; transform:scale(0.9); } 100%{ opacity:1; transform:scale(1); } }
+  @keyframes fanfareTitlePulse{ 0%,100%{ opacity:1 } 50%{ opacity:0.75 } }
+
+  /* ---- Daily run ---- */
+  #dailyBtn{ background:linear-gradient(135deg,#ffd66a,#c98a2c); color:#241600; }
+  #dailyLine{ color:#ffd66a; font-size:12px; margin-top:-6px; }
+
   /* ---- Language support: longer words must never break the layout ---- */
   .overlay p, .perkName, .perkDesc, .choiceName, .choiceDesc, #choiceSub, .sectionHint, .skinTier{ overflow-wrap:anywhere; }
   .perkRow{ gap:10px; }
@@ -217,6 +264,8 @@
 <body>
 <div id="wrap">
   <canvas id="game"></canvas>
+  <div id="fxEdge"></div>
+  <div id="fxFlash"></div>
 
   <div id="hud">
     <div class="hud-block">
@@ -274,6 +323,8 @@
       <div class="legend-item"><div class="swatch" style="background:#ffb347"></div><span data-i18n="REAR GUN">REAR GUN</span></div>
     </div>
     <button class="btn" id="startBtn" data-i18n="START MISSION">START MISSION</button>
+    <button class="btn" id="dailyBtn" data-i18n="DAILY RUN">DAILY RUN</button>
+    <p id="dailyLine"></p>
     <button class="btn" id="hangarBtn" style="background:linear-gradient(135deg,#9db4ff,#4a5a9a); margin-top:12px;">HANGAR</button>
     <button class="btn" id="settingsBtn" style="background:linear-gradient(135deg,#8a93b8,#4a5170); margin-top:12px;" data-i18n="SETTINGS">SETTINGS</button>
   </div>
@@ -303,8 +354,17 @@
     <h2 id="finalScore">SCORE: 0</h2>
     <p id="waveReached">Reached wave 1</p>
     <p id="bestScoreLine" style="color:var(--gold); font-size:13px;"></p>
+    <p id="closeLine" style="color:#ff9f6a; font-size:12px;"></p>
+    <p id="compareLine" style="color:#7dff8f; font-size:12px;"></p>
     <p id="coresEarnedLine" style="color:var(--gold); font-size:14px;"></p>
     <button class="btn" id="retryBtn" data-i18n="RETRY">RETRY</button>
+  </div>
+
+  <div id="unlockFanfare">
+    <div class="fanfareTag" id="fanfareTag">NEW UNLOCK</div>
+    <canvas id="fanfareCanvas"></canvas>
+    <div class="fanfareTitle" id="fanfareTitle"></div>
+    <div class="fanfareDesc" id="fanfareDesc"></div>
   </div>
 </div>
 
@@ -3206,7 +3266,7 @@ window.GD_I18N_ROWS = [
   }
   function buzz(ms){ if(settings.vibrate && navigator.vibrate){ try{ navigator.vibrate(ms); }catch(e){} } }
   const sfx = {
-    shoot(){ beep(720,0.06,'square',0.05,520); },
+    shoot(pitchMul){ const m=pitchMul||1; beep(720*m,0.06,'square',0.05,520*m); },
     hit(){ beep(220,0.05,'square',0.06); },
     enemyDeath(){ beep(180,0.14,'sawtooth',0.09,60); },
     upgrade(){ beep(520,0.09,'triangle',0.14,900); },
@@ -3216,7 +3276,12 @@ window.GD_I18N_ROWS = [
     bossDeath(){ beep(90,0.5,'sawtooth',0.2,30); buzz(140); },
     waveStart(){ beep(440,0.12,'triangle',0.12,660); },
     classReward(){ beep(500,0.18,'triangle',0.16,1000); },
-    gameOver(){ beep(300,0.5,'sawtooth',0.15,80); }
+    gameOver(){ beep(300,0.5,'sawtooth',0.15,80); },
+    // Rare golden drop: a little three-note chime, distinct from the plain upgrade beep.
+    golden(){ beep(660,0.09,'triangle',0.16,1200); setTimeout(()=>beep(880,0.09,'triangle',0.17,1400),70); setTimeout(()=>beep(1180,0.14,'triangle',0.18,1600),140); buzz(30); },
+    graze(){ beep(900,0.04,'triangle',0.05,1100); },
+    closeCall(){ beep(180,0.16,'sawtooth',0.12,90); buzz(60); },
+    unlock(){ beep(440,0.1,'triangle',0.15,660); setTimeout(()=>beep(660,0.12,'triangle',0.17,990),90); setTimeout(()=>beep(990,0.22,'triangle',0.2,1320),190); buzz(50); }
   };
   function setMuted(m){
     muted = m;
@@ -3228,11 +3293,62 @@ window.GD_I18N_ROWS = [
 
   // ---------- High score ----------
   let highScore = parseInt(localStorage.getItem('gd_highscore') || '0', 10) || 0;
+  let bestWave = parseInt(localStorage.getItem('gd_bestwave') || '0', 10) || 0;
+  let lastRun = null;
+  try{ lastRun = JSON.parse(localStorage.getItem('gd_lastrun') || 'null'); }catch(e){ lastRun = null; }
   function saveHighScoreIfNeeded(){
     if(score > highScore){
       highScore = score;
       localStorage.setItem('gd_highscore', String(highScore));
     }
+    if(wave > bestWave){
+      bestWave = wave;
+      localStorage.setItem('gd_bestwave', String(bestWave));
+    }
+  }
+
+  // ---------- Daily run: a fixed-seed challenge, same for everyone on a given day ----------
+  // Deterministic PRNG (mulberry32) - swapped in for Math.random only during a daily run
+  // so every system that already calls Math.random() (spawns, drops, boss patterns...)
+  // becomes reproducible for free, with zero changes to that code.
+  const REAL_RANDOM = Math.random.bind(Math);
+  function mulberry32(seed){
+    let a = seed >>> 0;
+    return function(){
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function seedFromString(s){
+    let h = 1779033703 ^ s.length;
+    for(let i=0;i<s.length;i++){ h = Math.imul(h ^ s.charCodeAt(i), 3432918353); h = (h<<13) | (h>>>19); }
+    return (h >>> 0);
+  }
+  function todayKey(){
+    const d = new Date();
+    return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+  }
+  function dailySeed(){ return seedFromString('gd-daily-'+todayKey()); }
+  function dailyAnomaly(){ return ANOMALIES[dailySeed() % ANOMALIES.length]; }
+  let dailyMode = false;
+  function loadDailyBest(){
+    if(localStorage.getItem('gd_daily_date') !== todayKey()) return 0;
+    return parseInt(localStorage.getItem('gd_daily_best') || '0', 10) || 0;
+  }
+  function saveDailyBestIfNeeded(){
+    const key = todayKey();
+    const cur = localStorage.getItem('gd_daily_date') === key ? (parseInt(localStorage.getItem('gd_daily_best')||'0',10)||0) : 0;
+    if(score > cur){
+      localStorage.setItem('gd_daily_date', key);
+      localStorage.setItem('gd_daily_best', String(score));
+    }
+    return Math.max(cur, score);
+  }
+  function exitDailyMode(){
+    dailyMode = false;
+    Math.random = REAL_RANDOM;
   }
 
   // ---------- Pause ----------
@@ -3249,7 +3365,10 @@ window.GD_I18N_ROWS = [
   document.getElementById('quitBtn').addEventListener('click', ()=>{
     setPaused(false);
     state = 'start';
+    exitDailyMode();
+    document.getElementById('fxEdge').classList.remove('overdrive');
     document.getElementById('startScreen').classList.remove('hidden');
+    refreshStartScreenHighScore();
   });
   document.addEventListener('visibilitychange', ()=>{
     if(document.hidden && state === 'playing') setPaused(true);
@@ -4104,7 +4223,9 @@ window.GD_I18N_ROWS = [
   function neutralRun(){ RUN = Object.assign({}, RUN_DEFAULT); runAnomaly = null; runFeatured = []; waveTheme = null; banners = []; }
   function rollRun(){
     neutralRun();
-    runAnomaly = ANOMALIES[Math.floor(Math.random()*ANOMALIES.length)];
+    // Daily runs use a fixed modifier combo (same anomaly for everyone, all day) so the
+    // seeded RNG stream isn't consumed to pick it - keeps it decoupled from spawn order.
+    runAnomaly = dailyMode ? dailyAnomaly() : ANOMALIES[Math.floor(Math.random()*ANOMALIES.length)];
     Object.assign(RUN, runAnomaly.mods);
     runFeatured = [];
     bossBag = []; lastBossKey = null; lastThemeKey = null;
@@ -4127,6 +4248,8 @@ window.GD_I18N_ROWS = [
   let particles = [];
   let popups = [];
   let frame = 0;
+  let slowMoTimer = 0; // real ms remaining of close-call slow-mo (dt gets scaled while this is > 0)
+  let lastGrazeAt = -9999; // throttles graze feedback so a wall of bullets doesn't spam it
 
   let boss = null;
   let bossActive = false;
@@ -4179,10 +4302,16 @@ window.GD_I18N_ROWS = [
   }
 
   function resetGame(){
+    // Daily mode: reseed to the exact same starting state every attempt, so replaying
+    // today's run is a fair retry against the same layout, not a fresh random one.
+    if(dailyMode) Math.random = mulberry32(dailySeed());
     score=0; wave=1; waveTimer=0; spawnTimer=0;
     enemies=[]; bullets=[]; enemyBullets=[]; upgrades=[]; classCores=[]; novaPulses=[]; chainZaps=[]; bossRewardOrbs=[]; particles=[]; popups=[];
     boss=null; bossActive=false; firstBossDefeated=false;
+    slowMoTimer=0;
     document.getElementById('wrap').classList.remove('boss-alert');
+    document.getElementById('fxEdge').classList.remove('overdrive');
+    document.getElementById('fxFlash').classList.remove('close','golden','graze');
     player.levels={
       weapon:0,damage:0,rapid:0,speed:0,pierce:0,magnet:0,explosive:0,homing:0,
       sideguns:0,orbitals:0,missiles:0,critical:0,chain:0,burn:0,ricochet:0,bossbane:0,
@@ -4493,7 +4622,7 @@ window.GD_I18N_ROWS = [
     if(now - player.lastShot < rate) return;
     player.lastShot = now;
     player.shotsFired++;
-    sfx.shoot();
+    sfx.shoot(player.odOn ? 1.22 : 1);
     const lvl = player.weaponLevel;
     const spread = Math.min(lvl-1, 6);
     const angleStep = 0.14;
@@ -4583,39 +4712,68 @@ window.GD_I18N_ROWS = [
     return pool[0];
   }
 
+  // Rare golden drop: a small, unpredictable chance for a normal stat pickup to be
+  // worth 2-3x. The reward is earned (it only rolls on a drop the player already
+  // fought for) but exactly when it lands is a surprise - that unpredictability is
+  // the point.
+  const GOLDEN_CHANCE = 0.025;
   function spawnUpgrade(x,y){
     // Stat drops only. A little rarer once the first boss is down: by then the
     // player has a build-defining power on top of the stats.
     const dropChance = (firstBossDefeated ? 0.05 : 0.11) * RUN.drop * (1 + 0.15*metaPerks.cache);
     if(Math.random() > dropChance) return;
-    upgrades.push({ x, y, r:12, type:pickUpgradeType(), vy:70 });
+    const golden = Math.random() < GOLDEN_CHANCE;
+    upgrades.push({ x, y, r: golden?15:12, type:pickUpgradeType(), vy:70, golden });
   }
   function spawnUpgradeForced(x,y){
     upgrades.push({ x, y, r:12, type:pickUpgradeType(), vy:70 });
   }
 
-  function applyUpgrade(type){
+  function grantUpgradeOnce(type){
+    // Applies a single stack of `type` and reports whether it actually landed
+    // (false if that stat/charge/life slot was already maxed).
     const L = player.levels;
-    const buildsBefore = getActiveBuilds();
-    let maxed = false;
-
     if(type==='shield'){
-      if(player.shieldCharges < player.shieldMax) player.shieldCharges++;
-      else maxed=true;
+      if(player.shieldCharges < player.shieldMax){ player.shieldCharges++; return true; }
+      return false;
     } else if(type==='life'){
-      if(player.maxHp < 8){ player.maxHp++; player.hp=Math.min(player.hp+1,player.maxHp); }
-      else maxed=true;
+      if(player.maxHp < 8){ player.maxHp++; player.hp=Math.min(player.hp+1,player.maxHp); return true; }
+      return false;
     } else if(L[type] !== undefined){
-      if(L[type] < (UPGRADE_MAX[type]||5)) L[type]++;
-      else maxed=true;
+      if(L[type] < (UPGRADE_MAX[type]||5)){ L[type]++; return true; }
+      return false;
     }
+    return false;
+  }
+
+  function applyUpgrade(type, golden){
+    const buildsBefore = getActiveBuilds();
+    const landed = grantUpgradeOnce(type);
+    let bonusLanded = false;
+    // Golden pickups are worth 2-3x a plain one: try to grant one or two extra
+    // stacks on top of the normal one (naturally capped - a maxed stat just
+    // keeps the jackpot moment without overflowing past its ceiling).
+    if(golden && landed){
+      bonusLanded = grantUpgradeOnce(type);
+      if(bonusLanded) grantUpgradeOnce(type);
+    }
+    const maxed = !landed;
 
     recomputeStats();
     updateHUD();
-    sfx.upgrade();
-    spawnPopup(player.x, player.y-30, maxed ? T('MAXED!') : T(UPGRADE_LABELS[type]||type), UPGRADE_COLORS[type]);
+    if(golden){
+      sfx.golden();
+      const fx = document.getElementById('fxFlash');
+      fx.classList.remove('close','graze','golden'); void fx.offsetWidth; fx.classList.add('golden');
+      explode(player.x, player.y, '#ffd54a', 26);
+      spawnPopup(player.x, player.y-30, maxed ? T('MAXED!') : T('GOLDEN \u2605 {label}', {label:T(UPGRADE_LABELS[type]||type)}), '#ffd54a');
+    } else {
+      sfx.upgrade();
+      spawnPopup(player.x, player.y-30, maxed ? T('MAXED!') : T(UPGRADE_LABELS[type]||type), UPGRADE_COLORS[type]);
+    }
     if(!maxed){
       player.upgradeCount++;
+      if(golden && bonusLanded) player.upgradeCount++;
       const newTier = Math.min(SHIP_TIER_MAX, Math.floor(player.upgradeCount / SHIP_TIER_UPGRADES));
       if(newTier > player.shipTier){
         player.shipTier = newTier;
@@ -5219,6 +5377,13 @@ window.GD_I18N_ROWS = [
       if(dt > 50) dt = 50;
       frame++;
 
+      if(state === 'playing' && !paused && slowMoTimer > 0){
+        // Close-call slow-mo: gameplay runs at ~30% speed for a beat while the
+        // real clock (and this countdown) keeps ticking at normal speed.
+        slowMoTimer -= dt;
+        dt *= 0.3;
+      }
+
       drawBackground(dt);
 
       if(state === 'playing' && !paused){
@@ -5326,7 +5491,8 @@ window.GD_I18N_ROWS = [
       if(player.levels.overdrive){
         player.overdriveTimer -= dt;
         const odOn = player.overdriveTimer>0 && player.killStreak>=4;
-        if(odOn && !player.odOn) spawnPopup(player.x,player.y-45,T('OVERDRIVE'),'#fff06a');
+        if(odOn && !player.odOn){ spawnPopup(player.x,player.y-45,T('OVERDRIVE'),'#fff06a'); document.getElementById('fxEdge').classList.add('overdrive'); }
+        if(!odOn && player.odOn) document.getElementById('fxEdge').classList.remove('overdrive');
         player.odOn = odOn;
       }
 
@@ -5703,6 +5869,18 @@ window.GD_I18N_ROWS = [
           hitPlayer();
         }
       }
+      // Close call: a bullet passing just outside your hitbox without hitting you is
+      // the moment players replay in their head - give it a small flash/sound, once
+      // per bullet (and throttled overall, so a wall of bullets doesn't spam it).
+      const grazeBand = 16;
+      for(const b of enemyBullets){
+        if(b.grazed || b.y>=9000) continue;
+        const d = Math.hypot(b.x-player.x, b.y-player.y);
+        if(d < b.r + player.r + grazeBand){
+          b.grazed = true;
+          if(now - lastGrazeAt > 220){ lastGrazeAt = now; triggerGraze(); }
+        }
+      }
     }
     enemyBullets = enemyBullets.filter(b => b.y < 9000);
 
@@ -5710,7 +5888,7 @@ window.GD_I18N_ROWS = [
       const d = Math.hypot(u.x-player.x, u.y-player.y);
       if(d < u.r + player.r){
         u.y = 99999;
-        applyUpgrade(u.type);
+        applyUpgrade(u.type, u.golden);
       }
     }
     upgrades = upgrades.filter(u => u.y < 9000);
@@ -5778,6 +5956,22 @@ window.GD_I18N_ROWS = [
     triggerAegisShockwave();
     knockBackStat();
     updateHUD();
+    // Close call: down to your last life. A beat of slow-mo + a red vignette flash
+    // makes the near-death moment land, instead of it just being another number tick.
+    if(player.hp === 1 && player.alive){
+      triggerCloseCall();
+    }
+  }
+  function triggerCloseCall(){
+    slowMoTimer = 380;
+    sfx.closeCall();
+    const fx = document.getElementById('fxFlash');
+    fx.classList.remove('close','graze','golden'); void fx.offsetWidth; fx.classList.add('close');
+  }
+  function triggerGraze(){
+    sfx.graze();
+    const fx = document.getElementById('fxFlash');
+    fx.classList.remove('close','graze','golden'); void fx.offsetWidth; fx.classList.add('graze');
   }
   // A hit that actually costs HP also jolts loose one of your basic stat
   // upgrades. It's dropped back at your feet so you can recollect it if you
@@ -5987,6 +6181,53 @@ window.GD_I18N_ROWS = [
     c.restore();
   }
 
+  // ---------- Unlock fanfare ----------
+  // Buying a new skin or shot colour in the Hangar used to just quietly update the
+  // row. This turns that moment into a small full-screen event instead.
+  let fanfareTimer = null;
+  function showUnlockFanfare(title, desc, opts){
+    const overlay = document.getElementById('unlockFanfare');
+    document.getElementById('fanfareTag').textContent = T('NEW UNLOCK');
+    document.getElementById('fanfareTitle').textContent = title;
+    document.getElementById('fanfareDesc').textContent = desc;
+    const cv = document.getElementById('fanfareCanvas');
+    if(opts && opts.skinId){
+      cv.style.display = '';
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      cv.width = 96*dpr; cv.height = 96*dpr;
+      drawSkinPreview(cv, opts.skinId, 5, hangarFrame);
+    } else if(opts && opts.swatch){
+      cv.style.display = '';
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      cv.width = 96*dpr; cv.height = 96*dpr;
+      const c = cv.getContext('2d');
+      c.setTransform(dpr,0,0,dpr,0,0);
+      c.clearRect(0,0,96,96);
+      c.save(); c.translate(48,48);
+      if(opts.swatch === 'rainbow'){
+        const grad = c.createLinearGradient(-34,0,34,0);
+        grad.addColorStop(0,'#ff5c5c'); grad.addColorStop(0.33,'#ffd54a'); grad.addColorStop(0.66,'#66ffb2'); grad.addColorStop(1,'#5cc8ff');
+        c.fillStyle = grad;
+      } else {
+        c.fillStyle = opts.swatch;
+      }
+      c.shadowColor = opts.swatch === 'rainbow' ? '#ffd54a' : opts.swatch; c.shadowBlur = 24;
+      c.beginPath(); c.arc(0,0,32,0,7); c.fill();
+      c.restore();
+    } else {
+      cv.style.display = 'none';
+    }
+    sfx.unlock();
+    overlay.classList.add('show');
+    if(fanfareTimer) clearTimeout(fanfareTimer);
+    fanfareTimer = setTimeout(hideUnlockFanfare, 2400);
+  }
+  function hideUnlockFanfare(){
+    document.getElementById('unlockFanfare').classList.remove('show');
+    if(fanfareTimer){ clearTimeout(fanfareTimer); fanfareTimer = null; }
+  }
+  document.getElementById('unlockFanfare').addEventListener('click', hideUnlockFanfare);
+
   function draw(){
     const curSkin = activeSkin();
     for(const e of enemies){
@@ -6167,8 +6408,19 @@ window.GD_I18N_ROWS = [
       ctx.save();
       ctx.translate(u.x,u.y);
       ctx.rotate((u.spin||0)+frame*0.04);
-      ctx.fillStyle = UPGRADE_COLORS[u.type];
-      ctx.shadowColor = UPGRADE_COLORS[u.type]; ctx.shadowBlur = 14;
+      if(u.golden){
+        // Golden drops get an outer pulsing ring on top of the normal icon so
+        // they're unmistakable at a glance, even mid-chaos.
+        const pulse = 1 + 0.22*Math.sin(frame*0.28);
+        ctx.save();
+        ctx.rotate(-frame*0.05);
+        ctx.strokeStyle = '#ffd54a'; ctx.shadowColor = '#ffd54a'; ctx.shadowBlur = 20;
+        ctx.lineWidth = 2.4;
+        ctx.beginPath(); ctx.arc(0,0,u.r*1.7*pulse,0,7); ctx.stroke();
+        ctx.restore();
+      }
+      ctx.fillStyle = u.golden ? '#ffd54a' : UPGRADE_COLORS[u.type];
+      ctx.shadowColor = u.golden ? '#ffd54a' : UPGRADE_COLORS[u.type]; ctx.shadowBlur = u.golden ? 22 : 14;
       ctx.beginPath();
       for(let i=0;i<6;i++){
         const a = i/6*Math.PI*2;
@@ -6292,11 +6544,51 @@ window.GD_I18N_ROWS = [
   function gameOver(){
     state = 'over';
     sfx.gameOver();
-    const isNewBest = score > highScore;
-    saveHighScoreIfNeeded();
+    document.getElementById('fxEdge').classList.remove('overdrive');
+
     document.getElementById('finalScore').textContent = T('SCORE: {n}', {n:score});
     document.getElementById('waveReached').textContent = T('Reached wave {n}', {n:wave});
-    document.getElementById('bestScoreLine').textContent = isNewBest ? T('NEW BEST!') : T('BEST: {n}', {n:highScore});
+
+    const closeEl = document.getElementById('closeLine');
+    const compareEl = document.getElementById('compareLine');
+    closeEl.textContent = ''; compareEl.textContent = '';
+
+    if(dailyMode){
+      const prevBest = loadDailyBest();
+      const isNewBest = score > prevBest;
+      const newBest = saveDailyBestIfNeeded();
+      document.getElementById('bestScoreLine').textContent = isNewBest ? T('NEW DAILY BEST!') : T('DAILY BEST: {n}', {n:newBest});
+      if(!isNewBest && prevBest>0){
+        closeEl.textContent = T('{n} short of today\u2019s best', {n:prevBest-score});
+      }
+    } else {
+      const isNewBest = score > highScore;
+      const isNewBestWave = wave > bestWave;
+      const prevHigh = highScore, prevBestWave = bestWave;
+      saveHighScoreIfNeeded();
+      document.getElementById('bestScoreLine').textContent = isNewBest ? T('NEW BEST!') : T('BEST: {n}', {n:highScore});
+      // "So close" framing: when it's not a new best, show exactly how close they
+      // got instead of just the raw number - that's the gap that makes someone
+      // tap retry immediately.
+      if(!isNewBest && prevHigh>0){
+        closeEl.textContent = T('{n} short of your best \u00B7 wave {w} vs your {bw}', {n:prevHigh-score, w:wave, bw:prevBestWave});
+      } else if(isNewBest && !isNewBestWave && prevBestWave>0){
+        closeEl.textContent = T('New best score! Wave {w} vs your best of {bw}', {w:wave, bw:prevBestWave});
+      }
+      // Run-over-run comparison: small, immediate, positive feedback that compounds
+      // better than a lifetime high score most runs will never beat.
+      if(lastRun){
+        const scoreDiff = score - lastRun.score;
+        const waveDiff = wave - lastRun.wave;
+        if(scoreDiff >= 0){
+          compareEl.textContent = T('+{n} score vs your last run', {n:scoreDiff}) + (waveDiff>0 ? T(' \u00B7 +{w} waves', {w:waveDiff}) : '');
+        } else {
+          compareEl.textContent = T('{n} score vs your last run', {n:scoreDiff}) + (waveDiff<0 ? T(' \u00B7 {w} waves', {w:waveDiff}) : '');
+        }
+      }
+      lastRun = { score, wave };
+      try{ localStorage.setItem('gd_lastrun', JSON.stringify(lastRun)); }catch(e){}
+    }
 
     const baseCores = Math.floor(score/40) + wave*3;
     const earned = Math.round(baseCores * (1 + metaPerks.salvage*0.1));
@@ -6311,6 +6603,9 @@ window.GD_I18N_ROWS = [
     const el = document.getElementById('highScoreLine');
     el.textContent = highScore > 0 ? T('BEST SCORE: {n}', {n:highScore}) : '';
     document.getElementById('coresLine').textContent = T('CORES: {n}', {n:cores});
+    const dEl = document.getElementById('dailyLine');
+    const dBest = loadDailyBest();
+    dEl.textContent = dBest > 0 ? T('TODAY\u2019S BEST: {n}', {n:dBest}) : T('No run today yet');
   }
   refreshStartScreenHighScore();
 
@@ -6375,7 +6670,7 @@ window.GD_I18N_ROWS = [
         resetTimer = setTimeout(()=>{ resetArmed = false; if(!document.getElementById('settingsOverlay').classList.contains('hidden')) renderSettings(); }, 4000);
         renderSettings(); return;
       }
-      for(const k of ['gd_cores','gd_meta','gd_skins','gd_shots','gd_highscore']) localStorage.removeItem(k);
+      for(const k of ['gd_cores','gd_meta','gd_skins','gd_shots','gd_highscore','gd_bestwave','gd_lastrun','gd_daily_best','gd_daily_date']) localStorage.removeItem(k);
       location.reload();
     });
     rr.top.appendChild(rb);
@@ -6442,8 +6737,10 @@ window.GD_I18N_ROWS = [
         metaPerks[key]++;
         saveCores(cores);
         saveMeta(metaPerks);
+        const justMaxed = metaPerks[key] >= def.maxLevel;
         renderHangar();
         refreshStartScreenHighScore();
+        if(justMaxed) showUnlockFanfare(T(def.name), T('MAXED') + ' \u00B7 ' + T(def.desc), null);
       });
       row.appendChild(info);
       row.appendChild(btn);
@@ -6470,12 +6767,15 @@ window.GD_I18N_ROWS = [
       else if(owned){ btn.textContent = T('EQUIP'); }
       else { btn.textContent = T('BUY: {n}', {n:sc.cost}); btn.disabled = cores < sc.cost; }
       btn.addEventListener('click', ()=>{
+        let justBought = false;
         if(!shotState.owned.includes(id)){
           if(cores < sc.cost) return;
           cores -= sc.cost; saveCores(cores); shotState.owned.push(id);
+          justBought = true;
         }
         shotState.selected = id; saveShots(shotState);
         renderHangar(); refreshStartScreenHighScore();
+        if(justBought) showUnlockFanfare(T(sc.name), T(sc.desc), {swatch: sc.color || '#7df3ff'});
       });
       row.appendChild(info); row.appendChild(btn); list.appendChild(row);
     }
@@ -6523,14 +6823,17 @@ window.GD_I18N_ROWS = [
       else if(owned){ btn.textContent = T('EQUIP'); }
       else { btn.textContent = T('BUY: {n}', {n:sk.cost}); btn.disabled = cores < sk.cost; }
       btn.addEventListener('click', ()=>{
+        let justBought = false;
         if(!skinState.owned.includes(id)){
           if(cores < sk.cost) return;
           cores -= sk.cost; saveCores(cores);
           skinState.owned.push(id);
+          justBought = true;
         }
         skinState.selected = id; saveSkins(skinState);
         renderHangar();
         refreshStartScreenHighScore();
+        if(justBought) showUnlockFanfare(T(sk.name), T(sk.desc), {skinId:id});
       });
 
       const prev = { cv, id, tier:0, nextAt: Date.now()+1500 };
@@ -6625,6 +6928,17 @@ window.GD_I18N_ROWS = [
 
   document.getElementById('startBtn').addEventListener('click', ()=>{
     ensureAudio();
+    exitDailyMode();
+    document.getElementById('startScreen').classList.add('hidden');
+    resetGame();
+    state = 'playing';
+    setPaused(false);
+    sfx.waveStart();
+    triggerBlessingChoice();
+  });
+  document.getElementById('dailyBtn').addEventListener('click', ()=>{
+    ensureAudio();
+    dailyMode = true;
     document.getElementById('startScreen').classList.add('hidden');
     resetGame();
     state = 'playing';
