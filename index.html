@@ -12,7 +12,7 @@
 <link rel="icon" href="icons/icon-192.png">
 <link rel="icon" sizes="512x512" href="icons/icon-512.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<title>Galactic Defender</title>
+<title>Galactic Defender — Final</title>
 <style>
   :root{
     --void-0: #05060f;
@@ -3639,7 +3639,7 @@ window.GD_I18N_ROWS = [
     aegisBase:3, aegisArmor:1.0, aegisBarrier:1.2,
     gravitySlow:0.09, gravityBulletSlow:0.08, gravityVuln:0.10, gravityRadius:30, gravityCrush:0.8,
     // enemy scaling
-    hpSqrt:0.75, hpLate:0.16, hpLateFrom:12
+    hpSqrt:0.88, hpLate:0.22, hpLateFrom:10
   };
 
   const UPGRADE_MAX = {
@@ -4440,7 +4440,7 @@ window.GD_I18N_ROWS = [
     weaponLevel: 1, fireRate: BASE_FIRE_RATE, bulletDmg: 1,
     pierce: 0, magnetR: 40, explosiveRadius: 0, homingRate: 0,
     lastShot: 0, shotsFired: 0, kills: 0, killStreak: 0,
-    shieldCharges: 0, shieldMax: 3, invuln: 0, alive: true,
+    shieldCharges: 0, shieldMax: 3, shieldDropLock: 0, invuln: 0, alive: true,
     levels: {
       weapon:0, damage:0, rapid:0, speed:0, pierce:0, magnet:0, explosive:0, homing:0,
       sideguns:0, orbitals:0, missiles:0, critical:0, chain:0, burn:0, ricochet:0,
@@ -4474,7 +4474,8 @@ window.GD_I18N_ROWS = [
     player.critChance = Math.min(0.5, L.critical * BAL.critPerLevel);
     player.armorDeflect = Math.min(0.4, L.armor * BAL.armorDeflect);
     player.armorInvulnBonus = L.armor * 120;
-    player.shieldMax = 3 + (metaPerks.shieldcap||0) + L.barrier*2;
+    player.shieldMax = Math.min(5, 2 + (metaPerks.shieldcap||0) + L.barrier);
+    // Barrier increases capacity, but it no longer creates a giant late-run shield bank.
     player.shieldCharges = Math.min(player.shieldCharges, player.shieldMax);
     // Capstone reward for fully investing in the missile rack: a rear-facing
     // gun that catches enemies which slip behind the ship (advertised in the
@@ -4490,6 +4491,7 @@ window.GD_I18N_ROWS = [
     enemies=[]; bullets=[]; enemyBullets=[]; upgrades=[]; classCores=[]; novaPulses=[]; chainZaps=[]; bossRewardOrbs=[]; particles=[]; popups=[];
     boss=null; bossActive=false; firstBossDefeated=false;
     slowMoTimer=0;
+    player.shieldDropLock=0;
     document.getElementById('wrap').classList.remove('boss-alert');
     document.getElementById('fxEdge').classList.remove('overdrive');
     document.getElementById('fxFlash').classList.remove('close','golden','graze');
@@ -4793,8 +4795,8 @@ window.GD_I18N_ROWS = [
     const x = (xOverride!==undefined) ? Math.max(30, Math.min(W-30, xOverride)) : 40 + Math.random() * (W - 80);
 
     const hpMult = 1 + Math.sqrt(Math.max(0, wave - 1)) * BAL.hpSqrt + Math.max(0, wave - BAL.hpLateFrom) * BAL.hpLate;
-    const speedMult = Math.min(1.6, 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.14);
-    const aggroMult = Math.min(2.0, 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.26);
+    const speedMult = Math.min(1.75, 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.16 + Math.max(0, wave-10)*0.008);
+    const aggroMult = Math.min(2.5, 1 + Math.sqrt(Math.max(0, wave - 1)) * 0.30 + Math.max(0, wave-12)*0.012);
 
     let baseHp = 1, r = 14, speed = 60, color = '#ff5d8f', shootChance = 0.004;
 
@@ -4946,11 +4948,20 @@ window.GD_I18N_ROWS = [
   // Enemy drops are deliberately plain: raw stats only. Build-shaping upgrades
   // come from the opening pick, the wave shrines and the bosses.
   const STAT_DROPS   = ['damage','rapid','speed','weapon','magnet','shield','life'];
-  const STAT_WEIGHTS = { damage:12, rapid:11, speed:8, weapon:3, magnet:5, shield:5, life:1.5 };
+  // Enemy drops are deliberately small side-upgrades. They should help a run
+  // survive its current wave, but they must NOT assemble a complete build by
+  // themselves. Build-defining power comes from shrines and bosses.
+  const ENEMY_STAT_CAP = { damage:3, rapid:3, speed:3, weapon:2, magnet:2 };
+  const STAT_WEIGHTS = { damage:8, rapid:8, speed:7, weapon:3, magnet:5, shield:1.5, life:1 };
   function canTake(t){
-    if(t==='shield') return player.shieldCharges < player.shieldMax;
-    if(t==='life')   return player.maxHp < 8;
-    return (player.levels[t]||0) < (UPGRADE_MAX[t]||1);
+    if(t==='shield'){
+      // Shields are a safety net, not a renewable second health bar. Only
+      // allow enemy drops while the player is completely out of shields.
+      return player.shieldCharges === 0;
+    }
+    if(t==='life') return player.maxHp < 8;
+    const cap = ENEMY_STAT_CAP[t] ?? 0;
+    return cap > 0 && (player.levels[t]||0) < Math.min(cap, UPGRADE_MAX[t]||cap);
   }
   function pickUpgradeType(){
     // Only offer stats that actually have room to grow right now. If every
@@ -4976,15 +4987,18 @@ window.GD_I18N_ROWS = [
   function spawnUpgrade(x,y){
     // Stat drops only. A little rarer once the first boss is down: by then the
     // player has a build-defining power on top of the stats.
-    const dropChance = (firstBossDefeated ? 0.05 : 0.11) * RUN.drop * (1 + 0.15*metaPerks.cache);
+    const waveFactor = firstBossDefeated ? Math.max(0.018, 0.045 * Math.pow(0.965, Math.max(0, wave-5))) : 0.085;
+    const dropChance = waveFactor * RUN.drop * (1 + 0.08*metaPerks.cache);
     if(Math.random() > dropChance) return;
     const type = pickUpgradeType();
+    if(type==='shield' && player.shieldDropLock>0) return;
     if(!type) return; // everything's already maxed - nothing to drop
-    const golden = Math.random() < GOLDEN_CHANCE;
+    const golden = type !== 'shield' && Math.random() < GOLDEN_CHANCE;
     upgrades.push({ x, y, r: golden?15:12, type, vy:70, golden });
   }
   function spawnUpgradeForced(x,y){
     const type = pickUpgradeType();
+    if(type==='shield' && player.shieldDropLock>0) return false;
     if(!type) return false; // everything's already maxed - nothing to drop
     upgrades.push({ x, y, r:12, type, vy:70 });
     return true;
@@ -5335,7 +5349,9 @@ window.GD_I18N_ROWS = [
       } else {
         // Power fully upgraded: bosses restore the ship instead.
         bossChoiceButton(list, pw.color, T('CORE OVERHAUL'), [T('Your power is fully upgraded. Fully repairs the hull and adds a shield charge.')], '', ()=>{
-          player.hp = player.maxHp; player.shieldCharges = Math.min(player.shieldMax, player.shieldCharges+1);
+          const beforeHp = player.hp;
+          player.hp = Math.min(player.maxHp, player.hp + 1);
+          if(player.hp === beforeHp && player.shieldCharges === 0) player.shieldCharges = 1;
           spawnPopup(player.x, player.y-34, T('CORE OVERHAUL'), pw.color); updateHUD();
         });
       }
@@ -5477,13 +5493,32 @@ window.GD_I18N_ROWS = [
     }
   }
 
+  // ---------- Runtime safety caps ----------
+  // Long runs can create large effect lists from chain reactions, splitter deaths
+  // and dense boss patterns. These caps are deliberately generous: they do not
+  // change the intended combat, they only stop a runaway frame from snowballing
+  // into stutter on phones and lower-end PCs.
+  const FX_CAPS = { particles:720, popups:36, chainZaps:96, novaPulses:24, enemyBullets:240, bullets:320, upgrades:90, classCores:24 };
+  function trimRuntimeEffects(){
+    if(particles.length>FX_CAPS.particles) particles.splice(0, particles.length-FX_CAPS.particles);
+    if(popups.length>FX_CAPS.popups) popups.splice(0, popups.length-FX_CAPS.popups);
+    if(chainZaps.length>FX_CAPS.chainZaps) chainZaps.splice(0, chainZaps.length-FX_CAPS.chainZaps);
+    if(novaPulses.length>FX_CAPS.novaPulses) novaPulses.splice(0, novaPulses.length-FX_CAPS.novaPulses);
+    if(enemyBullets.length>FX_CAPS.enemyBullets) enemyBullets.splice(0, enemyBullets.length-FX_CAPS.enemyBullets);
+    if(bullets.length>FX_CAPS.bullets) bullets.splice(0, bullets.length-FX_CAPS.bullets);
+    if(upgrades.length>FX_CAPS.upgrades) upgrades.splice(0, upgrades.length-FX_CAPS.upgrades);
+    if(classCores.length>FX_CAPS.classCores) classCores.splice(0, classCores.length-FX_CAPS.classCores);
+  }
+
   function spawnPopup(x,y,text,color){
     if(!settings.popups) return;
+    if(popups.length>=FX_CAPS.popups) popups.shift();
     popups.push({x,y,text,color,life:900,t:0});
   }
 
   function explode(x,y,color,n){
     if(settings.fx === 'low') n = Math.ceil(n*0.35);
+    n = Math.min(n, Math.max(0, FX_CAPS.particles-particles.length));
     for(let i=0;i<n;i++){
       const a = Math.random()*Math.PI*2;
       const sp = Math.random()*160+40;
@@ -5501,7 +5536,8 @@ window.GD_I18N_ROWS = [
     enemyBullets = [];
     spawnTimer = 999999;
     const kindDef = nextBossKind();
-    const hp = Math.round((90 + wave * 22 + Math.floor(Math.sqrt(wave) * 35)) * 1.4 * RUN.bossHp);
+    const bossScale = 1 + Math.max(0, wave-5)*0.055;
+    const hp = Math.round((100 + wave * 25 + Math.floor(Math.sqrt(wave) * 42)) * 1.45 * bossScale * RUN.bossHp);
     boss = {
       x: W/2, y: -140, targetY: H*0.22,
       r: 46 + Math.min(wave,20)*0.7,
@@ -5568,8 +5604,9 @@ window.GD_I18N_ROWS = [
     if(boss.attackTimer <= 0 && !boss.telegraph){
       fireBossPattern();
       boss.pattern = (boss.pattern + 1) % 3;
-      const base = boss.enraged ? 950 : 1650;
-      boss.attackTimer = Math.max(boss.enraged ? 600 : 850, base - wave * 14);
+      const base = boss.enraged ? 900 : 1550;
+      const latePressure = Math.max(0, wave-10) * 10;
+      boss.attackTimer = Math.max(boss.enraged ? 520 : 760, base - wave * 18 - latePressure);
     }
   }
 
@@ -5681,7 +5718,7 @@ window.GD_I18N_ROWS = [
     score += 400 + wave*60;
     spawnPopup(boss.x, boss.y-20, T('{name} DEFEATED!', {name:T(boss.name)}), '#ffcf4a');
     if(metaPerks.hull && player.hp < player.maxHp){
-      player.hp = Math.min(player.maxHp, player.hp + metaPerks.hull);
+      player.hp = Math.min(player.maxHp, player.hp + Math.min(1, metaPerks.hull));
       spawnPopup(player.x, player.y-46, T('FIELD REPAIRS +{n} HP', {n:metaPerks.hull}), '#7dffb0');
     }
     triggerBossRewardChoice(boss.kind);
@@ -5696,6 +5733,11 @@ window.GD_I18N_ROWS = [
     wave++;
     checkWaveAchievements();
     waveTimer = 0;
+    // Clear, readable transition beat after every boss. This gives the player
+    // a moment to register the new wave/build state before the field fills again.
+    spawnPopup(W/2, H*0.34, T('WAVE {n}', {n:wave}), '#7df3ff');
+    const edge = document.getElementById('fxFlash');
+    edge.classList.remove('close','graze','golden'); void edge.offsetWidth; edge.classList.add('graze');
     spawnTimer = 400;
     updateHUD();
   }
@@ -5988,6 +6030,7 @@ window.GD_I18N_ROWS = [
     // shootChance is tuned per 60Hz frame; scale by real elapsed time so a
     // 90/120Hz phone doesn't get double the enemy fire.
     gameTime += dt;
+    if(player.shieldDropLock>0) player.shieldDropLock=Math.max(0,player.shieldDropLock-dt);
     for(const bn of banners) bn.t += dt;
     banners = banners.filter(bn => bn.t < bn.life);
     if(boss && boss.burnUntil && gameTime < boss.burnUntil) hurtBoss((boss.burnDmg||0)*dtS);
@@ -6263,6 +6306,9 @@ window.GD_I18N_ROWS = [
     }
     upgrades = upgrades.filter(u => u.y < 9000);
 
+    // Keep the render/update workload bounded after long chain-heavy runs.
+    trimRuntimeEffects();
+
     if(player.hp <= 0 && player.alive){
       player.alive = false;
       explode(player.x, player.y, '#35e3ff', 30);
@@ -6305,6 +6351,7 @@ window.GD_I18N_ROWS = [
       player.shieldCharges--;
       player.invuln=700+player.armorInvulnBonus;
       player.combo=0; player.comboTimer=0;
+      player.shieldDropLock = Math.max(player.shieldDropLock||0, 2600);
       sfx.shieldBlock();
       spawnPopup(player.x,player.y-30,T('SHIELD -1'),'#35e3ff');
       triggerAegisShockwave();
@@ -7253,6 +7300,11 @@ window.GD_I18N_ROWS = [
   });
 
   // ---------- Upgrade Choice Shrine (every 3rd wave) ----------
+  function currentRouteKey(){
+    if(!player.power) return null;
+    return player.power.key || null;
+  }
+
   // Offers build-shaping upgrades (plain stats come from enemy drops). Once a boss
   // power is chosen, the shrine leans hard toward upgrades that feed it.
   function triggerUpgradeChoice(){
@@ -7264,31 +7316,45 @@ window.GD_I18N_ROWS = [
     if(pool.length<3) pool = UPGRADE_TYPES.slice(); // every type banished (very unlikely) - lift the ban rather than show an empty shrine
     const types=[];
     const cardCount = metaPerks.pathfinder ? 4 : 3;
+    // Draft philosophy: show genuinely different directions. A power's own
+    // feeder cards are still more likely, but they are no longer guaranteed.
+    // This stops every run from becoming 'stack the obvious chain/multishot'.
+    const routeOf = type => {
+      for(const a of BUILD_ARCHETYPES){ if(a.req[type]!==undefined) return a.key; }
+      return 'utility';
+    };
+    const usedRoutes = new Set();
     while(types.length<cardCount && pool.length){
-      let total=0;
-      const weights=pool.map(type=>{
-        const w=1+upgradeSynergyScore(type)*0.9 + (pw && pw.feeds.includes(type) ? 5 : 0);
-        total+=w; return w;
+      const candidates = pool.filter(t => !usedRoutes.has(routeOf(t)));
+      const source = candidates.length >= (cardCount-types.length) ? candidates : pool;
+      const weights = source.map(type => {
+        let w = 1.2;
+        const route = routeOf(type);
+        if(route === 'utility') w += 1.0;
+        if(pw && pw.feeds.includes(type)) w += 1.5;
+        if(player.levels[type] && player.levels[type] >= 2) w *= 0.72;
+        if(route === currentRouteKey()) w *= 0.75;
+        return w;
       });
-      let roll=Math.random()*total, idx=0;
-      for(;idx<pool.length;idx++){ roll-=weights[idx]; if(roll<=0) break; }
-      if(idx>=pool.length) idx=pool.length-1;
-      types.push(pool.splice(idx,1)[0]);
-    }
-    // Guarantee at least one card that feeds your power.
-    if(pw && !types.some(t=>pw.feeds.includes(t))){
-      const feed = pw.feeds.filter(t=>canTake(t) && !types.includes(t));
-      if(feed.length) types[types.length-1] = feed[Math.floor(Math.random()*feed.length)];
+      let total=weights.reduce((a,b)=>a+b,0), roll=Math.random()*total, idx=0;
+      for(;idx<source.length;idx++){ roll-=weights[idx]; if(roll<=0) break; }
+      if(idx>=source.length) idx=source.length-1;
+      const pick=source[idx];
+      types.push(pick);
+      usedRoutes.add(routeOf(pick));
+      pool.splice(pool.indexOf(pick),1);
     }
     document.getElementById('choiceTitle').textContent = T('WAVE {n} \u2014 CHOOSE AN UPGRADE', {n:wave});
-    document.getElementById('choiceSub').textContent = pw ? T('Cards marked \u2605 feed your {name} power.', {name:T(pw.name)}) : T('Shape your build route.');
+    document.getElementById('choiceSub').textContent = pw
+      ? T('Choose a direction. Synergy helps, but every route has a cost — commit carefully.')
+      : T('Choose a direction. This is your route draft — you cannot build everything.');
     const list=document.getElementById('choiceList');
     list.innerHTML='';
     for(const type of types){
       let curLvl=type==='shield'?player.shieldCharges:(type==='life'?Math.max(0,player.maxHp-3):(player.levels[type]||0));
       let tag='';
       if(pw && pw.feeds.includes(type)){
-        tag='<div class="choiceSynergy" style="color:'+pw.color+'">'+T('\u2605 FEEDS {name}', {name:T(pw.name)})+'</div>';
+        tag='<div class="choiceSynergy" style="color:'+pw.color+'">'+T('SYNERGY: {name}', {name:T(pw.name)})+'</div>';
       } else {
         const near = BUILD_ARCHETYPES.filter(a=>a.req[type]!==undefined && buildProgress(a)<1)
           .sort((a,b)=>buildProgress(a)-buildProgress(b))[0];
