@@ -4,12 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#05060f">
-<meta name="description" content="Galactic Defender - twin-stick style wave shooter. Defend, upgrade, survive.">
+<meta name="description" content="Galactic Defender - fast neon roguelite wave shooter. Defend, upgrade, survive and evolve your ship.">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon-192.png">
+<link rel="icon" sizes="512x512" href="icons/icon-512.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <title>Galactic Defender</title>
 <style>
@@ -48,11 +49,26 @@
   #lives{ display:flex; gap:4px; margin-top:2px; align-items:center; }
   .life-icon{ width:14px; height:14px; }
   .shield-icon{ width:11px; height:11px; }
-  #weaponBadge{ text-align:right; }
+  #weaponBadge{ text-align:right; margin-top:42px; }
   #weaponBadge b{ color: var(--gold); }
   #upgradeRow{ font-size:9.5px; color:var(--hull-dim); margin-top:5px; letter-spacing:0.5px; max-width:150px; }
   #comboRow{ font-size:11px; color:#fff06a; margin-top:4px; letter-spacing:1px; text-shadow:0 0 10px rgba(255,240,106,.65); }
-    #buildRow{margin-top:4px;font-size:9px;letter-spacing:1px;min-height:12px;} .buildTag{display:inline-block;margin-right:5px;} .choiceSynergy{margin-top:5px;font-size:9px;letter-spacing:1.5px;font-weight:bold;}
+  #formRow{ font-size:10px; color:#8dffc2; margin-top:4px; letter-spacing:1px; text-shadow:0 0 10px rgba(125,255,181,.55); }
+  #formRow b{ color:#8dffc2; font-size:12px; }
+  #buildRow{margin-top:5px;font-size:9px;letter-spacing:.8px;min-height:16px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px;max-width:180px;}
+  .buildTag{display:inline-block;padding:2px 5px;border:1px solid currentColor;border-radius:5px;background:rgba(255,255,255,.035);white-space:nowrap;}
+  .choiceSynergy{margin-top:6px;font-size:9px;letter-spacing:1.3px;font-weight:bold;}
+  .choiceBtn{ min-height:82px; width:100%; touch-action:manipulation; }
+  .choiceBtn .choiceName{ font-size:clamp(14px,4.1vw,16px); }
+  .choiceBtn .choiceDesc{ font-size:clamp(11px,3.2vw,12px); line-height:1.35; max-width:300px; }
+  @media (max-width:430px){
+    #hud{padding-left:10px;padding-right:10px;}
+    .hud-block{font-size:11px;line-height:1.35;}
+    .hud-block b{font-size:14px;}
+    #upgradeRow{font-size:8.5px;max-width:145px;}
+    #buildRow{font-size:8px;max-width:155px;}
+    #comboRow{font-size:10px;}
+  }
   #comboRow b{ color:#fff06a; font-size:15px; }
 
   /* Full-width bottom touch strip: the entire bottom ~9cm? is not needed;
@@ -66,7 +82,7 @@
   /* No visible joystick circle: the whole bottom strip is the control surface. */
   #joyBase{ display:none !important; }
   #joyStick{
-    position:absolute; width:46px; height:46px; border-radius:50%;
+    display:none !important; position:absolute; width:46px; height:46px; border-radius:50%;
     background: radial-gradient(circle at 35% 30%, #7df3ff, #0aa8c7);
     box-shadow: 0 0 14px rgba(53,227,255,0.8);
     left:25px; top:25px;
@@ -236,6 +252,9 @@
   }
   #unlockFanfare .fanfareDesc{ font-size:13px; color:var(--hull-dim); max-width:320px; overflow-wrap:anywhere; }
   #unlockFanfare canvas{ width:120px; height:120px; margin:6px 0; filter:drop-shadow(0 0 20px var(--gold)); }
+  #unlockFanfare.toast{ inset:auto; top:calc(env(safe-area-inset-top,0px) + 64px); left:10px; right:10px; padding:10px 14px; border-radius:14px;
+    border:1px solid var(--gold); background:rgba(4,6,16,0.88); pointer-events:none; }
+  #unlockFanfare.toast canvas{ display:none !important; }
   @keyframes fanfareIn{ 0%{ opacity:0; transform:scale(0.9); } 100%{ opacity:1; transform:scale(1); } }
   @keyframes fanfareTitlePulse{ 0%,100%{ opacity:1 } 50%{ opacity:0.75 } }
 
@@ -277,6 +296,7 @@
       <span data-i18n="LVL">LVL</span> <b id="weaponVal">1</b>
       <div id="upgradeRow"></div>
       <div id="comboRow"><span data-i18n="FLOW">FLOW</span> <b id="comboVal">0</b></div>
+      <div id="formRow"><span data-i18n="FORM">FORM</span> <b id="formVal">I</b></div>
       <div id="buildRow"></div>
     </div>
   </div>
@@ -327,6 +347,7 @@
     <p id="dailyLine"></p>
     <button class="btn" id="hangarBtn" style="background:linear-gradient(135deg,#9db4ff,#4a5a9a); margin-top:12px;">HANGAR</button>
     <button class="btn" id="settingsBtn" style="background:linear-gradient(135deg,#8a93b8,#4a5170); margin-top:12px;" data-i18n="SETTINGS">SETTINGS</button>
+    <button class="btn" id="achievementsBtn" style="background:linear-gradient(135deg,#ffd66a,#8a6a1a); margin-top:12px;" data-i18n="ACHIEVEMENTS">ACHIEVEMENTS</button>
   </div>
 
   <div class="overlay hidden" id="hangarOverlay">
@@ -341,6 +362,13 @@
     <h1 style="font-size:26px;" data-i18n="SETTINGS">SETTINGS</h1>
     <div id="settingsList" style="display:flex; flex-direction:column; gap:10px; width:100%; max-width:360px; margin-top:10px;"></div>
     <button class="btn" id="settingsBackBtn" data-i18n="BACK">BACK</button>
+  </div>
+
+  <div class="overlay hidden" id="achievementsOverlay">
+    <h1 style="font-size:26px;" data-i18n="ACHIEVEMENTS">ACHIEVEMENTS</h1>
+    <p style="max-width:340px;" data-i18n="Lifetime goals. Progress and rewards persist across every run.">Lifetime goals. Progress and rewards persist across every run.</p>
+    <div id="achievementsList" style="display:flex; flex-direction:column; gap:8px; width:100%; max-width:380px; margin-top:8px; max-height:52vh; overflow-y:auto;"></div>
+    <button class="btn" id="achievementsBackBtn" data-i18n="BACK">BACK</button>
   </div>
 
   <div class="overlay hidden" id="choiceOverlay">
@@ -358,6 +386,7 @@
     <p id="compareLine" style="color:#7dff8f; font-size:12px;"></p>
     <p id="coresEarnedLine" style="color:var(--gold); font-size:14px;"></p>
     <button class="btn" id="retryBtn" data-i18n="RETRY">RETRY</button>
+    <button class="btn" id="overMenuBtn" style="background:linear-gradient(135deg,#8a93b8,#4a5170); margin-top:12px;" data-i18n="QUIT TO MENU">QUIT TO MENU</button>
   </div>
 
   <div id="unlockFanfare">
@@ -564,9 +593,9 @@ window.GD_I18N_ROWS = [
 "FANTASMA"
 ],
 [
-"A ship half in another dimension. Afterimages multiply with tier, Phase and Dash; a void ring opens at the top.",
-"Ein Schiff halb in einer anderen Dimension. Nachbilder vermehren sich mit Stufe, Phase und Dash; an der Spitze öffnet sich ein Leerering.",
-"Un vaisseau à moitié dans une autre dimension. Les images rémanentes se multiplient avec le palier, la Phase et le Dash ; un anneau du vide s'ouvre au sommet.",
+"A ship half in another dimension. Afterimages multiply with tier and Phase; a void ring opens at the top.",
+"Ein Schiff halb in einer anderen Dimension. Nachbilder vermehren sich mit Stufe und Phase; an der Spitze öffnet sich ein Leerering.",
+"Un vaisseau à moitié dans une autre dimension. Les images rémanentes se multiplient avec le palier et la Phase ; un anneau du vide s'ouvre au sommet.",
 "Una nave a metà in un'altra dimensione. Le immagini residue si moltiplicano con livello, Fase e Scatto; in cima si apre un anello del vuoto."
 ],
 [
@@ -3184,11 +3213,146 @@ window.GD_I18N_ROWS = [
 "ABGELENKT",
 "DÉVIÉ",
 "DEVIATO"
-]
+],
+[
+"EVADE",
+"AUSWEICHEN",
+"ESQUIVE",
+"EVADI"
+],
+[
+"ACHIEVEMENTS",
+"ERFOLGE",
+"SUCCÈS",
+"OBIETTIVI"
+],
+[
+"ACHIEVEMENT UNLOCKED",
+"ERFOLG FREIGESCHALTET",
+"SUCCÈS DÉBLOQUÉ",
+"OBIETTIVO SBLOCCATO"
+],
+[
+"Lifetime goals. Progress and rewards persist across every run.",
+"Dauerhafte Ziele. Fortschritt und Belohnungen bleiben über alle Runs erhalten.",
+"Objectifs permanents. La progression et les récompenses persistent entre les parties.",
+"Obiettivi permanenti. Progressi e ricompense restano tra una run e l'altra."
+],
+[
+"CHOOSE A SECTOR",
+"SEKTOR WÄHLEN",
+"CHOISIR UN SECTEUR",
+"SCEGLI UN SETTORE"
+],
+[
+"Hazards make the run harder, but pay bonus Cores when it ends.",
+"Gefahren erschweren den Run, zahlen aber am Ende Bonus-Kerne.",
+"Les dangers compliquent la partie, mais rapportent des Cores bonus à la fin.",
+"I pericoli rendono la run più dura, ma pagano Core bonus alla fine."
+],
+[
+"STANDARD SECTOR",
+"STANDARDSEKTOR",
+"SECTEUR STANDARD",
+"SETTORE STANDARD"
+],
+[
+"No hazard, no bonus - a clean run.",
+"Keine Gefahr, kein Bonus - ein sauberer Run.",
+"Aucun danger, aucun bonus - une partie sans surprise.",
+"Nessun pericolo, nessun bonus - una run pulita."
+],
+[
+"+25% CORES THIS RUN",
+"+25% KERNE IN DIESEM RUN",
+"+25% CORES CETTE PARTIE",
+"+25% CORE IN QUESTA RUN"
+],
+["GOLDEN ★ {label}", "GOLD ★ {label}", "DORÉ ★ {label}", "DORATO ★ {label}"],
+["CORES", "KERNE", "NOYAUX", "NUCLEI"],
+["NEW UNLOCK", "NEUE FREISCHALTUNG", "NOUVEAU DÉBLOCAGE", "NUOVO SBLOCCO"],
+["ACHIEVEMENT UNLOCKED", "ERFOLG FREIGESCHALTET", "SUCCÈS DÉBLOQUÉ", "OBIETTIVO SBLOCCATO"],
+["NEW DAILY BEST!", "NEUER TAGESREKORD!", "NOUVEAU RECORD DU JOUR !", "NUOVO RECORD DEL GIORNO!"],
+["DAILY BEST: {n}", "TAGESREKORD: {n}", "RECORD DU JOUR : {n}", "RECORD DEL GIORNO: {n}"],
+["TODAY’S BEST: {n}", "HEUTIGER REKORD: {n}", "RECORD DU JOUR : {n}", "RECORD DI OGGI: {n}"],
+["{n} short of today’s best", "{n} unter dem heutigen Rekord", "{n} de moins que le record du jour", "{n} in meno del record di oggi"],
+["{n} short of your best · wave {w} vs your {bw}", "{n} unter deinem Rekord · Welle {w} vs. deine {bw}", "{n} de moins que ton record · vague {w} vs {bw}", "{n} sotto il tuo record · ondata {w} vs {bw}"],
+["New best score! Wave {w} vs your best of {bw}", "Neuer Rekord! Welle {w} vs. deine beste {bw}", "Nouveau record ! Vague {w} vs ton meilleur {bw}", "Nuovo record! Ondata {w} vs la tua migliore {bw}"],
+["+{n} score vs your last run", "+{n} Punkte zum letzten Run", "+{n} points vs ta dernière partie", "+{n} punti rispetto all'ultima run"],
+["{n} score vs your last run", "{n} Punkte zum letzten Run", "{n} points vs ta dernière partie", "{n} punti rispetto all'ultima run"],
+[" · +{w} waves", " · +{w} Wellen", " · +{w} vagues", " · +{w} ondate"],
+[" · {w} waves", " · {w} Wellen", " · {w} vagues", " · {w} ondate"],
+[" (hazard bonus included)", " (inkl. Gefahrenbonus)", " (bonus de danger inclus)", " (bonus pericolo incluso)"],
+["No run today yet", "Heute noch kein Run", "Pas encore de partie aujourd'hui", "Nessuna run oggi"],
+["DAILY RUN", "TAGES-RUN", "DÉFI DU JOUR", "RUN GIORNALIERA"],
+["FORM", "FORM", "FORME", "FORMA"],
+["BANISH ONE ({n} left)", "EINE VERBANNEN ({n} übrig)", "EN BANNIR UNE ({n} restantes)", "BANDISCINE UNA ({n} rimaste)"],
+["BANISHED: {name}", "VERBANNT: {name}", "BANNI : {name}", "BANDITO: {name}"],
+["ENGINEER", "INGENIEUR", "INGÉNIEUR", "INGEGNERE"],
+["Twin Combat Drones", "Zwillings-Kampfdrohnen", "Drones de combat jumeaux", "Droni da combattimento gemelli"],
+["VANGUARD", "VORHUT", "AVANT-GARDE", "AVANGUARDIA"],
+["Nova Pulse", "Nova-Impuls", "Impulsion nova", "Impulso nova"],
+["BERSERKER", "BERSERKER", "BERSERKER", "BERSERKER"],
+["Adaptive Regen", "Adaptive Regeneration", "Régénération adaptative", "Rigenerazione adattiva"],
+["PURGE PROTOCOL", "PURGE-PROTOKOLL", "PROTOCOLE PURGE", "PROTOCOLLO PURGA"],
+["Permanently banish an unwanted card from a shrine, once per level, each run", "Verbanne pro Stufe und Run eine unerwünschte Karte dauerhaft aus einem Schrein", "Bannit définitivement une carte indésirable d'un sanctuaire, une fois par niveau et par partie", "Bandisci per sempre una carta indesiderata da un santuario, una volta per livello e per run"],
+["Phase windows and prism echoes overlap into a safer, stronger spectral build.", "Phasenfenster und Prismen-Echos überlagern sich zu einem sichereren, stärkeren Spektral-Build.", "Les fenêtres de phase et les échos du prisme se combinent en un build spectral plus sûr et plus fort.", "Le finestre di fase e gli echi del prisma si fondono in una build spettrale più sicura e potente."],
+["MIRV BARRAGE — AWAKENED", "MIRV-SALVE — ERWACHT", "BARRAGE MIRV — ÉVEILLÉ", "SBARRAMENTO MIRV — RISVEGLIATO"],
+["Warheads home in harder. Every missile salvo hunts smarter.", "Sprengköpfe suchen ihr Ziel gezielter. Jede Raketensalve jagt klüger.", "Les ogives se verrouillent mieux. Chaque salve traque plus intelligemment.", "Le testate inseguono meglio. Ogni salva di missili caccia in modo più intelligente."],
+["ARC STORM — AWAKENED", "BOGENSTURM — ERWACHT", "TEMPÊTE D'ARCS — ÉVEILLÉE", "TEMPESTA D'ARCO — RISVEGLIATA"],
+["Lightning chains one link further on every kill.", "Der Blitz springt bei jedem Abschuss ein Glied weiter.", "La foudre rebondit d'un maillon de plus à chaque kill.", "Il fulmine salta di un anello in più a ogni uccisione."],
+["NOVA RING — AWAKENED", "NOVA-RING — ERWACHT", "ANNEAU NOVA — ÉVEILLÉ", "ANELLO NOVA — RISVEGLIATO"],
+["The orbital ring pulses harder and wider.", "Der Orbitalring pulsiert stärker und weiter.", "L'anneau orbital pulse plus fort et plus large.", "L'anello orbitale pulsa più forte e più ampio."],
+["AEGIS — AWAKENED", "ÄGIDE — ERWACHT", "ÉGIDE — ÉVEILLÉE", "EGIDA — RISVEGLIATA"],
+["Your shield regenerates a charge, permanently faster.", "Dein Schild lädt dauerhaft schneller eine Ladung nach.", "Ton bouclier régénère une charge, définitivement plus vite.", "Il tuo scudo rigenera una carica, in modo permanente più veloce."],
+["RAILGUN — AWAKENED", "RAILGUN — ERWACHT", "RAILGUN — ÉVEILLÉ", "RAILGUN — RISVEGLIATO"],
+["Charged shots crit more often.", "Aufgeladene Schüsse treffen öfter kritisch.", "Les tirs chargés font plus souvent des critiques.", "I colpi caricati sono critici più spesso."],
+["BROADSIDER — AWAKENED", "BREITSEITE — ERWACHT", "BORDÉE — ÉVEILLÉE", "FIANCATA — RISVEGLIATA"],
+["Side-gun rounds punch through one more enemy.", "Seitenkanonen-Schüsse durchschlagen einen Gegner mehr.", "Les tirs latéraux traversent un ennemi de plus.", "I colpi dei cannoni laterali trapassano un nemico in più."],
+["INFERNO — AWAKENED", "INFERNO — ERWACHT", "INFERNO — ÉVEILLÉ", "INFERNO — RISVEGLIATO"],
+["Burning enemies are more likely to detonate on death.", "Brennende Gegner detonieren beim Tod wahrscheinlicher.", "Les ennemis en feu ont plus de chances d'exploser à leur mort.", "I nemici in fiamme hanno più probabilità di detonare alla morte."],
+["GHOST WALKER — AWAKENED", "GEISTERWANDLER — ERWACHT", "MARCHEUR FANTÔME — ÉVEILLÉ", "SPETTRO ERRANTE — RISVEGLIATO"],
+["Your phase window runs measurably longer.", "Dein Phasenfenster hält spürbar länger an.", "Ta fenêtre de phase dure nettement plus longtemps.", "La tua finestra di fase dura sensibilmente di più."],
+["KALEIDOSCOPE — AWAKENED", "KALEIDOSKOP — ERWACHT", "KALÉIDOSCOPE — ÉVEILLÉ", "CALEIDOSCOPIO — RISVEGLIATO"],
+["Mirror echoes fire more often.", "Spiegelechos feuern häufiger.", "Les échos miroirs tirent plus souvent.", "Gli echi speculari sparano più spesso."],
+["PINBALL — AWAKENED", "FLIPPER — ERWACHT", "FLIPPER — ÉVEILLÉ", "PINBALL — RISVEGLIATO"],
+["Shots get one extra wall bounce before they expire.", "Schüsse prallen einmal mehr von Wänden ab, bevor sie verschwinden.", "Les tirs rebondissent une fois de plus sur les murs avant de disparaître.", "I colpi rimbalzano una volta in più sui muri prima di svanire."],
+["FIRST BLOOD", "ERSTES BLUT", "PREMIER SANG", "PRIMO SANGUE"],
+["Defeat your first boss.", "Besiege deinen ersten Boss.", "Bats ton premier boss.", "Sconfiggi il tuo primo boss."],
+["DEEP SPACE", "TIEFER RAUM", "ESPACE PROFOND", "SPAZIO PROFONDO"],
+["Reach wave 10 in a single run.", "Erreiche Welle 10 in einem Run.", "Atteins la vague 10 en une seule partie.", "Raggiungi l'ondata 10 in una sola run."],
+["DEEP SPACE II", "TIEFER RAUM II", "ESPACE PROFOND II", "SPAZIO PROFONDO II"],
+["Reach wave 20 in a single run.", "Erreiche Welle 20 in einem Run.", "Atteins la vague 20 en une seule partie.", "Raggiungi l'ondata 20 in una sola run."],
+["INTO THE VOID", "INS NICHTS", "DANS LE VIDE", "NEL VUOTO"],
+["Reach wave 30 in a single run.", "Erreiche Welle 30 in einem Run.", "Atteins la vague 30 en une seule partie.", "Raggiungi l'ondata 30 in una sola run."],
+["AWAKENED", "ERWACHT", "ÉVEILLÉ", "RISVEGLIATO"],
+["Fully awaken your chosen Power in one run.", "Erwecke deine gewählte Kraft in einem Run vollständig.", "Éveille entièrement le pouvoir choisi en une partie.", "Risveglia completamente il potere scelto in una run."],
+["APEX MASTERY", "MEISTERSCHAFT", "MAÎTRISE ULTIME", "MAESTRIA SUPREMA"],
+["Max every upgrade of a single Power in one run.", "Maximiere alle Upgrades einer Kraft in einem Run.", "Maximise toutes les améliorations d'un pouvoir en une partie.", "Porta al massimo ogni potenziamento di un potere in una run."],
+["CURATOR", "KURATOR", "CONSERVATEUR", "CURATORE"],
+["Banish an unwanted upgrade from a shrine.", "Verbanne ein unerwünschtes Upgrade aus einem Schrein.", "Bannis une amélioration indésirable d'un sanctuaire.", "Bandisci un potenziamento indesiderato da un santuario."],
+["RISK TAKER", "RISIKOFREUDIG", "PREND-RISQUES", "AUDACE"],
+["Accept a sector hazard 5 times (lifetime).", "Akzeptiere 5-mal eine Sektorgefahr (insgesamt).", "Accepte 5 fois un danger de secteur (au total).", "Accetta 5 volte un pericolo di settore (totale)."],
+["Defeat 25 bosses (lifetime).", "Besiege 25 Bosse (insgesamt).", "Bats 25 boss (au total).", "Sconfiggi 25 boss (totale)."],
+["STOCKPILE", "VORRAT", "RÉSERVE", "SCORTA"],
+["Earn 1000 Cores total (lifetime).", "Verdiene insgesamt 1000 Kerne.", "Gagne 1000 Noyaux au total.", "Guadagna 1000 Nuclei in totale."],
+["CREATURE OF HABIT", "GEWOHNHEITSTIER", "ANIMAL D'HABITUDE", "ABITUDINARIO"],
+["Complete a Daily Run.", "Schließe einen Tages-Run ab.", "Termine un défi du jour.", "Completa una run giornaliera."]
 ];
 </script>
 <script>
 (function(){
+
+  // Safe storage: falls back to memory when localStorage is blocked, full or throws.
+  const LS = (function(){
+    let ok = false; const mem = {};
+    try{ const k='__gd_probe'; window.localStorage.setItem(k,'1'); window.localStorage.removeItem(k); ok = true; }catch(e){ ok = false; }
+    return {
+      getItem(k){ if(ok){ try{ return window.localStorage.getItem(k); }catch(e){} } return Object.prototype.hasOwnProperty.call(mem,k) ? mem[k] : null; },
+      setItem(k,v){ if(ok){ try{ window.localStorage.setItem(k,v); return; }catch(e){} } mem[k] = String(v); },
+      removeItem(k){ if(ok){ try{ window.localStorage.removeItem(k); }catch(e){} } delete mem[k]; }
+    };
+  })();
   document.addEventListener('contextmenu', e => e.preventDefault());
   if('serviceWorker' in navigator){
     window.addEventListener('load', ()=>{
@@ -3214,11 +3378,11 @@ window.GD_I18N_ROWS = [
   // ---------- Settings (saved on this device) ----------
   const SETTINGS_DEFAULT = { sfxVol:80, vibrate:true, popups:true, fx:'high', sens:100, lang:'en' };
   function loadSettings(){
-    try{ return Object.assign({}, SETTINGS_DEFAULT, JSON.parse(localStorage.getItem('gd_settings') || '{}')); }
+    try{ return Object.assign({}, SETTINGS_DEFAULT, JSON.parse(LS.getItem('gd_settings') || '{}')); }
     catch(e){ return Object.assign({}, SETTINGS_DEFAULT); }
   }
   let settings = loadSettings();
-  function saveSettings(){ try{ localStorage.setItem('gd_settings', JSON.stringify(settings)); }catch(e){} }
+  function saveSettings(){ try{ LS.setItem('gd_settings', JSON.stringify(settings)); }catch(e){} }
 
   // ---------- Languages (English is the default) ----------
   const LANGS = [ ['en','English'], ['de','Deutsch'], ['fr','Français'], ['it','Italiano'] ];
@@ -3241,7 +3405,7 @@ window.GD_I18N_ROWS = [
   }
 
   let actx = null;
-  let muted = localStorage.getItem('gd_muted') === '1';
+  let muted = LS.getItem('gd_muted') === '1';
   function ensureAudio(){
     if(!actx){
       try{ actx = new (window.AudioContext || window.webkitAudioContext)(); }
@@ -3285,25 +3449,25 @@ window.GD_I18N_ROWS = [
   };
   function setMuted(m){
     muted = m;
-    localStorage.setItem('gd_muted', m ? '1' : '0');
+    try{ LS.setItem('gd_muted', m ? '1' : '0'); }catch(e){}
     document.getElementById('muteBtn').textContent = m ? '🔇' : '🔊';
   }
   document.getElementById('muteBtn').textContent = muted ? '🔇' : '🔊';
   document.getElementById('muteBtn').addEventListener('click', ()=>{ ensureAudio(); setMuted(!muted); });
 
   // ---------- High score ----------
-  let highScore = parseInt(localStorage.getItem('gd_highscore') || '0', 10) || 0;
-  let bestWave = parseInt(localStorage.getItem('gd_bestwave') || '0', 10) || 0;
+  let highScore = parseInt(LS.getItem('gd_highscore') || '0', 10) || 0;
+  let bestWave = parseInt(LS.getItem('gd_bestwave') || '0', 10) || 0;
   let lastRun = null;
-  try{ lastRun = JSON.parse(localStorage.getItem('gd_lastrun') || 'null'); }catch(e){ lastRun = null; }
+  try{ lastRun = JSON.parse(LS.getItem('gd_lastrun') || 'null'); }catch(e){ lastRun = null; }
   function saveHighScoreIfNeeded(){
     if(score > highScore){
       highScore = score;
-      localStorage.setItem('gd_highscore', String(highScore));
+      try{ LS.setItem('gd_highscore', String(highScore)); }catch(e){}
     }
     if(wave > bestWave){
       bestWave = wave;
-      localStorage.setItem('gd_bestwave', String(bestWave));
+      try{ LS.setItem('gd_bestwave', String(bestWave)); }catch(e){}
     }
   }
 
@@ -3334,15 +3498,14 @@ window.GD_I18N_ROWS = [
   function dailyAnomaly(){ return ANOMALIES[dailySeed() % ANOMALIES.length]; }
   let dailyMode = false;
   function loadDailyBest(){
-    if(localStorage.getItem('gd_daily_date') !== todayKey()) return 0;
-    return parseInt(localStorage.getItem('gd_daily_best') || '0', 10) || 0;
+    if(LS.getItem('gd_daily_date') !== todayKey()) return 0;
+    return parseInt(LS.getItem('gd_daily_best') || '0', 10) || 0;
   }
   function saveDailyBestIfNeeded(){
     const key = todayKey();
-    const cur = localStorage.getItem('gd_daily_date') === key ? (parseInt(localStorage.getItem('gd_daily_best')||'0',10)||0) : 0;
+    const cur = LS.getItem('gd_daily_date') === key ? (parseInt(LS.getItem('gd_daily_best')||'0',10)||0) : 0;
     if(score > cur){
-      localStorage.setItem('gd_daily_date', key);
-      localStorage.setItem('gd_daily_best', String(score));
+      try{ LS.setItem('gd_daily_date', key); LS.setItem('gd_daily_best', String(score)); }catch(e){}
     }
     return Math.max(cur, score);
   }
@@ -3407,7 +3570,7 @@ window.GD_I18N_ROWS = [
   const UPGRADE_TYPES = [
     'weapon','damage','rapid','speed','pierce','magnet','shield','life','explosive','homing',
     'sideguns','orbitals','missiles','critical','chain','burn','ricochet','bossbane',
-    'armor','repair','barrier','dash','phase','overdrive','prism','gravity','execution','pulse',
+    'armor','repair','barrier','phase','overdrive','prism','gravity','execution','pulse',
     'mirror','capacitor','reactor','salvage'
   ];
 
@@ -3417,7 +3580,7 @@ window.GD_I18N_ROWS = [
     explosive:'#ff6a2b', homing:'#c9ff4a',
     sideguns:'#ffd36e', orbitals:'#72b7ff', missiles:'#ff8b4a', critical:'#ff4ad8',
     chain:'#55f2ff', burn:'#ff7043', ricochet:'#d7ff4a', bossbane:'#ff3b3b',
-    armor:'#b8c6ff', repair:'#69ff9d', barrier:'#42d9ff', dash:'#7dffb5',
+    armor:'#b8c6ff', repair:'#69ff9d', barrier:'#42d9ff',
     phase:'#a78bff', overdrive:'#fff06a', prism:'#f0a0ff', gravity:'#55e0b0',
     execution:'#ff5577', pulse:'#ff9f43', mirror:'#9ee7ff', capacitor:'#ffe06a',
     reactor:'#63faff', salvage:'#b5ff6a', vampire:'#ff4d8d'
@@ -3430,7 +3593,7 @@ window.GD_I18N_ROWS = [
     sideguns:'SIDE GUNS', orbitals:'ORBITAL CANNON', missiles:'MISSILE RACK',
     critical:'CRIT CORE', chain:'CHAIN ARC', burn:'INCENDIARY', ricochet:'RICOCHET',
     bossbane:'BOSS HUNTER', armor:'ARMOR PLATING', repair:'AUTO REPAIR',
-    barrier:'BARRIER MATRIX', dash:'AFTERBURN DASH', phase:'PHASE DRIVE',
+    barrier:'BARRIER MATRIX', phase:'PHASE DRIVE',
     overdrive:'OVERDRIVE', prism:'PRISM CORE', gravity:'GRAVITY WELL',
     execution:'EXECUTIONER', pulse:'PULSE ENGINE', mirror:'MIRROR SHOT',
     capacitor:'CAPACITOR', reactor:'REACTOR', salvage:'SALVAGE MATRIX'
@@ -3444,14 +3607,14 @@ window.GD_I18N_ROWS = [
     shield:'Z', life:'+', explosive:'X', homing:'H',
     sideguns:'5', orbitals:'O', missiles:'V', critical:'C', chain:'I',
     burn:'F', ricochet:'Q', bossbane:'K', armor:'A', repair:'L', barrier:'B',
-    dash:'>', phase:'Φ', overdrive:'!', prism:'Y', gravity:'G', execution:'E',
+    phase:'Φ', overdrive:'!', prism:'Y', gravity:'G', execution:'E',
     pulse:'U', mirror:'2', capacitor:'T', reactor:'N', salvage:'$'
   };
 
   const UPGRADE_WEIGHTS = {
     weapon:12, damage:12, rapid:11, speed:10, pierce:8, magnet:7, shield:7, life:4,
     explosive:7, homing:7, sideguns:7, orbitals:5, missiles:6, critical:6, chain:5,
-    burn:6, ricochet:5, bossbane:4, armor:5, repair:4, barrier:4, dash:4, phase:3,
+    burn:6, ricochet:5, bossbane:4, armor:5, repair:4, barrier:4, phase:3,
     overdrive:4, prism:4, gravity:4, execution:4, pulse:4, mirror:3, capacitor:4,
     reactor:4, salvage:2
   };
@@ -3482,7 +3645,7 @@ window.GD_I18N_ROWS = [
   const UPGRADE_MAX = {
     weapon:7, damage:10, rapid:10, speed:10, pierce:5, magnet:6, explosive:5, homing:5,
     sideguns:3, orbitals:3, missiles:4, critical:5, chain:5, burn:5, ricochet:4, bossbane:5,
-    armor:5, repair:4, barrier:3, dash:4, phase:3, overdrive:5, prism:4, gravity:4,
+    armor:5, repair:4, barrier:3, phase:3, overdrive:5, prism:4, gravity:4,
     execution:4, pulse:4, mirror:4, capacitor:5, reactor:5, salvage:3, vampire:3
   };
 
@@ -3508,7 +3671,6 @@ window.GD_I18N_ROWS = [
     armor:'Reduces hull damage taken.',
     repair:'Periodic repairs restore hull.',
     barrier:'Raises the maximum number of shields.',
-    dash:'Movement periodically surges into an afterburn dash.',
     phase:'Periodic phase windows make you untouchable.',
     overdrive:'Kill streaks temporarily increase fire rate.',
     prism:'Adds a spectral prism and bonus shot damage.',
@@ -3540,32 +3702,43 @@ window.GD_I18N_ROWS = [
   // ---------- Roguelite meta-progression ----------
   // Cores persist across runs (localStorage) and buy permanent perks from the Hangar.
   const META_PERKS = {
-    hull:      { name:'FIELD REPAIRS',       desc:'Every boss you defeat restores +1 HP per level',   maxLevel:3, costBase:15,  costStep:15 },
-    thrusters: { name:'AFTERBURNERS',        desc:'+1 Speed Level at run start',                       maxLevel:2, costBase:15,  costStep:20 },
-    tractor:   { name:'TRACTOR BEAM',        desc:'+1 Magnet Level at run start (pickups fly to you)', maxLevel:2, costBase:15,  costStep:15 },
-    shieldcap: { name:'SHIELD CAPACITOR',    desc:'+1 max Shield charge (carry more shields)',         maxLevel:2, costBase:25,  costStep:25 },
-    cache:     { name:'SUPPLY DRONE',        desc:'+15% enemy drop rate per level',                    maxLevel:3, costBase:25,  costStep:25 },
-    salvage:   { name:'SALVAGE DRIVE',       desc:'+10% Cores earned per run',                         maxLevel:3, costBase:20,  costStep:20 },
-    targeting: { name:'TARGETING COMPUTER',  desc:'+1 Damage Level at run start',                      maxLevel:2, costBase:30,  costStep:35 },
-    reactor:   { name:'OVERCHARGED REACTOR', desc:'+1 Weapon Level at run start',                      maxLevel:2, costBase:25,  costStep:30 },
-    reroll:    { name:'SECOND OPINION',      desc:'Reroll your shrine choices once per level, each run', maxLevel:2, costBase:60, costStep:60 },
-    pathfinder:{ name:'PATHFINDER',          desc:'Wave shrines offer 4 upgrades instead of 3',        maxLevel:1, costBase:120, costStep:0 }
+    hull:      { name:'FIELD REPAIRS',       desc:'Every boss you defeat restores +1 HP per level',   maxLevel:3, costBase:60,  costStep:60 },
+    thrusters: { name:'AFTERBURNERS',        desc:'+1 Speed Level at run start',                       maxLevel:2, costBase:75,  costStep:75 },
+    tractor:   { name:'TRACTOR BEAM',        desc:'+1 Magnet Level at run start (pickups fly to you)', maxLevel:2, costBase:60,  costStep:60 },
+    shieldcap: { name:'SHIELD CAPACITOR',    desc:'+1 max Shield charge (carry more shields)',         maxLevel:2, costBase:110, costStep:110 },
+    cache:     { name:'SUPPLY DRONE',        desc:'+15% enemy drop rate per level',                    maxLevel:3, costBase:110, costStep:110 },
+    salvage:   { name:'SALVAGE DRIVE',       desc:'+10% Cores earned per run',                         maxLevel:3, costBase:90,  costStep:90 },
+    targeting: { name:'TARGETING COMPUTER',  desc:'+1 Damage Level at run start',                      maxLevel:2, costBase:140, costStep:140 },
+    reactor:   { name:'OVERCHARGED REACTOR', desc:'+1 Weapon Level at run start',                      maxLevel:2, costBase:120, costStep:120 },
+    reroll:    { name:'SECOND OPINION',      desc:'Reroll your shrine choices once per level, each run', maxLevel:2, costBase:180, costStep:180 },
+    pathfinder:{ name:'PATHFINDER',          desc:'Wave shrines offer 4 upgrades instead of 3',        maxLevel:1, costBase:300, costStep:0 },
+    banish:    { name:'PURGE PROTOCOL',      desc:'Permanently banish an unwanted card from a shrine, once per level, each run', maxLevel:2, costBase:170, costStep:170 }
   };
   function loadCores(){
-    const v = parseInt(localStorage.getItem('gd_cores') || '0', 10);
+    const v = parseInt(LS.getItem('gd_cores') || '0', 10);
     return isNaN(v) ? 0 : v;
   }
-  function saveCores(v){ localStorage.setItem('gd_cores', String(v)); }
+  function saveCores(v){ try{ LS.setItem('gd_cores', String(v)); }catch(e){} }
   function loadMeta(){
     try{
-      const raw = JSON.parse(localStorage.getItem('gd_meta') || '{}');
+      const raw = JSON.parse(LS.getItem('gd_meta') || '{}');
       const m = {};
       for(const k in META_PERKS) m[k] = Math.min(META_PERKS[k].maxLevel, Math.max(0, raw[k]||0));
       return m;
     }catch(e){ const m = {}; for(const k in META_PERKS) m[k] = 0; return m; }
   }
-  function saveMeta(m){ localStorage.setItem('gd_meta', JSON.stringify(m)); }
+  function saveMeta(m){ try{ LS.setItem('gd_meta', JSON.stringify(m)); }catch(e){} }
   let cores = loadCores();
+  // Economy rebalance migration: older development builds awarded far too many
+  // Cores. Compress existing test-era balances once so old saves do not bypass
+  // the intended progression curve. New saves are unaffected.
+  try{
+    if(LS.getItem('gd_core_economy_v2') !== '1'){
+      cores = Math.min(200, Math.floor(cores * 0.05));
+      saveCores(cores);
+      LS.setItem('gd_core_economy_v2','1');
+    }
+  }catch(e){}
   let metaPerks = loadMeta();
   function perkCost(key){
     const p = META_PERKS[key], lvl = metaPerks[key];
@@ -3603,7 +3776,7 @@ window.GD_I18N_ROWS = [
     },
 
     ember: {
-      name:'EMBER', desc:'Forged in fire. Engine flames swell with speed and fire-rate upgrades, embers rise as you level.', cost:40,
+      name:'EMBER', desc:'Forged in fire. Engine flames swell with speed and fire-rate upgrades, embers rise as you level.', cost:160,
       shapes:[ [[0,-1.0],[0.3,-0.3],[0.5,0.5],[0,0.8],[-0.5,0.5],[-0.3,-0.3]],
                [[0,-1.2],[0.34,-0.45],[0.9,0.35],[0.7,0.85],[0,0.5],[-0.7,0.85],[-0.9,0.35],[-0.34,-0.45]],
                [[0,-1.4],[0.3,-0.8],[0.5,-0.1],[0.85,0.6],[0.4,0.95],[0,0.6],[-0.4,0.95],[-0.85,0.6],[-0.5,-0.1],[-0.3,-0.8]] ],
@@ -3656,7 +3829,7 @@ window.GD_I18N_ROWS = [
     },
 
     glacier: {
-      name:'GLACIER', desc:'Living crystal. Ice shards sprout with every armour and barrier upgrade; a frost halo forms at high tiers.', cost:60,
+      name:'GLACIER', desc:'Living crystal. Ice shards sprout with every armour and barrier upgrade; a frost halo forms at high tiers.', cost:240,
       noBack:true,
       shapes:[ [[0,-1.1],[0.45,0],[0,0.7],[-0.45,0]],
                [[0,-1.2],[0.5,-0.3],[0.85,0.4],[0.5,0.85],[0,0.45],[-0.5,0.85],[-0.85,0.4],[-0.5,-0.3]],
@@ -3714,7 +3887,7 @@ window.GD_I18N_ROWS = [
     },
 
     venom: {
-      name:'VENOM', desc:'Toxic bio-hull. Spines multiply with every damage upgrade; acid drips from the wings at higher tiers.', cost:80,
+      name:'VENOM', desc:'Toxic bio-hull. Spines multiply with every damage upgrade; acid drips from the wings at higher tiers.', cost:320,
       noBack:true,
       shapes:[ [[0,-0.9],[0.5,-0.2],[0.45,0.6],[0,0.85],[-0.45,0.6],[-0.5,-0.2]],
                [[0,-1.1],[0.3,-0.5],[0.95,-0.1],[0.75,0.85],[0.3,0.55],[0,0.75],[-0.3,0.55],[-0.75,0.85],[-0.95,-0.1],[-0.3,-0.5]],
@@ -3777,7 +3950,7 @@ window.GD_I18N_ROWS = [
     },
 
     phantom: {
-      name:'PHANTOM', desc:'A ship half in another dimension. Afterimages multiply with tier, Phase and Dash; a void ring opens at the top.', cost:110,
+      name:'PHANTOM', desc:'A ship half in another dimension. Afterimages multiply with tier and Phase; a void ring opens at the top.', cost:440,
       shapes:[ [[0,-1.2],[0.25,0],[0.2,0.8],[0,0.55],[-0.2,0.8],[-0.25,0]],
                [[0,-1.25],[0.5,-0.2],[0.75,0.9],[0.2,0.5],[0,0.85],[-0.2,0.5],[-0.75,0.9],[-0.5,-0.2]],
                [[0,-1.45],[0.4,-0.6],[0.6,0.2],[0.5,1.0],[0,0.6],[-0.5,1.0],[-0.6,0.2],[-0.4,-0.6]] ],
@@ -3802,7 +3975,7 @@ window.GD_I18N_ROWS = [
       pal:{ hull1:'#3b2f66', hull2:'#4a3a85', hull3:'#5b47a8', glow:'#9b6bff', wing1:'#6a4bd6', wing2:'#8a6cff', wing3:'#b79cff',
             trim:'#e0c8ff', arc:'#b79cff', armor:'#b79cff', ring:'#8a6cff', crest:'#ffffff', halo:'#ff6bd6', engine:'#b98cff', bullet:'#c9a8ff', edge:'#c9a8ff' },
       back(c, r, t, L, fr, pal, hs, sk){
-        const g = Math.min(4, Math.floor((t+1)/2) + ((L.phase||0) ? 1 : 0) + ((L.dash||0) ? 1 : 0));
+        const g = Math.min(4, Math.floor((t+1)/2) + ((L.phase||0) ? 1 : 0));
         const ga = c.globalAlpha;
         c.shadowBlur = 0; c.fillStyle = pal.wing2;
         for(let k=g;k>=1;k--){
@@ -3832,7 +4005,7 @@ window.GD_I18N_ROWS = [
     },
 
     solar: {
-      name:'SOLAR', desc:'A star in a bottle. Corona rays multiply with weapon and reactor upgrades; the core ignites at high tiers.', cost:150,
+      name:'SOLAR', desc:'A star in a bottle. Corona rays multiply with weapon and reactor upgrades; the core ignites at high tiers.', cost:600,
       shapes:[ [[0,-1.0],[0.55,0.0],[0.85,0.6],[0,0.4],[-0.85,0.6],[-0.55,0.0]],
                [[0,-1.1],[0.5,-0.1],[1.0,0.7],[0,0.4],[-1.0,0.7],[-0.5,-0.1]],
                starShape(8, 1.15, 0.8) ],
@@ -3889,7 +4062,7 @@ window.GD_I18N_ROWS = [
     },
 
     tempest: {
-      name:'TEMPEST', desc:'Storm-forged. Lightning crawls over the wings and grows with every chain and critical upgrade.', cost:180,
+      name:'TEMPEST', desc:'Storm-forged. Lightning crawls over the wings and grows with every chain and critical upgrade.', cost:720,
       shapes:[ [[0,-1.2],[0.3,-0.2],[0.4,0.8],[0,0.5],[-0.4,0.8],[-0.3,-0.2]],
                [[0,-1.25],[0.28,-0.5],[1.0,0.1],[0.45,0.3],[0.62,0.9],[0,0.45],[-0.62,0.9],[-0.45,0.3],[-1.0,0.1],[-0.28,-0.5]],
                [[0,-1.4],[0.35,-0.6],[0.7,-0.5],[0.5,0.0],[1.05,0.2],[0.5,0.4],[0.6,1.0],[0,0.55],[-0.6,1.0],[-0.5,0.4],[-1.05,0.2],[-0.5,0.0],[-0.7,-0.5],[-0.35,-0.6]] ],
@@ -3944,7 +4117,7 @@ window.GD_I18N_ROWS = [
     },
 
     reaper: {
-      name:'REAPER', desc:'A crimson blade-ship. Scythe wings multiply with tier and damage; its eye opens as you grow.', cost:200,
+      name:'REAPER', desc:'A crimson blade-ship. Scythe wings multiply with tier and damage; its eye opens as you grow.', cost:800,
       noBack:true,
       shapes:[ [[0,-1.15],[0.2,-0.3],[0.35,0.7],[0,0.5],[-0.35,0.7],[-0.2,-0.3]],
                [[0,-1.2],[0.22,-0.35],[0.95,0.55],[0.35,0.5],[0.2,0.95],[0,0.6],[-0.2,0.95],[-0.35,0.5],[-0.95,0.55],[-0.22,-0.35]],
@@ -3998,7 +4171,7 @@ window.GD_I18N_ROWS = [
     },
 
     gaia: {
-      name:'GAIA', desc:'Living wood and light. Leaves unfurl with every armour and repair upgrade; a bloom halo opens at high tiers.', cost:230,
+      name:'GAIA', desc:'Living wood and light. Leaves unfurl with every armour and repair upgrade; a bloom halo opens at high tiers.', cost:920,
       noBack:true,
       shapes:[ [[0,-0.95],[0.4,-0.2],[0.4,0.5],[0,0.8],[-0.4,0.5],[-0.4,-0.2]],
                [[0,-1.1],[0.45,-0.45],[0.95,0.2],[0.6,0.85],[0,0.5],[-0.6,0.85],[-0.95,0.2],[-0.45,-0.45]],
@@ -4059,7 +4232,7 @@ window.GD_I18N_ROWS = [
     },
 
     aurum: {
-      name:'AURUM', desc:'Black and gold royalty. Golden plates orbit the hull, one more for every orbital cannon you own.', cost:260,
+      name:'AURUM', desc:'Black and gold royalty. Golden plates orbit the hull, one more for every orbital cannon you own.', cost:1040,
       shapes:[ [[0,-1.0],[0.45,-0.1],[0.3,0.7],[0,0.9],[-0.3,0.7],[-0.45,-0.1]],
                [[0,-1.15],[0.6,-0.2],[0.95,0.75],[0.4,0.5],[0,0.8],[-0.4,0.5],[-0.95,0.75],[-0.6,-0.2]],
                [[0,-1.3],[0.2,-1.0],[0.4,-1.3],[0.65,-0.3],[0.9,0.8],[0.35,0.55],[0,0.95],[-0.35,0.55],[-0.9,0.8],[-0.65,-0.3],[-0.4,-1.3],[-0.2,-1.0]] ],
@@ -4109,23 +4282,23 @@ window.GD_I18N_ROWS = [
   // ---------- Add-ons: shot colours ----------
   const SHOT_COLORS = {
     default: { name:'SKIN DEFAULT', desc:'Your ship\u2019s own shot colour.', cost:0,  color:null },
-    plasma:  { name:'PLASMA GREEN', desc:'Bright acid-green bolts.',            cost:30, color:'#66ffb2' },
-    ruby:    { name:'RUBY',         desc:'Deep red laser fire.',                cost:30, color:'#ff5c7a' },
-    ice:     { name:'ICE',          desc:'Pale frost-blue shots.',              cost:40, color:'#aef0ff' },
-    violet:  { name:'VOID VIOLET',  desc:'Shots from another dimension.',       cost:60, color:'#b58cff' },
-    gold:    { name:'GOLD',         desc:'Shots that look expensive.',          cost:90, color:'#ffd54a' },
-    rainbow: { name:'RAINBOW',      desc:'Every bullet cycles through colours.', cost:150, color:'rainbow' }
+    plasma:  { name:'PLASMA GREEN', desc:'Bright acid-green bolts.',            cost:90, color:'#66ffb2' },
+    ruby:    { name:'RUBY',         desc:'Deep red laser fire.',                cost:90, color:'#ff5c7a' },
+    ice:     { name:'ICE',          desc:'Pale frost-blue shots.',              cost:120, color:'#aef0ff' },
+    violet:  { name:'VOID VIOLET',  desc:'Shots from another dimension.',       cost:180, color:'#b58cff' },
+    gold:    { name:'GOLD',         desc:'Shots that look expensive.',          cost:270, color:'#ffd54a' },
+    rainbow: { name:'RAINBOW',      desc:'Every bullet cycles through colours.', cost:450, color:'rainbow' }
   };
   const SHOT_ORDER = ['default','plasma','ruby','ice','violet','gold','rainbow'];
   function loadShots(){
     try{
-      const raw = JSON.parse(localStorage.getItem('gd_shots') || '{}');
+      const raw = JSON.parse(LS.getItem('gd_shots') || '{}');
       const owned = Array.isArray(raw.owned) ? raw.owned.filter(k=>SHOT_COLORS[k]) : [];
       if(!owned.includes('default')) owned.unshift('default');
       return { owned, selected: owned.includes(raw.selected) ? raw.selected : 'default' };
     }catch(e){ return { owned:['default'], selected:'default' }; }
   }
-  function saveShots(v){ try{ localStorage.setItem('gd_shots', JSON.stringify(v)); }catch(e){} }
+  function saveShots(v){ try{ LS.setItem('gd_shots', JSON.stringify(v)); }catch(e){} }
   let shotState = loadShots();
   function shotColor(b){
     const c = SHOT_COLORS[shotState.selected].color;
@@ -4137,13 +4310,13 @@ window.GD_I18N_ROWS = [
 
   function loadSkins(){
     try{
-      const raw = JSON.parse(localStorage.getItem('gd_skins') || '{}');
+      const raw = JSON.parse(LS.getItem('gd_skins') || '{}');
       const owned = Array.isArray(raw.owned) ? raw.owned.filter(k => SKINS[k]) : [];
       if(!owned.includes('classic')) owned.unshift('classic');
       return { owned, selected: owned.includes(raw.selected) ? raw.selected : 'classic' };
     }catch(e){ return { owned:['classic'], selected:'classic' }; }
   }
-  function saveSkins(s){ try{ localStorage.setItem('gd_skins', JSON.stringify(s)); }catch(e){} }
+  function saveSkins(s){ try{ LS.setItem('gd_skins', JSON.stringify(s)); }catch(e){} }
   let skinState = loadSkins();
   function activeSkin(){ return SKINS[skinState.selected] || SKINS.classic; }
 
@@ -4172,9 +4345,10 @@ window.GD_I18N_ROWS = [
   // Every run rolls a Sector Anomaly (a rule twist), 4 featured Supply lines
   // (those upgrades drop far more often, nudging you toward a different build),
   // a random boss order, and every wave gets its own enemy theme/formation.
-  const RUN_DEFAULT = { hp:1, speed:1, fire:1, bulletSpeed:1, countAdd:0, interval:1, elite:1, drop:1, bossHp:1, waveMs:18000, bossEvery:5 };
+  const RUN_DEFAULT = { hp:1, speed:1, fire:1, bulletSpeed:1, countAdd:0, interval:1, elite:1, drop:1, bossHp:1, waveMs:18000, bossEvery:5, hazardBonusMult:1 };
   let RUN = Object.assign({}, RUN_DEFAULT);
   let runAnomaly = null, runFeatured = [], bossBag = [], lastBossKey = null, waveTheme = null, lastThemeKey = null;
+  let bannedTypes = new Set(); // upgrade types permanently banished from shrines this run
   let banners = [];
   const ANOMALIES = [
     { key:'swarm',  name:'SWARM SEASON', color:'#ffcf4a', desc:'More, weaker enemies. Richer drops.',            mods:{ hp:0.7, countAdd:1, drop:1.25 } },
@@ -4187,7 +4361,7 @@ window.GD_I18N_ROWS = [
     { key:'siege',  name:'LONG SIEGE',   color:'#69ff9d', desc:'Slow waves, bosses every 6 waves, bigger bosses.', mods:{ waveMs:23000, bossEvery:6, bossHp:1.2, drop:1.15 } }
   ];
   // Upgrades worth steering a build with (basic stat upgrades are always plentiful).
-  const FEATURE_POOL = ['sideguns','orbitals','missiles','critical','chain','burn','ricochet','armor','barrier','dash','phase',
+  const FEATURE_POOL = ['sideguns','orbitals','missiles','critical','chain','burn','ricochet','armor','barrier','phase',
     'prism','gravity','execution','pulse','mirror','capacitor','explosive','homing','pierce'];
   const WAVE_THEMES = [
     { key:'flood',    name:'DRONE FLOOD',  min:3,  boost:{drone:6},               countAdd:1 },
@@ -4225,8 +4399,13 @@ window.GD_I18N_ROWS = [
     neutralRun();
     // Daily runs use a fixed modifier combo (same anomaly for everyone, all day) so the
     // seeded RNG stream isn't consumed to pick it - keeps it decoupled from spawn order.
-    runAnomaly = dailyMode ? dailyAnomaly() : ANOMALIES[Math.floor(Math.random()*ANOMALIES.length)];
-    Object.assign(RUN, runAnomaly.mods);
+    // Normal runs are left neutral here on purpose: triggerHazardChoice() (shown right
+    // after) lets the player opt INTO a hazard for bonus Cores, instead of one being
+    // silently rolled for them.
+    if(dailyMode){
+      runAnomaly = dailyAnomaly();
+      Object.assign(RUN, runAnomaly.mods);
+    }
     runFeatured = [];
     bossBag = []; lastBossKey = null; lastThemeKey = null;
   }
@@ -4265,14 +4444,16 @@ window.GD_I18N_ROWS = [
     levels: {
       weapon:0, damage:0, rapid:0, speed:0, pierce:0, magnet:0, explosive:0, homing:0,
       sideguns:0, orbitals:0, missiles:0, critical:0, chain:0, burn:0, ricochet:0,
-      bossbane:0, armor:0, repair:0, barrier:0, dash:0, phase:0, overdrive:0, prism:0,
+      bossbane:0, armor:0, repair:0, barrier:0, phase:0, overdrive:0, prism:0,
       gravity:0, execution:0, pulse:0, mirror:0, capacitor:0, reactor:0, salvage:0, vampire:0
     },
     classes: { drone:false, nova:false, regen:false },
     droneAngle:0, droneTimer:0, novaTimer:0, regenTimer:0,
-    repairTimer:0, pulseTimer:0, dashTimer:0, phaseTimer:0, overdriveTimer:0,
+    repairTimer:0, pulseTimer:0, phaseTimer:0, overdriveTimer:0,
     capacitorShots:0, upgradeCount:0, shipTier:0, relics:{}, signatures:{},
-    power:null, pmods:{a:0,b:0,c:0}, powerTier:0, aegisTimer:0
+    power:null, pmods:{a:0,b:0,c:0}, powerTier:0, aegisTimer:0,
+    lastDirX:0, lastDirY:-1, comboDamageMult:1,
+    awakenedDmgMult:1, powerAwakened:false, banishes:0
   };
 
   const SHIP_TIER_UPGRADES = 2;
@@ -4283,7 +4464,7 @@ window.GD_I18N_ROWS = [
   function recomputeStats(){
     const L = player.levels;
     player.weaponLevel = 1 + L.weapon;
-    player.bulletDmg = 1 + L.damage*0.25 + L.prism*0.18 + L.reactor*0.12;
+    player.bulletDmg = (1 + L.damage*0.25 + L.prism*0.18 + L.reactor*0.12) * (player.awakenedDmgMult||1);
     player.fireRate = Math.max(70, BASE_FIRE_RATE * Math.pow(0.94, L.rapid) * (1 - Math.min(0.28,L.reactor*0.04)));
     player.baseSpeed = BASE_SPEED * Math.pow(1.06, L.speed) * (1 + L.reactor*0.025);
     player.pierce = L.pierce;
@@ -4315,17 +4496,19 @@ window.GD_I18N_ROWS = [
     player.levels={
       weapon:0,damage:0,rapid:0,speed:0,pierce:0,magnet:0,explosive:0,homing:0,
       sideguns:0,orbitals:0,missiles:0,critical:0,chain:0,burn:0,ricochet:0,bossbane:0,
-      armor:0,repair:0,barrier:0,dash:0,phase:0,overdrive:0,prism:0,gravity:0,execution:0,
+      armor:0,repair:0,barrier:0,phase:0,overdrive:0,prism:0,gravity:0,execution:0,
       pulse:0,mirror:0,capacitor:0,reactor:0,salvage:0,vampire:0
     };
     player.classes={drone:false,nova:false,regen:false}; player.relics={};
     player.upgradeCount=0; player.shipTier=0; player.signatures={};
     player.power=null; player.pmods={a:0,b:0,c:0}; player.powerTier=0; player.aegisTimer=0;
     player.droneAngle=0; player.droneTimer=0; player.novaTimer=0; player.regenTimer=0;
-    player.repairTimer=0; player.pulseTimer=0; player.dashTimer=0; player.phaseTimer=0;
+    player.repairTimer=0; player.pulseTimer=0; player.phaseTimer=0;
     player.overdriveTimer=0; player.ghostBoost=0; player.odOn=false; player.capacitorShots=0; player.missileTimer=0; player.signatureTimer=0; player.railTimer=0; player.shotsFired=0; player.kills=0; player.killStreak=0;
     player.shieldCharges=0; player.shieldMax=3; player.hp=3; player.maxHp=3; player.invuln=0; player.alive=true;
-    player.combo=0; player.comboTimer=0;
+    player.combo=0; player.comboTimer=0; player.comboDamageMult=1;
+    player.lastDirX=0; player.lastDirY=-1;
+    player.awakenedDmgMult=1; player.powerAwakened=false;
 
     // Every run starts with exactly 3 HP. Extra HP can only be found in-run.
     player.hp = player.maxHp;
@@ -4334,6 +4517,8 @@ window.GD_I18N_ROWS = [
     player.levels.damage += metaPerks.targeting;
     player.levels.magnet += metaPerks.tractor;
     player.rerolls = metaPerks.reroll;
+    player.banishes = metaPerks.banish;
+    bannedTypes = new Set();
     currentBlessing=null;
     rollRun();
     gameTime=0;
@@ -4343,7 +4528,53 @@ window.GD_I18N_ROWS = [
     updateHUD();
   }
 
-  // Start-of-run: choose 1 opening upgrade. Most of them point at a build route,
+  // Start-of-run: an opt-in risk/reward pick, Hades-Pact-of-Punishment style.
+  // Accepting a hazard applies its modifier for the whole run in exchange for
+  // a flat bonus to Cores earned; Standard Sector keeps the run unmodified.
+  function triggerHazardChoice(){
+    paused = true;
+    const list = document.getElementById('choiceList');
+    list.innerHTML = '';
+    document.getElementById('choiceTitle').textContent = T('CHOOSE A SECTOR');
+    document.getElementById('choiceSub').textContent = T('Hazards make the run harder, but pay bonus Cores when it ends.');
+    const options = shuffleInPlace(ANOMALIES.slice()).slice(0,3);
+    for(const a of options){
+      const btn = document.createElement('button');
+      btn.className = 'choiceBtn';
+      btn.style.borderColor = a.color; btn.style.boxShadow = '0 0 18px '+a.color+'44';
+      btn.innerHTML = '<div class="choiceName" style="color:'+a.color+'">'+T(a.name)+'</div>'+
+        '<div class="choiceDesc">'+T(a.desc)+'</div>'+
+        '<div class="choiceSynergy" style="color:#ffd66a">'+T('+25% CORES THIS RUN')+'</div>';
+      let done = false;
+      btn.addEventListener('click', ()=>{
+        if(done) return; done = true;
+        runAnomaly = a;
+        Object.assign(RUN, a.mods);
+        RUN.hazardBonusMult = 1.25;
+        closeChoice();
+        spawnBanner(T(a.name), T(a.desc), a.color);
+        sfx.unlock();
+        trackAchievement('hazard_5', 1);
+        triggerBlessingChoice();
+      });
+      list.appendChild(btn);
+    }
+    const safe = document.createElement('button');
+    safe.className = 'choiceBtn'; safe.style.borderColor = '#9db4ff'; safe.style.boxShadow = '0 0 18px #9db4ff44';
+    safe.innerHTML = '<div class="choiceName" style="color:#9db4ff">'+T('STANDARD SECTOR')+'</div>'+
+      '<div class="choiceDesc">'+T('No hazard, no bonus - a clean run.')+'</div>';
+    let doneS = false;
+    safe.addEventListener('click', ()=>{
+      if(doneS) return; doneS = true;
+      closeChoice();
+      triggerBlessingChoice();
+    });
+    list.appendChild(safe);
+    document.getElementById('choiceOverlay').classList.remove('hidden');
+    armInputGrace();
+  }
+
+  // Start of every run: choose 1 opening upgrade. Most of them point at a build route,
   // so the player starts steering the run from second one.
   function triggerBlessingChoice(){
     paused = true;
@@ -4379,6 +4610,7 @@ window.GD_I18N_ROWS = [
       list.appendChild(btn);
     }
     document.getElementById('choiceOverlay').classList.remove('hidden');
+    armInputGrace();
   }
   function closeChoice(){
     document.getElementById('choiceOverlay').classList.add('hidden');
@@ -4407,12 +4639,22 @@ window.GD_I18N_ROWS = [
     if(k==='arrowup'||k==='w') keys.up=false;
     if(k==='arrowdown'||k==='s') keys.down=false;
   });
-
   // Tracks the physical touch identifier independently of joy.id, so this
   // keeps working even if some future code path calls joyEnd() early (e.g.
   // to reset movement the instant a screen pops up) — that exact pattern
   // once broke this fix in another branch of this game.
   let capturedTouchId = null;
+  // When an overlay (upgrade choice, boss reward, game over...) pops up WHILE
+  // the player's finger is still down/moving on the joystick, the touchend
+  // forwarding below would otherwise fire an instant "click" on whatever
+  // card happens to be under the finger at that split second — which reads
+  // as a random accidental pick, since the player hasn't even seen the
+  // options yet. armInputGrace() opens a short window right after any such
+  // overlay appears during which that forwarding is suppressed: the touch
+  // just ends quietly (no click), and the player makes their real, deliberate
+  // tap afterward. Call this at every spot an overlay can appear mid-run.
+  let inputGraceUntil = 0;
+  function armInputGrace(){ inputGraceUntil = performance.now() + 500; }
 
   function joyStart(x,y,id){
     joy.active = true; joy.id = id;
@@ -4444,6 +4686,7 @@ window.GD_I18N_ROWS = [
     joy.active=false; joy.id=null; joy.dx=0; joy.dy=0;
   }
 
+  let lastJoyReleaseTime = -Infinity;
   joyZone.addEventListener('touchstart', e=>{
     e.preventDefault();
     if(joy.active) return;
@@ -4472,18 +4715,22 @@ window.GD_I18N_ROWS = [
         // overlay that can pop up mid-drag, not just the choice screen.
         const el = document.elementFromPoint(t.clientX, t.clientY);
         const btn = el && el.closest('button');
-        if(btn && !btn.disabled && !joyZone.contains(btn)) btn.click();
+        if(btn && !btn.disabled && !joyZone.contains(btn) && performance.now() >= inputGraceUntil) btn.click();
         capturedTouchId = null;
+        lastJoyReleaseTime = performance.now();
         joyEnd();
       }
     }
   }, {passive:false});
-  joyZone.addEventListener('touchcancel', ()=>{ capturedTouchId=null; joyEnd(); });
+  joyZone.addEventListener('touchcancel', ()=>{ capturedTouchId=null; lastJoyReleaseTime = -Infinity; joyEnd(); });
 
   let mouseJoyDown = false;
-  joyZone.addEventListener('mousedown', e=>{ mouseJoyDown=true; joyStart(e.clientX,e.clientY,'mouse'); });
+  joyZone.addEventListener('mousedown', e=>{
+    mouseJoyDown=true;
+    joyStart(e.clientX,e.clientY,'mouse');
+  });
   window.addEventListener('mousemove', e=>{ if(mouseJoyDown) joyMove(e.clientX,e.clientY); });
-  window.addEventListener('mouseup', ()=>{ if(mouseJoyDown){ mouseJoyDown=false; joyEnd(); } });
+  window.addEventListener('mouseup', ()=>{ if(mouseJoyDown){ mouseJoyDown=false; lastJoyReleaseTime = performance.now(); joyEnd(); } });
 
   // ---------- Enemy Scaling & Spawning ----------
   // Hard ceiling on live enemies. Waves 1-5 behave essentially as before (the
@@ -4617,6 +4864,11 @@ window.GD_I18N_ROWS = [
   function playerShoot(now){
     const L = player.levels;
     let rate = player.fireRate;
+    // FLOW: staying on a kill streak always runs your guns a little hotter,
+    // whether or not you've invested in the Overdrive upgrade - Flow was
+    // previously a pure scoreboard number with no effect on play itself.
+    const flowSteps = Math.min(2.5, Math.floor(player.combo/4)*0.5);
+    if(flowSteps>0) rate *= (1 - Math.min(0.22, flowSteps*0.09));
     // Overdrive: while you're on a kill streak your guns run hotter.
     if(L.overdrive && player.overdriveTimer>0 && player.killStreak>=4) rate *= (1 - Math.min(0.4, BAL.overdriveRate*L.overdrive));
     if(now - player.lastShot < rate) return;
@@ -4701,8 +4953,12 @@ window.GD_I18N_ROWS = [
     return (player.levels[t]||0) < (UPGRADE_MAX[t]||1);
   }
   function pickUpgradeType(){
+    // Only offer stats that actually have room to grow right now. If every
+    // stat, shield charge and life slot is already at its cap, there is
+    // nothing left to drop — return null and let the caller skip the drop
+    // entirely instead of forcing a guaranteed-MAXED pickup.
     const pool = STAT_DROPS.filter(canTake);
-    if(!pool.length) return 'shield';
+    if(!pool.length) return null;
     const total = pool.reduce((s,t)=>s+STAT_WEIGHTS[t],0);
     let r = Math.random()*total;
     for(const t of pool){
@@ -4722,11 +4978,16 @@ window.GD_I18N_ROWS = [
     // player has a build-defining power on top of the stats.
     const dropChance = (firstBossDefeated ? 0.05 : 0.11) * RUN.drop * (1 + 0.15*metaPerks.cache);
     if(Math.random() > dropChance) return;
+    const type = pickUpgradeType();
+    if(!type) return; // everything's already maxed - nothing to drop
     const golden = Math.random() < GOLDEN_CHANCE;
-    upgrades.push({ x, y, r: golden?15:12, type:pickUpgradeType(), vy:70, golden });
+    upgrades.push({ x, y, r: golden?15:12, type, vy:70, golden });
   }
   function spawnUpgradeForced(x,y){
-    upgrades.push({ x, y, r:12, type:pickUpgradeType(), vy:70 });
+    const type = pickUpgradeType();
+    if(!type) return false; // everything's already maxed - nothing to drop
+    upgrades.push({ x, y, r:12, type, vy:70 });
+    return true;
   }
 
   function grantUpgradeOnce(type){
@@ -4796,7 +5057,7 @@ window.GD_I18N_ROWS = [
     { key:'rail', name:'RAILGUN', short:'RAILGUN', color:'#ffe06a', req:{critical:3,capacitor:2}, desc:'Charged shots become piercing rail slugs.' },
     { key:'broadside', name:'BROADSIDER', short:'BROADSIDER', color:'#ffd36e', req:{sideguns:3}, desc:'Side guns evolve into a five-lane volley.' },
     { key:'inferno', name:'INFERNO', short:'INFERNO', color:'#ff7043', req:{burn:3,execution:2}, desc:'Burning kills ignite everything nearby.' },
-    { key:'ghost', name:'GHOST WALKER', short:'GHOST', color:'#a78bff', req:{phase:2,dash:2}, desc:'Dashing refreshes your phase window instantly.' },
+    { key:'ghost', name:'GHOST WALKER', short:'GHOST', color:'#a78bff', req:{phase:2,prism:2}, desc:'Phase windows and prism echoes overlap into a safer, stronger spectral build.' },
     { key:'kaleidoscope', name:'KALEIDOSCOPE', short:'KALEIDO', color:'#9ee7ff', req:{mirror:3,prism:2}, desc:'Mirror shots inherit the prism\u2019s full power.' },
     { key:'pinball', name:'PINBALL', short:'PINBALL', color:'#d7ff4a', req:{ricochet:3,pierce:2}, desc:'Every wall bounce detonates on nearby enemies.' }
   ];
@@ -4858,7 +5119,7 @@ window.GD_I18N_ROWS = [
       grant:{burn:3,execution:2}, bonus:{explosive:1}, feeds:['burn','execution','explosive','pierce','gravity'],
       mods:[{k:'a',name:'HOTTER FLAMES',desc:'+30% burn damage'},{k:'b',name:'FIRESTORM',desc:'+25% fire-spread radius'},{k:'c',name:'SLOW BURN',desc:'+30% burn duration'}] },
     { key:'ghost', name:'GHOST WALKER', color:'#a78bff', desc:'Dashing refreshes your phase window.',
-      grant:{phase:2,dash:2}, bonus:{overdrive:1}, feeds:['phase','dash','overdrive','critical','mirror'],
+      grant:{phase:2,prism:2}, bonus:{overdrive:1}, feeds:['phase','prism','overdrive','critical','mirror'],
       mods:[{k:'a',name:'SPECTRAL RAGE',desc:'+40% ghost damage bonus'},{k:'b',name:'LONG PHASE',desc:'+0.25s untouchable per phase'},{k:'c',name:'LINGERING HAUNT',desc:'Ghost bonus lasts 0.8s longer'}] },
     { key:'kaleidoscope', name:'KALEIDOSCOPE', color:'#9ee7ff', desc:'Mirror shots inherit the prism\u2019s full power.',
       grant:{mirror:3,prism:2}, bonus:{critical:1}, feeds:['mirror','prism','critical','pierce','homing'],
@@ -4869,6 +5130,109 @@ window.GD_I18N_ROWS = [
   ];
   // Two opening upgrades that lead to the same family never appear together.
   const POWER_ROUTE_GROUP = { missile:'m', arc:'a', nova:'n', aegis:'d', rail:'r', broadside:'b', inferno:'i', ghost:'g', kaleidoscope:'k', pinball:'p' };
+  // Awakening: once you've collected all three upgrade mods for your chosen Power at
+  // least once (any order), it evolves - a one-time capstone moment per run, on top of
+  // the normal a/b/c upgrades. Every Power gets +12% overall damage plus one thematic
+  // permanent stat bump.
+  const POWER_FUSIONS = {
+    missile:      { name:'MIRV BARRAGE \u2014 AWAKENED',      desc:'Warheads home in harder. Every missile salvo hunts smarter.',      stat:'homing',   amt:1 },
+    arc:          { name:'ARC STORM \u2014 AWAKENED',         desc:'Lightning chains one link further on every kill.',                 stat:'chain',     amt:1 },
+    nova:         { name:'NOVA RING \u2014 AWAKENED',         desc:'The orbital ring pulses harder and wider.',                        stat:'pulse',     amt:1 },
+    aegis:        { name:'AEGIS \u2014 AWAKENED',             desc:'Your shield regenerates a charge, permanently faster.',            stat:'repair',    amt:1 },
+    rail:         { name:'RAILGUN \u2014 AWAKENED',           desc:'Charged shots crit more often.',                                   stat:'critical',  amt:1 },
+    broadside:    { name:'BROADSIDER \u2014 AWAKENED',        desc:'Side-gun rounds punch through one more enemy.',                    stat:'pierce',    amt:1 },
+    inferno:      { name:'INFERNO \u2014 AWAKENED',           desc:'Burning enemies are more likely to detonate on death.',            stat:'explosive', amt:1 },
+    ghost:        { name:'GHOST WALKER \u2014 AWAKENED',      desc:'Your phase window runs measurably longer.',                        stat:'phase',     amt:1 },
+    kaleidoscope: { name:'KALEIDOSCOPE \u2014 AWAKENED',      desc:'Mirror echoes fire more often.',                                    stat:'mirror',    amt:1 },
+    pinball:      { name:'PINBALL \u2014 AWAKENED',           desc:'Shots get one extra wall bounce before they expire.',              stat:'ricochet',  amt:1 }
+  };
+  function checkPowerAwakening(){
+    if(player.powerAwakened || !player.power) return;
+    if((player.pmods.a||0)>=1 && (player.pmods.b||0)>=1 && (player.pmods.c||0)>=1){
+      player.powerAwakened = true;
+      const fusion = POWER_FUSIONS[player.power];
+      if(!fusion) return;
+      player.awakenedDmgMult = 1.12;
+      player.levels[fusion.stat] = Math.min(UPGRADE_MAX[fusion.stat], (player.levels[fusion.stat]||0) + fusion.amt);
+      recomputeStats();
+      sfx.classReward();
+      explode(player.x, player.y, currentPower().color, 60);
+      showUnlockFanfare(T(fusion.name), T(fusion.desc), {swatch: currentPower().color});
+      trackAchievement('awaken_power');
+    }
+  }
+
+  // ---------- Achievements ----------
+  // Lifetime progress, independent of any single run - persisted separately from
+  // Cores/meta perks so it survives even if the player never touches the hangar.
+  const ACHIEVEMENTS = [
+    { id:'first_boss',    name:'FIRST BLOOD',       desc:'Defeat your first boss.',                              reward:10 },
+    { id:'wave10',        name:'DEEP SPACE',        desc:'Reach wave 10 in a single run.',                       reward:15 },
+    { id:'wave20',        name:'DEEP SPACE II',     desc:'Reach wave 20 in a single run.',                       reward:25 },
+    { id:'wave30',        name:'INTO THE VOID',     desc:'Reach wave 30 in a single run.',                       reward:40 },
+    { id:'awaken_power',  name:'AWAKENED',          desc:'Fully awaken your chosen Power in one run.',           reward:20 },
+    { id:'apex_power',    name:'APEX MASTERY',      desc:'Max every upgrade of a single Power in one run.',      reward:50 },
+    { id:'banish_1',      name:'CURATOR',           desc:'Banish an unwanted upgrade from a shrine.',            reward:10 },
+    { id:'hazard_5',      name:'RISK TAKER',        desc:'Accept a sector hazard 5 times (lifetime).',           reward:20,  goal:5 },
+    { id:'bosses_25',     name:'BOSS HUNTER',       desc:'Defeat 25 bosses (lifetime).',                         reward:30, goal:25 },
+    { id:'cores_1000',    name:'STOCKPILE',         desc:'Earn 1000 Cores total (lifetime).',                    reward:25, goal:1000 },
+    { id:'daily_win',     name:'CREATURE OF HABIT', desc:'Complete a Daily Run.',                                reward:15 }
+  ];
+  function loadAchievements(){
+    try{
+      const raw = JSON.parse(LS.getItem('gd_achievements') || '{}');
+      return { unlocked: new Set(raw.unlocked || []), progress: raw.progress || {} };
+    }catch(e){ return { unlocked: new Set(), progress: {} }; }
+  }
+  function saveAchievements(){
+    try{ LS.setItem('gd_achievements', JSON.stringify({ unlocked:[...achState.unlocked], progress:achState.progress })); }catch(e){}
+  }
+  let achState = loadAchievements();
+  function trackAchievement(id, amount){
+    const def = ACHIEVEMENTS.find(a=>a.id===id);
+    if(!def || achState.unlocked.has(id)) return;
+    if(def.goal){
+      achState.progress[id] = (achState.progress[id]||0) + (amount||1);
+      if(achState.progress[id] < def.goal){ saveAchievements(); return; }
+    }
+    achState.unlocked.add(id);
+    cores += def.reward; saveCores(cores);
+    saveAchievements();
+    showUnlockFanfare(T(def.name), T(def.desc) + ' \u00B7 +' + def.reward + ' ' + T('CORES'), {tag:T('ACHIEVEMENT UNLOCKED'), swatch:'#ffd66a'});
+  }
+  function checkWaveAchievements(){
+    if(wave>=10) trackAchievement('wave10');
+    if(wave>=20) trackAchievement('wave20');
+    if(wave>=30) trackAchievement('wave30');
+  }
+  function renderAchievements(){
+    const list = document.getElementById('achievementsList');
+    list.innerHTML = '';
+    for(const a of ACHIEVEMENTS){
+      const unlocked = achState.unlocked.has(a.id);
+      const row = document.createElement('div');
+      row.style.cssText = 'border:1px solid '+(unlocked?'#ffd66a':'#3a4270')+'; border-radius:10px; padding:10px 12px; background:'+(unlocked?'rgba(255,214,106,0.08)':'rgba(255,255,255,0.03)')+';';
+      let progressLine = '';
+      if(a.goal && !unlocked){
+        const p = Math.min(a.goal, achState.progress[a.id]||0);
+        progressLine = '<div style="font-size:10.5px; color:#7f88b8; margin-top:4px;">'+p+' / '+a.goal+'</div>';
+      }
+      row.innerHTML = '<div style="display:flex; justify-content:space-between; align-items:center;">'+
+        '<div style="font-weight:800; font-size:13px; color:'+(unlocked?'#ffd66a':'#eef2ff')+';">'+(unlocked?'\u2605 ':'\u2606 ')+T(a.name)+'</div>'+
+        '<div style="font-size:11px; color:#ffcf4a;">+'+a.reward+'</div></div>'+
+        '<div style="font-size:11.5px; color:#aab2d8; margin-top:2px;">'+T(a.desc)+'</div>' + progressLine;
+      list.appendChild(row);
+    }
+  }
+  document.getElementById('achievementsBtn').addEventListener('click', ()=>{
+    renderAchievements();
+    document.getElementById('startScreen').classList.add('hidden');
+    document.getElementById('achievementsOverlay').classList.remove('hidden');
+  });
+  document.getElementById('achievementsBackBtn').addEventListener('click', ()=>{
+    document.getElementById('achievementsOverlay').classList.add('hidden');
+    document.getElementById('startScreen').classList.remove('hidden');
+  });
   const ROMAN = ['','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
   function currentPower(){ return player.power ? POWERS.find(p=>p.key===player.power) : null; }
   function pOn(k){ return player.power===k; }
@@ -4904,6 +5268,8 @@ window.GD_I18N_ROWS = [
     spawnPopup(player.x, player.y-34, T(m.name)+' '+ROMAN[player.pmods[m.k]], p.color);
     spawnPopup(player.x, player.y-18, T(m.desc), p.color);
     updateHUD();
+    checkPowerAwakening();
+    if(player.pmods.a>=POWER_MOD_MAX && player.pmods.b>=POWER_MOD_MAX && player.pmods.c>=POWER_MOD_MAX) trackAchievement('apex_power');
   }
   function growShip(n){
     player.upgradeCount += n;
@@ -4938,6 +5304,8 @@ window.GD_I18N_ROWS = [
   }
   function triggerBossRewardChoice(bossKind){
     paused = true;
+    trackAchievement('first_boss');
+    trackAchievement('bosses_25', 1);
     const list = document.getElementById('choiceList');
     list.innerHTML = '';
     const title = document.getElementById('choiceTitle'), sub = document.getElementById('choiceSub');
@@ -4973,6 +5341,7 @@ window.GD_I18N_ROWS = [
       }
     }
     document.getElementById('choiceOverlay').classList.remove('hidden');
+    armInputGrace();
   }
 
   // Every source of boss damage goes through here so Boss Hunter and Executioner apply to all of them.
@@ -5026,8 +5395,7 @@ window.GD_I18N_ROWS = [
     score += Math.round(baseScore * comboMult * (e.elite ? 2 : 1)) + player.levels.salvage*3;
     if(player.combo % 4 === 0) spawnPopup(player.x,player.y-48,T('FLOW x{n}', {n:comboMult.toFixed(1)}),'#fff06a');
     if(e.elite){
-      spawnUpgradeForced(e.x,e.y);
-      spawnPopup(e.x,e.y-e.r-12,T('ELITE CACHE'),'#ffcf4a');
+      if(spawnUpgradeForced(e.x,e.y)) spawnPopup(e.x,e.y-e.r-12,T('ELITE CACHE'),'#ffcf4a');
       explode(e.x,e.y,'#ffcf4a',24);
     }
     sfx.enemyDeath();
@@ -5039,7 +5407,10 @@ window.GD_I18N_ROWS = [
   }
   function processDeaths(){
     let guard = 0, any = true;
-    while(any && guard++ < 6){
+    // Cascading deaths (splitters/AoE/chain effects) can create more work while
+    // this pass is running. Keep a generous bounded guard so extreme chains
+    // finish reliably without ever becoming an unbounded loop.
+    while(any && guard++ < 16){
       any = false;
       for(const e of enemies){
         if(e.hp<=0 && !e.dead){ e.dead = true; any = true; rewardKill(e); }
@@ -5164,6 +5535,8 @@ window.GD_I18N_ROWS = [
       boss.color = boss.enrageColor;
       boss.attackTimer = Math.min(boss.attackTimer, 350);
       spawnPopup(boss.x, boss.y-boss.r-14, T('{name} ENRAGED!', {name:T(boss.name)}), boss.enrageColor);
+      const fx=document.getElementById('fxFlash'); fx.classList.remove('close','graze','golden'); void fx.offsetWidth; fx.classList.add('golden');
+      explode(boss.x,boss.y,boss.enrageColor,24);
     }
 
     if(boss.kind === 'warbringer'){
@@ -5321,6 +5694,7 @@ window.GD_I18N_ROWS = [
     enemies = [];
     document.getElementById('wrap').classList.remove('boss-alert');
     wave++;
+    checkWaveAchievements();
     waveTimer = 0;
     spawnTimer = 400;
     updateHUD();
@@ -5332,6 +5706,7 @@ window.GD_I18N_ROWS = [
     document.getElementById('waveVal').textContent = bossActive ? T('BOSS') : wave;
     document.getElementById('weaponVal').textContent = player.weaponLevel;
     const comboEl=document.getElementById('comboVal'); if(comboEl) comboEl.textContent=player.combo>0 ? ('x'+(1+Math.min(2.5,Math.floor(player.combo/4)*0.5)).toFixed(1)+' ['+player.combo+']') : '0';
+    const formEl=document.getElementById('formVal'); if(formEl) formEl.textContent=ROMAN[Math.max(1,player.shipTier+1)] || String(player.shipTier+1);
     const buildEl=document.getElementById('buildRow'); if(buildEl){
       const pw=currentPower();
       buildEl.innerHTML=(pw?'<span class="buildTag" style="color:'+pw.color+'">\u2605 '+T(pw.name)+' '+ROMAN[player.powerTier]+'</span>':'')+
@@ -5433,6 +5808,7 @@ window.GD_I18N_ROWS = [
         my=(keys.down?1:0)-(keys.up?1:0);
         const km=Math.hypot(mx,my); if(km>1){mx/=km;my/=km;}
       }
+      if(mx || my){ player.lastDirX = mx; player.lastDirY = my; }
       const spd = player.baseSpeed;
       player.x += mx * spd * dtS;
       player.y += my * spd * dtS;
@@ -5445,21 +5821,8 @@ window.GD_I18N_ROWS = [
         if(player.phaseTimer <= 0){
           player.phaseTimer = Math.max(6500, 10500-player.levels.phase*1000);
           player.invuln = Math.max(player.invuln, 900 + 250*pm('ghost','b'));
-          if(player.levels.phase>=2 && player.levels.dash>=2) player.ghostBoost = ghostMs();
+          if(player.levels.phase>=2) player.ghostBoost = ghostMs();
           spawnPopup(player.x,player.y-35,T('PHASED'),'#a78bff');
-        }
-      }
-      if(player.levels.dash && (Math.abs(mx)+Math.abs(my)>0.2)){
-        player.dashTimer -= dt;
-        if(player.dashTimer<=0){
-          player.dashTimer = Math.max(2200,4800-player.levels.dash*550);
-          const ghostBuild = player.levels.phase>=2 && player.levels.dash>=2;
-          player.invuln = Math.max(player.invuln, ghostBuild ? 900 + 250*pm('ghost','b') : 260);
-          if(ghostBuild){ player.phaseTimer = Math.min(player.phaseTimer, 500); player.ghostBoost = ghostMs(); }
-          player.x += mx*80; player.y += my*80;
-          player.x=Math.max(player.r,Math.min(W-player.r,player.x));
-          player.y=Math.max(TOP_MARGIN+player.r,Math.min(bottomLimit()-player.r,player.y));
-          explode(player.x,player.y, ghostBuild?'#a78bff':'#7dffb5', ghostBuild?14:8);
         }
       }
       if(player.levels.repair){
@@ -5604,6 +5967,7 @@ window.GD_I18N_ROWS = [
       if(waveTimer > RUN.waveMs){
         waveTimer = 0;
         wave++;
+        checkWaveAchievements();
         updateHUD();
         if(wave % RUN.bossEvery === 0){
           waveTheme = null;
@@ -5869,16 +6233,22 @@ window.GD_I18N_ROWS = [
           hitPlayer();
         }
       }
-      // Close call: a bullet passing just outside your hitbox without hitting you is
-      // the moment players replay in their head - give it a small flash/sound, once
-      // per bullet (and throttled overall, so a wall of bullets doesn't spam it).
+    }
+    // Close call: a bullet passing just outside your hitbox without hitting you is
+    // the moment players replay in their head - give it a small flash/sound, once
+    // per bullet (and throttled overall, so a wall of bullets doesn't spam it).
+    // Runs even while invulnerable so grazing a bullet mid-EVADE still counts -
+    // that's the moment the dash is actually meant to reward.
+    if(player.alive){
       const grazeBand = 16;
       for(const b of enemyBullets){
         if(b.grazed || b.y>=9000) continue;
         const d = Math.hypot(b.x-player.x, b.y-player.y);
         if(d < b.r + player.r + grazeBand){
           b.grazed = true;
-          if(now - lastGrazeAt > 220){ lastGrazeAt = now; triggerGraze(); }
+          if(now - lastGrazeAt > 220){
+            lastGrazeAt = now; triggerGraze();
+          }
         }
       }
     }
@@ -6122,9 +6492,13 @@ window.GD_I18N_ROWS = [
         c.beginPath(); c.arc(side*r*.72,r*.82*hs,3.5+Math.random()*1.5,0,Math.PI*2); c.fill();
       }
     }
-    if(L.dash){
-      c.fillStyle='#7dffb5'; c.shadowColor='#7dffb5'; c.shadowBlur=16;
-      c.beginPath(); c.moveTo(-r*.25,r*.95); c.lineTo(0,r*(1.6+L.dash*.1)); c.lineTo(r*.25,r*.95); c.closePath(); c.fill();
+
+    // Form-tier ring: a persistent visual read of progression, without adding HUD clutter.
+    if(tier>0){
+      c.strokeStyle=pal.glow; c.lineWidth=1.4; c.globalAlpha=0.38 + Math.min(.25,tier*.03);
+      c.shadowColor=pal.glow; c.shadowBlur=10;
+      c.beginPath(); c.arc(0,0,r*(1.45+tier*.035),-Math.PI*.78,-Math.PI*.22); c.stroke();
+      c.globalAlpha=1; c.shadowBlur=0;
     }
 
     // Skin growth effects that sit in front of the hull.
@@ -6167,7 +6541,7 @@ window.GD_I18N_ROWS = [
     if(t>=5){ L.orbitals = 1; }
     if(t>=6){ L.armor = 2; L.barrier = 1; L.prism = 1; L.damage = 3; }
     if(t>=7){ L.orbitals = 3; L.missiles = 3; L.reactor = 1; }
-    if(t>=8){ L.phase = 1; L.dash = 1; L.gravity = 1; }
+    if(t>=8){ L.phase = 1; L.gravity = 1; }
     return L;
   }
   function drawSkinPreview(cv, skinId, tier, fr){
@@ -6187,7 +6561,7 @@ window.GD_I18N_ROWS = [
   let fanfareTimer = null;
   function showUnlockFanfare(title, desc, opts){
     const overlay = document.getElementById('unlockFanfare');
-    document.getElementById('fanfareTag').textContent = T('NEW UNLOCK');
+    document.getElementById('fanfareTag').textContent = (opts && opts.tag) ? opts.tag : T('NEW UNLOCK');
     document.getElementById('fanfareTitle').textContent = title;
     document.getElementById('fanfareDesc').textContent = desc;
     const cv = document.getElementById('fanfareCanvas');
@@ -6218,6 +6592,9 @@ window.GD_I18N_ROWS = [
       cv.style.display = 'none';
     }
     sfx.unlock();
+    // Only the Hangar gets the blocking full-screen celebration; everywhere else it is a
+    // click-through toast so it can never eat touches during a run or over a choice card.
+    overlay.classList.toggle('toast', document.getElementById('hangarOverlay').classList.contains('hidden'));
     overlay.classList.add('show');
     if(fanfareTimer) clearTimeout(fanfareTimer);
     fanfareTimer = setTimeout(hideUnlockFanfare, 2400);
@@ -6542,7 +6919,15 @@ window.GD_I18N_ROWS = [
   }
 
   function gameOver(){
+    // The 500ms death timer can fire after the player already quit to the menu or
+    // started a new run - ignore it then. Also make sure no upgrade popup or pause
+    // screen is left open on top of the Game Over screen.
+    if(state !== 'playing' || player.alive) return;
     state = 'over';
+    paused = false;
+    document.getElementById('choiceOverlay').classList.add('hidden');
+    document.getElementById('pauseOverlay').classList.remove('show');
+    document.getElementById('pauseBtn').textContent = '\u23F8';
     sfx.gameOver();
     document.getElementById('fxEdge').classList.remove('overdrive');
 
@@ -6587,16 +6972,24 @@ window.GD_I18N_ROWS = [
         }
       }
       lastRun = { score, wave };
-      try{ localStorage.setItem('gd_lastrun', JSON.stringify(lastRun)); }catch(e){}
+      try{ LS.setItem('gd_lastrun', JSON.stringify(lastRun)); }catch(e){}
     }
 
-    const baseCores = Math.floor(score/40) + wave*3;
-    const earned = Math.round(baseCores * (1 + metaPerks.salvage*0.1));
+    // Cores are deliberately a slow meta-progression currency.  Score no longer
+    // converts directly into Cores, preventing high-damage runs from printing
+    // thousands of permanent currency. A typical run earns ~50-150; very deep
+    // runs can approach 200. Four bosses plus a couple of extra waves lands near 50.
+    const bossesDefeated = Math.max(0, Math.floor((wave - 1) / BOSS_EVERY));
+    const baseCores = Math.max(5, Math.floor(wave * 1.5 + bossesDefeated * 5));
+    const earned = Math.min(200, Math.round(baseCores * (1 + metaPerks.salvage*0.1) * (RUN.hazardBonusMult||1)));
     cores += earned;
     saveCores(cores);
-    document.getElementById('coresEarnedLine').textContent = T('+{n} CORES', {n:earned});
+    document.getElementById('coresEarnedLine').textContent = T('+{n} CORES', {n:earned}) + (RUN.hazardBonusMult>1 ? T(' (hazard bonus included)') : '');
+    trackAchievement('cores_1000', earned);
+    if(dailyMode) trackAchievement('daily_win');
 
     document.getElementById('overScreen').classList.remove('hidden');
+    armInputGrace();
   }
 
   function refreshStartScreenHighScore(){
@@ -6670,7 +7063,7 @@ window.GD_I18N_ROWS = [
         resetTimer = setTimeout(()=>{ resetArmed = false; if(!document.getElementById('settingsOverlay').classList.contains('hidden')) renderSettings(); }, 4000);
         renderSettings(); return;
       }
-      for(const k of ['gd_cores','gd_meta','gd_skins','gd_shots','gd_highscore','gd_bestwave','gd_lastrun','gd_daily_best','gd_daily_date']) localStorage.removeItem(k);
+      for(const k of ['gd_cores','gd_meta','gd_skins','gd_shots','gd_highscore','gd_bestwave','gd_lastrun','gd_daily_best','gd_daily_date']) LS.removeItem(k);
       location.reload();
     });
     rr.top.appendChild(rb);
@@ -6865,9 +7258,10 @@ window.GD_I18N_ROWS = [
   function triggerUpgradeChoice(){
     paused=true;
     const pw = currentPower();
-    let pool = UPGRADE_TYPES.filter(t=>!STAT_DROPS.includes(t) && canTake(t));
-    if(pool.length<3) pool = pool.concat(UPGRADE_TYPES.filter(t=>STAT_DROPS.includes(t) && canTake(t)));
-    if(pool.length<3) pool = UPGRADE_TYPES.slice();
+    let pool = UPGRADE_TYPES.filter(t=>!STAT_DROPS.includes(t) && canTake(t) && !bannedTypes.has(t));
+    if(pool.length<3) pool = pool.concat(UPGRADE_TYPES.filter(t=>STAT_DROPS.includes(t) && canTake(t) && !bannedTypes.has(t)));
+    if(pool.length<3) pool = UPGRADE_TYPES.filter(t=>!bannedTypes.has(t));
+    if(pool.length<3) pool = UPGRADE_TYPES.slice(); // every type banished (very unlikely) - lift the ban rather than show an empty shrine
     const types=[];
     const cardCount = metaPerks.pathfinder ? 4 : 3;
     while(types.length<cardCount && pool.length){
@@ -6923,7 +7317,35 @@ window.GD_I18N_ROWS = [
       rb.addEventListener('click',()=>{ if(rd) return; rd=true; player.rerolls--; triggerUpgradeChoice(); });
       list.appendChild(rb);
     }
+    // Banish: permanently strike one of THESE shown cards from the whole run's
+    // pool, without spending your pick - unlike reroll, this is about control,
+    // not luck. Small pill row, never nested inside the pick buttons themselves.
+    if(player.banishes > 0){
+      const wrap=document.createElement('div');
+      wrap.style.cssText='display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:6px;';
+      const label=document.createElement('div');
+      label.style.cssText='width:100%;text-align:center;font-size:10.5px;letter-spacing:1px;color:#ff9d9d;';
+      label.textContent=T('BANISH ONE ({n} left)', {n:player.banishes});
+      wrap.appendChild(label);
+      for(const type of types){
+        const pill=document.createElement('button');
+        pill.className='choiceBtn';
+        pill.style.cssText='min-height:0;padding:7px 12px;flex:0 0 auto;border-color:#ff9d9d;box-shadow:none;';
+        pill.innerHTML='<div class="choiceName" style="color:#ff9d9d;font-size:11px;">\u2715 '+T(UPGRADE_LABELS[type])+'</div>';
+        let pd=false;
+        pill.addEventListener('click',()=>{
+          if(pd) return; pd=true;
+          player.banishes--; bannedTypes.add(type);
+          spawnPopup(player.x, player.y-40, T('BANISHED: {name}', {name:T(UPGRADE_LABELS[type])}), '#ff9d9d');
+          trackAchievement('banish_1');
+          triggerUpgradeChoice();
+        });
+        wrap.appendChild(pill);
+      }
+      list.appendChild(wrap);
+    }
     document.getElementById('choiceOverlay').classList.remove('hidden');
+    armInputGrace();
   }
 
   document.getElementById('startBtn').addEventListener('click', ()=>{
@@ -6934,7 +7356,7 @@ window.GD_I18N_ROWS = [
     state = 'playing';
     setPaused(false);
     sfx.waveStart();
-    triggerBlessingChoice();
+    triggerHazardChoice();
   });
   document.getElementById('dailyBtn').addEventListener('click', ()=>{
     ensureAudio();
@@ -6946,6 +7368,15 @@ window.GD_I18N_ROWS = [
     sfx.waveStart();
     triggerBlessingChoice();
   });
+  document.getElementById('overMenuBtn').addEventListener('click', ()=>{
+    ensureAudio();
+    document.getElementById('overScreen').classList.add('hidden');
+    state = 'start';
+    exitDailyMode();
+    document.getElementById('fxEdge').classList.remove('overdrive');
+    document.getElementById('startScreen').classList.remove('hidden');
+    refreshStartScreenHighScore();
+  });
   document.getElementById('retryBtn').addEventListener('click', ()=>{
     ensureAudio();
     refreshStartScreenHighScore();
@@ -6954,7 +7385,7 @@ window.GD_I18N_ROWS = [
     state = 'playing';
     setPaused(false);
     sfx.waveStart();
-    triggerBlessingChoice();
+    if(dailyMode) triggerBlessingChoice(); else triggerHazardChoice();
   });
 
   player.x = W/2; player.y = bottomLimit() - 24;
